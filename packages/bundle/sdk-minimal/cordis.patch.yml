@@ -125,14 +125,14 @@
       disabled: !!js process.platform === 'win32'
       config:
         timeoutMs: 300000
-        description: |-
-          Run commands in a bash shell
-          * When invoking this tool, the contents of the "command" parameter does NOT need to be XML-escaped.
-          * Network access depends on the task environment. Prefer configured mirrors/proxies when they are available.
-          * State is persistent across command calls and discussions with the user.
-          * To inspect a particular line range of a file, e.g. lines 10-25, try 'sed -n 10,25p /path/to/the/file'.
-          * Please avoid commands that may produce a very large amount of output.
-          * Please run long lived commands in the background, e.g. 'sleep 10 &' or start a server in the background.
+        description: !!js >-
+          (process.platform === 'openharmony' ? 'Run commands in a zsh shell. Use zsh syntax.' : 'Run commands in a bash shell')
+          + "\n* When invoking this tool, the contents of the \"command\" parameter does NOT need to be XML-escaped."
+          + "\n* Network access depends on the task environment. Prefer configured mirrors/proxies when they are available."
+          + "\n* State is persistent across command calls and discussions with the user."
+          + "\n* To inspect a particular line range of a file, e.g. lines 10-25, try 'sed -n 10,25p /path/to/the/file'."
+          + "\n* Please avoid commands that may produce a very large amount of output."
+          + "\n* Please run long lived commands in the background, e.g. 'sleep 10 &' or start a server in the background."
 
     - id: persistent-pwsh
       name: '@deepseek-ai/dsh-tool-pwsh-persistent'

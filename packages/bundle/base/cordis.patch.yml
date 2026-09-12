@@ -183,6 +183,7 @@
     # on SIGINT/SIGTERM.
     - id: session-telemetry-otel
       name: '@deepseek-ai/dsh-session-telemetry-otel'
+      disabled: !!js process.platform === 'openharmony'
       config:
         mode: !!js process.env.DSH_TELEMETRY_MODE || 'FEEDBACK_ONLY'
         shutdownTimeoutMillis: 3000
@@ -208,7 +209,8 @@
     - id: sandbox-policy
       name: '@deepseek-ai/dsh-sandbox-policy'
       config:
-        mode: !!js process.env.DSH_PERMISSION_MODE ?? 'workspace-write'
+        mode: !!js >-
+          process.env.DSH_PERMISSION_MODE ?? (process.platform === 'openharmony' ? 'danger-full-access' : 'workspace-write')
         workspaceRoot: !!js process.cwd()
 
     - id: bash-sandbox
@@ -224,7 +226,8 @@
     - id: approval
       name: '@deepseek-ai/dsh-user-approval'
       config:
-        policy: !!js "(process.env.DSH_PERMISSION_MODE ?? 'workspace-write') === 'danger-full-access' ? 'never' : 'ask'"
+        policy: !!js >-
+          (process.env.DSH_PERMISSION_MODE ?? (process.platform === 'openharmony' ? 'danger-full-access' : 'workspace-write')) === 'danger-full-access' ? 'never' : 'ask'
 
     - id: permission
       name: '@deepseek-ai/dsh-permission-presets'

@@ -14,7 +14,8 @@
     "native/system",
     "native/system/packages/*",
     "apps/*",
-    "website"
+    "website",
+    "ohos/runtime"
   ],
   "scripts": {
     "build": "tsx scripts/build.ts",

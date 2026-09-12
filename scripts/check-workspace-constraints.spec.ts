@@ -5,6 +5,7 @@ import {
   checkDshFamilyVersion,
   checkExperimentalDependencyIsolation,
   checkExperimentalManifest,
+  checkWorkspaceManifest,
   expectedDshPackageFiles,
   type WorkspaceManifest,
 } from './check-workspace-constraints.ts'
@@ -132,6 +133,27 @@ describe('dsh family version coherence', () => {
 })
 
 describe('package payload constraints', () => {
+  it('requires the HarmonyOS system addon to name its adaptation source', () => {
+    const workspace: WorkspaceManifest = {
+      dir: 'native/system/packages/openharmony-arm64',
+      manifest: {
+        name: '@deepseek-ai/node-addon-system-openharmony-arm64',
+        version: '0.1.2',
+        publishConfig: { access: 'public' },
+        repository: {
+          type: 'git',
+          url: 'git+https://github.com/oheco/deepseek-harness.git',
+          directory: 'native/system/packages/openharmony-arm64',
+        },
+      },
+    }
+    expect(checkWorkspaceManifest(workspace)).toEqual([])
+    workspace.manifest.repository!.url = 'git+https://github.com/deepseek-ai/deepseek-harness.git'
+    expect(checkWorkspaceManifest(workspace)).toEqual([
+      'native/system/packages/openharmony-arm64/package.json: @deepseek-ai/node-addon-system-openharmony-arm64: published Landlock package repository must use git+https://github.com/oheco/deepseek-harness.git with directory native/system/packages/openharmony-arm64 for trusted publishing',
+    ])
+  })
+
   it('includes a declared profile patch without a package-name allowlist', () => {
     expect(expectedDshPackageFiles({
       name: '@deepseek-ai/dsh-private-profile',

@@ -77,6 +77,7 @@ function childEnvironment(spec: TerminalBackendSpawnSpec, dialect: ShellDialect)
     // bootstrap instead, and NO_COLOR keeps the renderer quiet.
     return { ...common, NO_COLOR: '1' }
   }
+  if (dialect === 'zsh') return { ...common, PS1: '', RPS1: '', NO_COLOR: '1' }
   return {
     ...common,
     PS1: CONTROLLED_PROMPT,
@@ -96,6 +97,10 @@ function childEnvironment(spec: TerminalBackendSpawnSpec, dialect: ShellDialect)
  */
 export const PWSH_PROMPT_SETUP =
   "function prompt { [Console]::Write([char]27 + ']133;D;' + [int]$LASTEXITCODE + [char]7); '" + CONTROLLED_PROMPT + "' }"
+
+/** zsh prompt wraps its completion marker as zero-width text, after ZLE cursor resets. */
+export const ZSH_PROMPT_SETUP =
+  `unsetopt PROMPT_SUBST PROMPT_SP; setopt NO_BEEP PROMPT_PERCENT; function precmd() { local dsh_exit=$?; PS1=$'%{\\033]133;D;'$dsh_exit$'\\007%}${CONTROLLED_PROMPT}'; RPS1=''; }; precmd_functions=()`
 
 function spawnArgv(ctx: Context, config: ResolvedConfig, policy: SandboxExecutionPolicy): string[] {
   const argv = [config.shellPath, ...config.shellArgs]
@@ -123,8 +128,8 @@ async function startupSession(
       await session.initialize(signal)
       return
     }
-    // pwsh cannot install its prompt from the environment. Write the prompt
-    // function through the session, pin UTF-8 output before user input, and
+    // zsh and pwsh install prompt hooks through the session before user input;
+    // pwsh also pins UTF-8 output. Both dialects
     // accept only backend stdin_read evidence; echoed setup source containing
     // the printable prompt is not readiness. Follow-up sends bridge silence
     // settlements during startup, while one absolute deadline bounds them.
@@ -132,7 +137,7 @@ async function startupSession(
     for (;;) {
       const first = viewport.length === 0
       startupOperation = session.startSend({
-        text: first ? ENCODING_PREAMBLE + PWSH_PROMPT_SETUP : '',
+        text: first ? (dialect === 'zsh' ? ZSH_PROMPT_SETUP : ENCODING_PREAMBLE + PWSH_PROMPT_SETUP) : '',
         submit: first,
         ...signal !== undefined ? { signal } : {},
       })
@@ -153,7 +158,7 @@ async function startupSession(
     races.push(aborted.promise)
   }
   let deadlineTimer: NodeJS.Timeout | undefined
-  if (dialect === 'pwsh') {
+  if (dialect !== 'bash') {
     const deadline = Promise.withResolvers<never>()
     deadlineTimer = setTimeout(() => {
       startupOperation?.cancel()

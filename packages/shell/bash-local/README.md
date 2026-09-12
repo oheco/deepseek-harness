@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-bash-local` is the default Bash executor for POSIX: every command runs as a fresh, non-login `bash -c` process with no rc files, so no shell state survives between calls. It applies configured budgets — working directory, timeout, output caps — to each command, classifies timeouts and cancellations, and returns bounded output with spill-file recovery when a stream overflows. Commands run with the harness process's own authority: this executor confines nothing, so compose `dsh-bash-sandbox` when commands need the sandbox capability. The model-facing `bash` tool talks to it once it is mounted.
+`dsh-bash-local` runs each command in a fresh, non-login shell (`zsh -f -c` on HarmonyOS, `bash -c` elsewhere), so no shell state survives between calls. It applies configured budgets — working directory, timeout, output caps — to each command, classifies timeouts and cancellations, and returns bounded output with spill-file recovery when a stream overflows. Commands run with the harness process's own authority: this executor confines nothing, so compose `dsh-bash-sandbox` when commands need the sandbox capability. The model-facing `bash` tool talks to it once it is mounted.
 
 ## Table of Contents
 
@@ -27,6 +27,8 @@ English | [中文](README.zh.md)
 
 Mount this executor when a composition needs Bash command execution on POSIX without confinement. It registers as `ctx.shell`, and the model-facing `bash` tool works over it immediately: an agent calls the tool, and the command runs as a fresh `bash -c` process with the budgets below.
 
+HarmonyOS defaults to `/usr/bin/zsh -f -c`; its commands use zsh syntax and still run in a fresh process for each call. `shellPath` and `shellArgs` configure the executable and arguments on every platform. Other POSIX defaults use `bash -c`.
+
 ### Minimal configuration
 
 Load the executor with the budgets you want; every field has a default, so the smallest composition is the plugin entry alone. The settings provider (when composed) layers a user section over this entry, so budgets can change at runtime without a reload (see [Adjusting budgets at runtime](#adjusting-budgets-at-runtime)).
@@ -41,6 +43,8 @@ Load the executor with the budgets you want; every field has a default, so the s
 
 | Field | Default | Meaning |
 |---|---|---|
+| `shellPath` | HarmonyOS `/usr/bin/zsh`; otherwise `bash` | Shell executable |
+| `shellArgs` | HarmonyOS `["-f", "-c"]`; otherwise `["-c"]` | Arguments before the command |
 | `cwd` | `process.cwd()` | Default working directory for commands |
 | `timeoutMs` | `120,000` | Default foreground timeout, in milliseconds |
 | `maxTimeoutMs` | `600,000` | Cap for per-call timeout overrides |

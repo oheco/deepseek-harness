@@ -301,6 +301,10 @@ Requires: `subprocess`
 ```ts config-catalog
 /** Plugin config (all optional — `static Config` supplies the defaults). */
 export interface Config {
+  /** Command interpreter; defaults to zsh on HarmonyOS and bash elsewhere. */
+  shellPath?: string
+  /** Interpreter arguments preceding the command; HarmonyOS defaults to `-f -c`. */
+  shellArgs?: string[]
   /** Default working directory for commands (default: process.cwd()). */
   cwd?: string
   /** Default foreground timeout in milliseconds. */
@@ -316,7 +320,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/shell/bash-local/src/index.ts:41`](../packages/shell/bash-local/src/index.ts)
+Source: [`packages/shell/bash-local/src/index.ts:42`](../packages/shell/bash-local/src/index.ts)
 
 <a id="deepseek-aidsh-bash-sandbox"></a>
 
@@ -1942,7 +1946,7 @@ export interface Config {
 export type JsonlCompression = 'zstd' | 'none'
 ```
 
-Source: [`packages/session/session-persistence-jsonl/src/index.ts:88`](../packages/session/session-persistence-jsonl/src/index.ts)
+Source: [`packages/session/session-persistence-jsonl/src/index.ts:89`](../packages/session/session-persistence-jsonl/src/index.ts)
 
 <a id="deepseek-aidsh-session-projection-cache"></a>
 
@@ -2620,11 +2624,11 @@ Requires: `terminals` · `sandboxPolicy` · `sessionProjections` · `subprocess`
 export interface Config {
   /** Backend registry type (default: `shell`). */
   backendType?: string
-  /** Interactive shell dialect (default: `bash`); selects the argv/env/startup defaults. */
+  /** Interactive shell dialect (HarmonyOS: `zsh`; other platforms: `bash`); selects the argv/env/startup defaults. */
   shellDialect?: ShellDialect
-  /** Interactive shell executable (default per dialect: `/bin/bash`, or the resolved pwsh). */
+  /** Interactive shell executable (default per dialect: `/bin/bash`, `/usr/bin/zsh`, or the resolved pwsh). */
   shellPath?: string
-  /** Shell arguments (default per dialect: bash `--noprofile --norc -i`, pwsh `-NoLogo -NoProfile`). */
+  /** Shell arguments (default per dialect: bash `--noprofile --norc -i`, zsh `-f -i`, pwsh `-NoLogo -NoProfile`). */
   shellArgs?: string[]
   /** Terminal rows. */
   rows?: number
@@ -2647,14 +2651,14 @@ export interface Config {
    * regain the foreground before `inferred_idle` settles; at least one `pollIntervalMs`.
    */
   handoffGraceMs?: number
-  /** Absolute bound for one send and the complete pwsh startup sequence. */
+  /** Absolute bound for one send and the complete zsh/pwsh startup sequence. */
   timeoutMs?: number
   /** Grace before teardown escalates to `SIGKILL`. */
   disposeGraceMs?: number
 }
 
 /** One supported interactive shell dialect. */
-export type ShellDialect = 'bash' | 'pwsh'
+export type ShellDialect = 'bash' | 'zsh' | 'pwsh'
 ```
 
 Source: [`packages/terminal/terminal-bash/src/config.ts:10`](../packages/terminal/terminal-bash/src/config.ts)
@@ -2742,7 +2746,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/shell/tool-bash-persistent/src/index.ts:435`](../packages/shell/tool-bash-persistent/src/index.ts)
+Source: [`packages/shell/tool-bash-persistent/src/index.ts:437`](../packages/shell/tool-bash-persistent/src/index.ts)
 
 <a id="deepseek-aidsh-tool-fs"></a>
 

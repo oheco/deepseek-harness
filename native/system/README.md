@@ -10,6 +10,8 @@ English | [中文](README.zh.md)
 
 Use the Linux `landlock-run` executable to confine subprocesses, or the `./flock` entry to acquire a POSIX write lock. Platform packages contain the precompiled binaries; consumer installation never builds native code. Landlock policy and Session lifecycle remain with callers.
 
+HarmonyOS ARM64 provides a signed Node-API v8 `system.node` for `./flock`, built with the native LLVM toolchain and selected by `process.platform === "openharmony"`. It has no Landlock launcher. Run `node native/system/scripts/build.ts --host-addon-only` from the repository root on HarmonyOS with `binary-sign-tool` in PATH.
+
 ## Table of Contents
 
 - [Use](#use)

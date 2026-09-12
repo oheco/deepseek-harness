@@ -43,6 +43,8 @@ kind: "package-reference"
 
 本执行器自身不携带任何沙箱配置：默认模式与工作区根目录来自 `ctx.sandboxPolicy`，runner 选择属于 `ctx.sandbox` 提供方。它自己的配置就是本地执行器的旋钮，逐字继承；生成的[配置目录](../../../docs/config-catalog.zh.md#deepseek-aidsh-bash-sandbox)是穷尽式真源。
 
+继承的 `shellPath` 和 `shellArgs` 配置在所有模式下选择内部解释器，包括受限执行。鸿蒙默认使用 zsh，其他平台默认使用 bash。
+
 ```yaml
 - id: sandbox
   name: '@deepseek-ai/dsh-sandbox-local'

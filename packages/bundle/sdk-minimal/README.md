@@ -27,6 +27,8 @@ Use `dsh --profile sdk-minimal` when an SDK client needs a small, explicit codin
 
 Launch the profile directly or select it from the Python SDK. Supply an explicit `DSH_HOME`, use a disposable workspace, and provide the model credential through `DEEPSEEK_API_KEY`.
 
+On HarmonyOS, the persistent `bash` tool runs `/usr/bin/zsh` and tells the model to use zsh syntax. Python 3 with `termios` is required to disable terminal echo; the profile retains its explicit `danger-full-access` policy.
+
 ```sh
 export DSH_HOME=/absolute/path/to/example-dsh-home
 dsh --profile sdk-minimal

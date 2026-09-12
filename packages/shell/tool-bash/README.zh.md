@@ -27,6 +27,8 @@ kind: "package-reference"
 
 在 agent 需要运行 bash 命令的任何组合中加载本插件：一旦挂载执行器提供方与 `dsh-shell-env` 注册表，它就注册 `bash` 工具，并在 `tools`、`shell`、`systemPrompt` 与 `shellEnv` 服务就绪之前保持等待。
 
+在鸿蒙上，工具名称保留为 `bash` 以兼容协议，其描述和命令参数明确要求 zsh 语法。本地执行器使用 `/usr/bin/zsh`；不会翻译 Bash 专用语法。
+
 ### 最小配置
 
 常用路径是执行器提供方、环境注册表与本工具；当 agent 需要后台运行命令时，再添加任务运行时。

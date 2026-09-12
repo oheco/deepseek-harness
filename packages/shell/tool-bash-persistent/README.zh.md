@@ -27,6 +27,8 @@ kind: "package-reference"
 
 在 agent 需要在命令之间保持 shell 状态的任何组合中加载本插件——例如长时间构建会话、已激活的环境，或为后续步骤导出变量的脚本。它注册 `bash` 工具，需要 `ctx.tools` 与 `ctx.terminals` 服务，并在执行时需要拥有者 agent 会话。
 
+在鸿蒙上，持久 shell 为 zsh，面向模型的描述会明确说明。由于宿主没有 `stty`，初始化会在自动化 PTY 内禁用 ZLE，并通过 Python 3 的 `termios` 禁用回显，因此 PATH 中需要 Python 3。状态跨调用保留，直到 shell 退出、重置或被 dispose。
+
 ### 何时选择
 
 当工作依赖跨调用状态时选择持久工具：一次性 `dsh-tool-bash` 调用无法记住 `cd` 或导出的变量。当每条命令都应从已知、干净的环境开始，或命令又短又独立时，选择一次性工具。这里不支持需要交互 stdin 的命令——读取输入的前台子进程会一直阻塞到命令超时——因此交互工作属于 terminal 工具。

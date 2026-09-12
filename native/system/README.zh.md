@@ -10,6 +10,8 @@ kind: "package-library"
 
 使用 Linux `landlock-run` 可执行文件限制子进程，或通过 `./flock` 入口获取 POSIX 写锁。平台包包含预编译二进制；消费方安装时不会构建原生代码。Landlock 策略与会话生命周期仍由调用方负责。
 
+鸿蒙 ARM64 通过原生 LLVM 工具链构建已签名的 Node-API v8 `system.node`，用于 `./flock`，由 `process.platform === "openharmony"` 选择。它不包含 Landlock 启动器。在鸿蒙的仓库根目录执行 `node native/system/scripts/build.ts --host-addon-only`，并确保 PATH 中有 `binary-sign-tool`。
+
 ## Table of Contents
 
 - [使用](#use)

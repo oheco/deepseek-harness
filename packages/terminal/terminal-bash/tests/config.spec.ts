@@ -40,6 +40,12 @@ describe('terminal-bash dialect resolution', () => {
     expect(shellArgs).toEqual(['--noprofile', '--norc', '-i'])
   })
 
+  it('defaults zsh to an interactive shell without user startup files', () => {
+    const resolved = resolveConfig({ shellDialect: 'zsh' })
+    expect(resolved.shellPath).toBe('/usr/bin/zsh')
+    expect(resolved.shellArgs).toEqual(['-f', '-i'])
+  })
+
   it('defaults pwsh argv to the interactive profile-free form and resolves the executable', () => {
     const resolved = resolveConfig({ backendType: 'shell', shellDialect: 'pwsh', rows: 24, cols: 80 })
     expect(resolved.shellDialect).toBe('pwsh')

@@ -104,7 +104,7 @@ Stage pipeline 终止于一份 prepared current artifact。[历史 Session 只�
 
 规范文件名编码 physical format generation：v0 使用 `session.jsonl[.zstd]`，正 generation 使用 `session.vN.jsonl[.zstd]`。Migration 不会移动、覆盖或删除任何 committed generation，并且只写最终 current target；中间版本只存在于 stage state。
 
-POSIX publication 使用 hard-link creation 加目录 sync；Windows 使用 no-overwrite、write-through 的 `MoveFileExW`。已有 target 只有在其已校验 migration prefix 等于 staged bytes 时才会被接受；任何 append tail 都属于 current-generation reader，而不是 migration winner verification。
+鸿蒙发布使用不替换目标的 `renameat2` 并同步目录；其他 POSIX 宿主使用硬链接创建并同步目录。Windows 使用 no-overwrite、write-through 的 `MoveFileExW`。已有 target 只有在其已校验 migration prefix 等于 staged bytes 时才会被接受；任何 append tail 都属于 current-generation reader，而不是 migration winner verification。
 
 既有 write handle 继续使用进程内 claim 与内核支持的跨进程 `SessionWriteLease`。仅 header 的 `stat` 与 `list` 可以转换受支持的历史 header，但不打开 body，也不发布 generation。Projection-cache record 会把 fold 绑定到 Session header 的 format version，使 cache row 不能绕过改变 event 基数的 migration。
 

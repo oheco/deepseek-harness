@@ -14,7 +14,7 @@ import { defineTool } from '@deepseek-ai/dsh-tools'
 // TODO: Replace the file-search advice; arbitrary command output need not come from a searchable file.
 const TRUNCATED_MESSAGE = '<response clipped><NOTE>To save on context only part of this file has been shown to you. You should retry this tool after you have searched inside the file with `grep -n` in order to find the line numbers of what you are looking for.</NOTE>'
 const LOST_PREFIX_MESSAGE = '<response clipped><NOTE>The beginning of this command output was dropped by the terminal scrollback limit. The following text is the earliest retained output.</NOTE>\n'
-const SHELL_RESET_MESSAGE = 'The persistent bash shell was reset; the next bash call starts from the workspace with a fresh current directory and environment.'
+const SHELL_RESET_MESSAGE = 'The persistent ' + ((process.platform as string) === 'openharmony' ? 'zsh' : 'bash') + ' shell was reset; the next bash call starts from the workspace with a fresh current directory and environment.'
 // Status trailer for a command that never reported an exit code; settled
 // commands append `[Command finished with exit code N]` instead (see renderCaptured).
 const TIMEOUT_STATUS_MARKER = '[Command timed out or OOM]'
@@ -24,7 +24,7 @@ const TIMEOUT_CODE = 'PERSISTENT_BASH_TIMEOUT'
 const SCROLLBACK_PAGE_LINES = 1_000
 const POLL_INTERVAL_MS = 25
 
-const DEFAULT_DESCRIPTION = 'Run commands in a persistent bash shell. State, including the current directory and exported environment variables, persists across calls for this agent.'
+const DEFAULT_DESCRIPTION = ((process.platform as string) === 'openharmony' ? 'Run commands in a persistent zsh shell. Use zsh syntax.' : 'Run commands in a persistent bash shell.') + ' State, including the current directory and exported environment variables, persists across calls for this agent.'
 
 interface ResolvedConfig {
   backendType: string
@@ -268,7 +268,9 @@ function persistentShells(ctx: Context, config: ResolvedConfig): PersistentShell
         // Echo suppression only: the prompt stays the backend's own, so the
         // backend's prompt-based readiness detection keeps working.
         const setup = ctx.terminals.startSend(owner, spawned.sessionId, {
-          text: 'stty -echo',
+          text: (process.platform as string) === 'openharmony'
+            ? 'unsetopt ZLE; python3 -c \'import termios; a=termios.tcgetattr(0); a[3] &= ~termios.ECHO; termios.tcsetattr(0,termios.TCSANOW,a)\''
+            : 'stty -echo',
           submit: true,
           signal: combinedSignal,
         })
@@ -408,7 +410,7 @@ function registerPersistentBash(ctx: Context, config: ResolvedConfig): void {
       command: {
         type: 'string',
         required: true,
-        description: 'The bash command to run. Relative path is preferred in the command.',
+        description: (process.platform as string) === 'openharmony' ? 'The zsh command to run. Relative path is preferred in the command.' : 'The bash command to run. Relative path is preferred in the command.',
       },
     },
     output: {

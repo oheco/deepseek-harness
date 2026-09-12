@@ -4,17 +4,17 @@ import z from '@deepseek-ai/schemastery'
 import { resolvePwshPath } from '@deepseek-ai/dsh-pwsh-local'
 
 /** One supported interactive shell dialect. */
-export type ShellDialect = 'bash' | 'pwsh'
+export type ShellDialect = 'bash' | 'zsh' | 'pwsh'
 
 /** Public plugin configuration. */
 export interface Config {
   /** Backend registry type (default: `shell`). */
   backendType?: string
-  /** Interactive shell dialect (default: `bash`); selects the argv/env/startup defaults. */
+  /** Interactive shell dialect (HarmonyOS: `zsh`; other platforms: `bash`); selects the argv/env/startup defaults. */
   shellDialect?: ShellDialect
-  /** Interactive shell executable (default per dialect: `/bin/bash`, or the resolved pwsh). */
+  /** Interactive shell executable (default per dialect: `/bin/bash`, `/usr/bin/zsh`, or the resolved pwsh). */
   shellPath?: string
-  /** Shell arguments (default per dialect: bash `--noprofile --norc -i`, pwsh `-NoLogo -NoProfile`). */
+  /** Shell arguments (default per dialect: bash `--noprofile --norc -i`, zsh `-f -i`, pwsh `-NoLogo -NoProfile`). */
   shellArgs?: string[]
   /** Terminal rows. */
   rows?: number
@@ -37,7 +37,7 @@ export interface Config {
    * regain the foreground before `inferred_idle` settles; at least one `pollIntervalMs`.
    */
   handoffGraceMs?: number
-  /** Absolute bound for one send and the complete pwsh startup sequence. */
+  /** Absolute bound for one send and the complete zsh/pwsh startup sequence. */
   timeoutMs?: number
   /** Grace before teardown escalates to `SIGKILL`. */
   disposeGraceMs?: number
@@ -54,6 +54,10 @@ export type ResolvedConfig = Omit<Required<Config>, 'shellDialect' | 'shellPath'
 export const DEFAULT_BASH_SHELL = '/bin/bash'
 /** Bash dialect default arguments (interactive, profile-free). */
 export const DEFAULT_BASH_ARGS = ['--noprofile', '--norc', '-i']
+/** HarmonyOS interactive zsh executable. */
+export const DEFAULT_ZSH_SHELL = '/usr/bin/zsh'
+/** Interactive zsh with user startup files disabled. */
+export const DEFAULT_ZSH_ARGS = ['-f', '-i']
 /** Pwsh dialect default arguments (interactive host, profile-free). */
 export const DEFAULT_PWSH_ARGS = ['-NoLogo', '-NoProfile']
 
@@ -67,23 +71,23 @@ export const DEFAULT_PWSH_ARGS = ['-NoLogo', '-NoProfile']
  * @returns the fully resolved configuration.
  */
 export function resolveConfig(config: Config): ResolvedConfig {
-  const shellDialect = config.shellDialect ?? 'bash'
+  const shellDialect = config.shellDialect ?? ((process.platform as string) === 'openharmony' ? 'zsh' : 'bash')
   return {
     ...(config as Required<Config>),
     shellDialect,
     shellPath: config.shellPath !== undefined && config.shellPath.length > 0
       ? config.shellPath
-      : (shellDialect === 'pwsh' ? resolvePwshPath() : DEFAULT_BASH_SHELL),
+      : (shellDialect === 'pwsh' ? resolvePwshPath() : shellDialect === 'zsh' ? DEFAULT_ZSH_SHELL : DEFAULT_BASH_SHELL),
     shellArgs: config.shellArgs !== undefined && config.shellArgs.length > 0
       ? config.shellArgs
-      : (shellDialect === 'pwsh' ? DEFAULT_PWSH_ARGS : DEFAULT_BASH_ARGS),
+      : (shellDialect === 'pwsh' ? DEFAULT_PWSH_ARGS : shellDialect === 'zsh' ? DEFAULT_ZSH_ARGS : DEFAULT_BASH_ARGS),
   }
 }
 
 /** Schemastery config exposed by the plugin. */
 export const Config: z<Config> = z.object({
   backendType: z.string().default('shell'),
-  shellDialect: z.union(['bash', 'pwsh'] as const).default('bash'),
+  shellDialect: z.union(['bash', 'zsh', 'pwsh'] as const).default((process.platform as string) === 'openharmony' ? 'zsh' : 'bash'),
   shellPath: z.string().required(false),
   shellArgs: z.array(z.string()).required(false),
   rows: z.number().default(40),

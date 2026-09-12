@@ -1,0 +1,7 @@
+# Real zsh execution through the shipped headless profile.
+
+- id: bash-sandbox
+  name: '@deepseek-ai/dsh-bash-sandbox'
+  config:
+    shellPath: !!js "process.platform === 'darwin' ? '/bin/zsh' : '/usr/bin/zsh'"
+    shellArgs: ['-f', '-c']

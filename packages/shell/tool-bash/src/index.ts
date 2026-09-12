@@ -70,7 +70,9 @@ function bashDescription(backgroundEnabled: boolean, escalationModes: readonly S
   const background = backgroundEnabled
     ? 'Set `run_in_background: true` for long-running commands: the call returns a job id immediately; read its output with `job_output` and stop it with `job_kill`.'
     : 'Background execution is not available; long-running commands must finish within the timeout.'
-  const base = 'Execute a bash command (`bash -c`) and return its stdout/stderr. '
+  const base = ((process.platform as string) === 'openharmony'
+    ? 'Execute a zsh command (`/usr/bin/zsh -f -c`) and return its stdout/stderr. Use zsh syntax. '
+    : 'Execute a bash command (`bash -c`) and return its stdout/stderr. ')
     + 'Each call runs in a fresh shell: no state (cwd, variables, functions) persists between calls — '
     + 'pass `workdir` instead of using `cd`. Non-zero exits are reported as `[exit code: N]`. '
     + `Current harness environment facts are exposed through managed \`$${DSH_ENV_PREFIX}*\` variables; inspect them when needed. `
@@ -242,7 +244,7 @@ export function apply(ctx: Context, config: Config = {}): void {
     name: 'bash',
     description: bashDescription(backgroundEnabled, escalationModes),
     parameters: {
-      command: { type: 'string', required: true, description: 'The bash command to execute.' },
+      command: { type: 'string', required: true, description: (process.platform as string) === 'openharmony' ? 'The zsh command to execute.' : 'The bash command to execute.' },
       description: {
         type: 'string',
         required: true,

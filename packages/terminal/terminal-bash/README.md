@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-terminal-bash` starts a persistent interactive shell under the deployment's sandbox policy: the session stays alive across tool calls, readiness for input is detected, and bounded line-oriented output is retained for reads. It provides the `shell` backend type and supports bash on POSIX and pwsh on Windows through a `shellDialect` setting. The same backend composes with local or remote execution worlds through the mounted subprocess provider. Full-screen terminal applications are outside its line-oriented contract.
+`dsh-terminal-bash` starts a persistent interactive shell under the deployment's sandbox policy: the session stays alive across tool calls, readiness for input is detected, and bounded line-oriented output is retained for reads. It provides the `shell` backend type and supports bash and zsh on POSIX and pwsh on Windows through a `shellDialect` setting. The same backend composes with local or remote execution worlds through the mounted subprocess provider. Full-screen terminal applications are outside its line-oriented contract.
 
 ## Table of Contents
 
@@ -26,6 +26,8 @@ English | [中文](README.zh.md)
 ## Use this package
 
 Mount this backend when a composition needs persistent shell sessions — state such as cwd, exported variables, functions, or running interactive children must survive across tool calls. It is the default `shell` type: a composition that mounts `@deepseek-ai/dsh-terminal` without it has no sessions to open.
+
+HarmonyOS defaults to the `zsh` dialect with `/usr/bin/zsh -f -i`. Its zero-width OSC prompt marker establishes shell readiness after foreground ownership returns. HarmonyOS process inspection exposes identity and foreground-group information, but no Linux syscall-wait probe; interactive programs without the controlled prompt use the silence and timeout tiers.
 
 ### When to choose it
 
@@ -51,7 +53,7 @@ Mount the terminal service, a subprocess provider, the sandbox and policy servic
 | Field | Default | Meaning |
 |---|---|---|
 | `backendType` | `shell` | Backend type registered on `ctx.terminals` |
-| `shellDialect` | `bash` | Interactive shell stack: `bash` or `pwsh` |
+| `shellDialect` | HarmonyOS `zsh`; otherwise `bash` | Interactive shell stack: `bash`, `zsh`, or `pwsh` |
 | `shellPath` / `shellArgs` | per dialect | Shell executable and arguments; empty selects the dialect defaults |
 | `maxReadBytes` | `262144` | Maximum UTF-8 bytes returned by one read or settled send |
 | `timeoutMs` | `30000` | Absolute bound on one send wait |
@@ -61,7 +63,7 @@ The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-a
 
 ### Shell dialects and readiness
 
-Both dialects expose the same readiness contract, so consumers are dialect-agnostic. A send settles when the shell is ready again: after the controlled prompt is verified, after the foreground process group provably waits on stdin (Linux), after output silence (`inferred_idle`), or at the absolute `timeoutMs`. An `inferred_idle` or `timeout` result does not prove the foreground command exited.
+All dialects expose the same readiness contract, so consumers are dialect-agnostic. A send settles when the shell is ready again: after the controlled prompt is verified, after the foreground process group provably waits on stdin (Linux), after output silence (`inferred_idle`), or at the absolute `timeoutMs`. An `inferred_idle` or `timeout` result does not prove the foreground command exited.
 
 ### Sandboxing and safe operation
 
@@ -96,7 +98,7 @@ One backend serves both dialects: bash and pwsh share the same session machinery
 
 ### Readiness model
 
-Three bounded tiers settle a send: exact stdin-wait evidence from the subprocess provider (Linux only), the verified private prompt marker with an exact printable tail, and output silence (`inferred_idle`); an absolute timeout always bounds the wait. Pwsh startup uses one deadline across its complete setup loop, so an `inferred_idle` follow-up does not restart the bound. Evidence collected before the provider write is discarded at the write boundary, a stdin wait that predates the write is not post-write readiness, and unknown foreground state is never a positive exact-idle signal.
+Three bounded tiers settle a send: exact stdin-wait evidence from the subprocess provider (Linux only), the verified private prompt marker with an exact printable tail, and output silence (`inferred_idle`); an absolute timeout always bounds the wait. Zsh and pwsh startup use one deadline across its complete setup loop, so an `inferred_idle` follow-up does not restart the bound. Evidence collected before the provider write is discarded at the write boundary, a stdin wait that predates the write is not post-write readiness, and unknown foreground state is never a positive exact-idle signal.
 
 ### Send cancellation and teardown
 
@@ -163,7 +165,7 @@ A standing-policy change appends a superseding runtime-context snapshot after re
 These limits define where the backend is a poor fit or needs special operational care. They are current package constraints, not a general shell comparison or a task backlog.
 
 - **Line-oriented output only** — a headless xterm maintains control-sequence state only for terminal-protocol replies. Returned output remains normalized to lines, and full-screen alternate-buffer interaction is unsupported.
-- **Readiness is heuristic without an exact tier** — exact stdin-wait detection depends on the mounted subprocess provider; providers that cannot prove it (macOS, Windows) settle on prompt-marker and silence/timeout readiness.
+- **Readiness is heuristic without an exact tier** — exact stdin-wait detection depends on the mounted subprocess provider; providers that cannot prove it (HarmonyOS, macOS, Windows) settle on prompt-marker and silence/timeout readiness.
 - **pwsh bootstrap in a constrained sandbox** — the prompt function and UTF-8 pin write through `[Console]::`, which the Windows ACL sandbox's read-only mode may deny. When that prevents marker readiness, startup rejects at `timeoutMs` instead of publishing an incomplete shell.
 - **Cleanup guarantees belong to the provider** — process-tree teardown is the `SubprocessTerminalHandle` contract, not this backend's.
 - **Sessions do not survive process exit** — a harness restart destroys every session.

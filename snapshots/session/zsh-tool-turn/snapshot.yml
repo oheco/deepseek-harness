@@ -1,0 +1,11 @@
+version: 1
+scenario: zsh-tool-turn
+profile: headless
+composition: zsh
+recording: authored
+header:
+  class: zsh
+  pin: true
+platform: posix
+workspace:
+  final: true

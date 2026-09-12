@@ -104,7 +104,7 @@ The Stage pipeline ends at one prepared current artifact. [Historical Session re
 
 Canonical filenames encode physical format generation: v0 is `session.jsonl[.zstd]` and positive generations use `session.vN.jsonl[.zstd]`. Migration never moves, replaces, or deletes a committed generation and writes only the final current target; intermediate versions exist only as stage state.
 
-POSIX publication uses hard-link creation plus directory sync. Windows uses no-overwrite, write-through `MoveFileExW`. An existing target is accepted only when its verified migration prefix equals the staged bytes; any append tail belongs to current-generation reading rather than migration winner verification.
+HarmonyOS publication uses no-replacement `renameat2` plus directory sync; other POSIX hosts use hard-link creation plus directory sync. Windows uses no-overwrite, write-through `MoveFileExW`. An existing target is accepted only when its verified migration prefix equals the staged bytes; any append tail belongs to current-generation reading rather than migration winner verification.
 
 Existing write handles retain the process-local claim and kernel-backed cross-process `SessionWriteLease`. Header-only `stat` and `list` translate supported historical headers without opening the body or publishing a generation. Projection-cache records bind their fold to the Session header's format version so a cache row cannot bypass a cardinality-changing migration.
 

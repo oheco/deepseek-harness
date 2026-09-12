@@ -27,6 +27,8 @@ This package gives an agent a `bash` tool whose cwd, exported variables, functio
 
 Load this plugin in any composition where the agent should keep shell state between commands — for example long build sessions, activated environments, or scripts that export variables for later steps. It registers the `bash` tool and requires the `ctx.tools` and `ctx.terminals` services plus an owning agent session at execution time.
 
+On HarmonyOS, the persistent shell is zsh and the model-facing description names zsh. Initialization disables ZLE within the automation PTY and uses Python 3 `termios` to disable echo, because the host has no `stty`. This requires Python 3 in PATH. State persists across calls until the shell exits, is reset, or is disposed.
+
 ### When to choose it
 
 Choose the persistent tool when work depends on cross-call state: a one-shot `dsh-tool-bash` call cannot remember a `cd` or an exported variable. Choose the one-shot tool when every command should start from a known, clean environment, or when the command is short and self-contained. Commands that need interactive stdin are unsupported here — a foreground child that reads input blocks until the command timeout — so interactive work belongs to the terminal tools.

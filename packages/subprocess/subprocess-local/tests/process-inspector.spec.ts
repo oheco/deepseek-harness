@@ -334,3 +334,20 @@ describe('macOS process inspector', () => {
     expect(() => createProcessInspector('freebsd', 'x64', fake.internals)).toThrow('unsupported on platform freebsd')
   })
 })
+
+describe('HarmonyOS process inspection', () => {
+  it('uses proc identities for foreground and cleanup without claiming syscall readiness', () => {
+    const fake = fakeInternals()
+    fake.files.set('/proc/100/stat', stat(100, 100, 100, 101, '500'))
+    fake.files.set('/proc/101/stat', stat(101, 101, 100, 101, '501', 100))
+    fake.dirs.set('/proc', ['100', '101'])
+    const inspector = createProcessInspector('openharmony', 'arm64', fake.internals)
+    expect(inspector.foregroundPgid(100)).toBe(101)
+    expect(inspector.isStdinWaiting(101, 100)).toBe(false)
+    expect(inspector.snapshot().tree(100)).toEqual([{ pid: 101, started: '501' }, { pid: 100, started: '500' }])
+    expect(inspector.isAlive({ pid: 101, started: '501' })).toBe(true)
+    fake.files.set('/proc/101/stat', stat(101, 101, 100, 101, '502', 100))
+    inspector.signalProcess({ pid: 101, started: '501' }, 'SIGKILL')
+    expect(fake.kills).toEqual([])
+  })
+})

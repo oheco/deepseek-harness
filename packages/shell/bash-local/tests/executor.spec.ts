@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, describe, expect, it, vi } from 'vitest'
@@ -409,5 +409,18 @@ describe('process lifecycle ownership (the subprocess service, not the executor)
     await trapping.done
     expect(trapping.status).toBe('killed')
     expect(trapping.signal).toBe('SIGKILL')
+  })
+})
+
+describe.skipIf(!existsSync('/usr/bin/zsh'))('LocalBashExecutor zsh configuration', () => {
+  it('executes zsh syntax with the configured interpreter and arguments', async () => {
+    const { ctx, bash } = await setup({ shellPath: '/usr/bin/zsh', shellArgs: ['-f', '-c'] })
+    try {
+      const result = await bash.run(bash.resolve({ command: 'typeset -a values=(alpha beta); print -r -- "$values[1]"' }))
+      expect(result.exitCode).toBe(0)
+      expect(result.stdout.text).toBe('alpha\n')
+    } finally {
+      await ctx.fiber.dispose()
+    }
   })
 })

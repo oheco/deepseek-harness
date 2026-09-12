@@ -39,6 +39,7 @@ const publicNativePackages = new Set([
   '@deepseek-ai/node-addon-system-darwin-x64',
   '@deepseek-ai/node-addon-system-linux-arm64',
   '@deepseek-ai/node-addon-system-linux-x64',
+  '@deepseek-ai/node-addon-system-openharmony-arm64',
 ])
 /** Deliberate source payloads whose exact bytes are part of the package's audit surface. */
 const publicationSourceAllowlist: Readonly<Record<string, readonly string[]>> = {
@@ -337,10 +338,13 @@ export function checkWorkspaceManifest({ dir, manifest }: WorkspaceManifest): st
       errors.push(`${label}: published Landlock package must set publishConfig.access to "public"`)
     }
     const expectedDirectory = dir
+    const expectedRepository = manifest.name === '@deepseek-ai/node-addon-system-openharmony-arm64'
+      ? 'git+https://github.com/oheco/deepseek-harness.git'
+      : repositoryUrl
     if (manifest.repository?.type !== 'git'
-      || manifest.repository.url !== repositoryUrl
+      || manifest.repository.url !== expectedRepository
       || manifest.repository.directory !== expectedDirectory) {
-      errors.push(`${label}: published Landlock package repository must use ${repositoryUrl} with directory ${expectedDirectory} for trusted publishing`)
+      errors.push(`${label}: published Landlock package repository must use ${expectedRepository} with directory ${expectedDirectory} for trusted publishing`)
     }
   } else if (isReleaseMemberDirectory(dir)) {
     // Release members state that they are publishable: npm refuses a private
@@ -494,7 +498,7 @@ export function checkExperimentalDependencyIsolation(manifests: readonly Workspa
     .filter(name => name !== undefined))
   const errors: string[] = []
   for (const { dir, manifest } of manifests) {
-    if (!standardReleaseMemberDirectory.test(dir) && dir !== 'python/sdk-runtime') continue
+    if (!standardReleaseMemberDirectory.test(dir) && dir !== 'python/sdk-runtime' && dir !== 'ohos/runtime') continue
     for (const section of runtimeDependencySections) {
       for (const name of Object.keys(manifest[section] ?? {})) {
         if (!experimentalNames.has(name)) continue
@@ -535,6 +539,7 @@ export function main(): void {
   const dependencyManifests = [
     ...manifests,
     { dir: 'python/sdk-runtime', manifest: readJson(join(root, 'python/sdk-runtime/package.json')) },
+    { dir: 'ohos/runtime', manifest: readJson(join(root, 'ohos/runtime/package.json')) },
   ]
   const errors = [
     ...checkRepositoryVersion(),

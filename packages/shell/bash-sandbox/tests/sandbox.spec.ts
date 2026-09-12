@@ -93,6 +93,23 @@ function executionPolicy(mode: SandboxMode, workspaceRoot = resolve(process.cwd(
 }
 
 describe('the provider hand-off', () => {
+  it.each(['read-only', 'workspace-write', 'danger-full-access'] as const)(
+    'uses the configured interpreter in %s mode', async (mode) => {
+      const { ctx, bash, calls } = await setup({ mode, shellPath: process.execPath, shellArgs: ['-e'] })
+      try {
+        const command = 'process.stdout.write("configured\\n")'
+        const result = await bash.run(bash.resolve({ command }))
+        expect(result.exitCode).toBe(0)
+        expect(result.stdout.text).toBe('configured\n')
+        expect(calls.map(call => call.argv)).toEqual(mode === 'danger-full-access'
+          ? []
+          : [[process.execPath, '-e', command]])
+      } finally {
+        await ctx.fiber.dispose()
+      }
+    },
+  )
+
   it('hands the provider the exact bash argv and the per-call policy, and runs the returned argv', async () => {
     const { bash, calls } = await setup()
     const result = await bash.run(bash.resolve({ command: 'echo \'a b\' "c\'d"' }))

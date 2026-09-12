@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-bash-local` 是 POSIX 上的默认 Bash 执行器：每条命令都以全新的非登录 `bash -c` 进程运行，不读取 rc 文件，因此调用之间不会残留任何 shell 状态。它会为每条命令应用已配置的预算——工作目录、超时、输出上限——对超时与取消进行分类，并在流溢出时返回有界输出与 spill 文件恢复。命令以 harness 进程自身的权限运行：本执行器不做任何隔离，需要沙箱能力时请组合 `dsh-bash-sandbox`。挂载后，面向模型的 `bash` 工具会与它对接。
+`dsh-bash-local` 为每条命令启动全新的非登录 shell（鸿蒙使用 `zsh -f -c`，其他平台使用 `bash -c`），因此调用之间不会残留任何 shell 状态。它会为每条命令应用已配置的预算——工作目录、超时、输出上限——对超时与取消进行分类，并在流溢出时返回有界输出与 spill 文件恢复。命令以 harness 进程自身的权限运行：本执行器不做任何隔离，需要沙箱能力时请组合 `dsh-bash-sandbox`。挂载后，面向模型的 `bash` 工具会与它对接。
 
 ## 目录
 
@@ -27,6 +27,8 @@ kind: "package-reference"
 
 当组合需要在 POSIX 上执行 Bash 命令且不需要隔离时，挂载此执行器。它注册为 `ctx.shell`，面向模型的 `bash` 工具会立即基于它工作：agent（智能体）调用工具，命令即以全新 `bash -c` 进程按下面的预算运行。
 
+鸿蒙默认使用 `/usr/bin/zsh -f -c`；命令采用 zsh 语法，每次调用仍创建新进程。所有平台均可通过 `shellPath` 和 `shellArgs` 配置程序与参数。其他 POSIX 平台默认使用 `bash -c`。
+
 ### 最小配置
 
 按你需要的预算加载执行器；每个字段都有默认值，因此最小的组合就是单独一个插件条目。当组合了设置提供方时，用户段会叠加在该条目之上，预算无需重载即可在运行时变更（见[运行时调整预算](#adjusting-budgets-at-runtime)）。
@@ -41,6 +43,8 @@ kind: "package-reference"
 
 | 字段 | 默认值 | 含义 |
 |---|---|---|
+| `shellPath` | 鸿蒙 `/usr/bin/zsh`；其他平台 `bash` | Shell 程序 |
+| `shellArgs` | 鸿蒙 `["-f", "-c"]`；其他平台 `["-c"]` | 命令之前的参数 |
 | `cwd` | `process.cwd()` | 命令的默认工作目录 |
 | `timeoutMs` | `120,000` | 默认前台超时，单位为毫秒 |
 | `maxTimeoutMs` | `600,000` | 每次调用超时覆盖值的上限 |

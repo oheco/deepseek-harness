@@ -1,6 +1,7 @@
 /**
  * Local Service Provider for the bash capability seam over the subprocess
- * capability seam. Public commands run as `bash -c` in a provider-managed range
+ * capability seam. Commands use `zsh -f -c` on HarmonyOS and `bash -c` elsewhere,
+ * in a provider-managed range
  * through `ctx.subprocess`; subclasses may reuse the same mechanics with an
  * explicit argv. This executor owns command defaulting, deadlines and cause
  * classification, the model-friendly terminal environment, and the model-facing
@@ -39,6 +40,10 @@ const DEFAULT_MAX_SPILL_BYTES = 64 * 1024 * 1024
 
 /** Plugin config (all optional — `static Config` supplies the defaults). */
 export interface Config {
+  /** Command interpreter; defaults to zsh on HarmonyOS and bash elsewhere. */
+  shellPath?: string
+  /** Interpreter arguments preceding the command; HarmonyOS defaults to `-f -c`. */
+  shellArgs?: string[]
   /** Default working directory for commands (default: process.cwd()). */
   cwd?: string
   /** Default foreground timeout in milliseconds. */
@@ -82,6 +87,7 @@ function assertPositiveFinite(name: string, value: number): void {
  */
 export function assertServiceableBashConfig(config: Config): void {
   const resolved = config as ResolvedConfig
+  if (resolved.shellPath.length === 0) throw new Error('bash-local: shellPath must be non-empty')
   assertPositiveFinite('timeoutMs', resolved.timeoutMs)
   assertPositiveFinite('maxTimeoutMs', resolved.maxTimeoutMs)
   assertPositiveFinite('maxOutputBytes', resolved.maxOutputBytes)
@@ -103,6 +109,8 @@ export class LocalBashExecutor extends ShellExecutor {
   static inject = ['subprocess']
 
   static Config: z<Config> = z.object({
+    shellPath: z.string().default((process.platform as string) === 'openharmony' ? '/usr/bin/zsh' : 'bash'),
+    shellArgs: z.array(z.string()).default((process.platform as string) === 'openharmony' ? ['-f', '-c'] : ['-c']),
     cwd: z.string(),
     timeoutMs: z.number().default(120_000),
     maxTimeoutMs: z.number().default(600_000),
@@ -211,7 +219,7 @@ export class LocalBashExecutor extends ShellExecutor {
   }
 
   async run(spec: ShellExecSpec): Promise<ShellRunResult> {
-    return this.runArgv(spec, ['bash', '-c', spec.command])
+    return this.runArgv(spec, [this.config.shellPath, ...this.config.shellArgs, spec.command])
   }
 
   /**
@@ -242,7 +250,7 @@ export class LocalBashExecutor extends ShellExecutor {
   }
 
   start(spec: ShellExecSpec): ShellProcess {
-    return this.startArgv(spec, ['bash', '-c', spec.command])
+    return this.startArgv(spec, [this.config.shellPath, ...this.config.shellArgs, spec.command])
   }
 
   /**
