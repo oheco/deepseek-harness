@@ -27,7 +27,9 @@ def prepare(root, output):
         metadata = json.loads((package / 'package.json').read_text())
         if (metadata['name'], metadata['version']) != (entry['name'], entry['version']):
             raise ValueError(f'build input identity mismatch: {archive}')
-        for binary in package.rglob('*.node'):
+        # pnpm also bundles unused addons for other hosts; copy mode uses its JavaScript path.
+        binaries = list(package.rglob('*.node')) if entry['origin'] == 'upstream OHOS binary' else []
+        for binary in binaries:
             if binary.read_bytes()[:4] != b'\x7fELF':
                 raise ValueError(f'expected ELF addon: {binary}')
             signed = binary.with_name(binary.name + '.signed')
