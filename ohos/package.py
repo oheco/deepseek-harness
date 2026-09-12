@@ -126,10 +126,12 @@ shutil.copyfile(root / 'ohos/README.md', package / 'README.md')
 shutil.copyfile(root / 'ohos/README.zh.md', package / 'README.zh.md')
 shutil.copyfile(root / 'pnpm-lock.yaml', package / 'pnpm-lock.source.yaml')
 shutil.copyfile(root / 'ohos/release.json', package / 'release.json')
+shutil.copyfile(root / 'tpr/ohos-build-tools/SOURCES.json', package / 'build-tools.json')
 (package / 'build-info.json').write_text(json.dumps({
     'source_dirty': bool(subprocess.check_output(['git', 'status', '--porcelain', '--untracked-files=normal'], cwd=root, text=True).strip()),
     'source_commit': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=root, text=True).strip(),
     'upstream_commit': release['upstream_commit'],
+    'native_build': json.loads((args.deployment.parent / 'native-build.json').read_text()),
     'package_version': release['version'],
     'lock_sha256': hashlib.sha256((root / 'pnpm-lock.yaml').read_bytes()).hexdigest(),
     'system_addon_sha256': hashlib.sha256(addon.read_bytes()).hexdigest(),

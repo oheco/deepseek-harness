@@ -18,6 +18,8 @@ JSONL first publication and generation publication use `renameat2(RENAME_NOREPLA
 
 The private HarmonyOS deployment manifest includes required workspace peers explicitly. Its production closure comes from the repository lockfile, while adapted node-pty, Koffi, sharp and ripgrep remain separately versioned npm dependencies. The launcher supplies the Node internal-module flag required by the existing HMR implementation. Package installation and process execution use the platform's actual file modes.
 
+The native release recipe fixes pnpm and platform-specific build inputs separately from the runtime closure. It signs private copies of upstream OHOS bindings and connects them to their exact locked consumers. Lightning CSS uses the same-version upstream WASM API because no matching OHOS native binding is available. Copy installation prevents signatures and build-only entry selection from changing the prepared pnpm store. Host, Client, Web and the system addon are built on HarmonyOS; upstream build-tool binaries and WASM remain explicit external compilation inputs.
+
 ## Alternatives considered
 
 **Treat HarmonyOS as Linux.** The native module names, missing sandbox substrate, missing syscall records and hard-link failures make Linux detection insufficient. Platform-specific dispatch preserves other hosts' implementations.

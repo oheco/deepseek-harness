@@ -1,11 +1,11 @@
 {
-  "version": "0.1.5-rc.2-ohos.1",
+  "version": "0.1.5-rc.2-ohos.2",
   "upstream_version": "0.1.5-rc.2",
   "upstream_commit": "c291e7961a515f6d7af9304e7fd1d257929aef26",
   "dependencies": {
     "node-pty": "1.2.0-beta.15-ohos.1",
     "koffi": "3.1.1-ohos.1",
     "sharp": "0.35.3-ohos.1",
-    "@vscode/ripgrep": "1.18.0-ohos.1"
+    "@vscode/ripgrep": "1.18.0-ohos.2"
   }
 }

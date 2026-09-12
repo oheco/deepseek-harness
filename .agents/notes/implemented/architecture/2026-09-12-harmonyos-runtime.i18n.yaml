@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-12-harmonyos-runtime.md
-2026-09-12-harmonyos-runtime.md: 19074b9818ea00f516cd1b2ced61d7deb0ddc175
-2026-09-12-harmonyos-runtime.zh.md: 7f290397c4587a9ccc0b44ba6436c4837fd6b0bc
+2026-09-12-harmonyos-runtime.md: a04cca6563d6d623de8132805aa8e1a4534a19b6
+2026-09-12-harmonyos-runtime.zh.md: a586d9f2870c062ce9b9ea6fca6dcd70ff6c76f4
