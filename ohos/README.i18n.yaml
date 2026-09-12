@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write ohos/README.md
-README.md: 871c3a290e26d8c79a7162d7e76b778773e16b6e
-README.zh.md: e61e882fbd2da65efe209f029ee2eeb8677cad3a
+README.md: 3b50f514eed3d148aa45e9cc1dc304f6e777c60f
+README.zh.md: 45a5c3f8834adb40aade8bd0a774b5366e4b6a21

@@ -36,6 +36,8 @@ python3 ohos/build.py --store /absolute/path/to/prepared-pnpm-store --output /ab
 python3 ohos/package.py --deployment /absolute/path/to/fresh-build/deployment --output /absolute/path/to/fresh-release
 ```
 
+构建脚本先核对 `release.json` 中已审查源码锁文件的 SHA-256，再使用 pnpm 的 `trust-lockfile` 模式，避免 pnpm 11 在离线安装或部署时发起联网策略验证。锁文件变化后，必须先准备输入并审查策略，才能更新该固定摘要。
+
 构建在鸿蒙上编译系统扩展和 Host/Client/Web 产物，再离线部署生产依赖闭包。Lightning CSS 1.32.0 使用同版本上游 WASM API 构建 CSS Modules 和前端。Esbuild 使用上游 WASM；Rolldown、Rollup 和 Oxc Resolver 使用官方鸿蒙二进制并在本机签名。此构建流程不从源码重建这些构建工具。固定输入缺失或变化时，构建失败。
 
 打包保留已签名系统扩展，并在 `build-info.json` 中记录原生构建来源、源码提交、锁文件摘要、扩展摘要和内置包版本。仅发布从已验收的干净提交构建的归档。oo 安装时，npm 不运行依赖构建脚本。

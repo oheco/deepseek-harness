@@ -7,5 +7,6 @@
     "koffi": "3.1.1-ohos.1",
     "sharp": "0.35.3-ohos.1",
     "@vscode/ripgrep": "1.18.0-ohos.2"
-  }
+  },
+  "source_lock_sha256": "71bf36f0e63d15ad17da9f9200c6346937aeaea17e309d66dc89e45d1b955b43"
 }

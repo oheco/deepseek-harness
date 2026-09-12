@@ -21,6 +21,9 @@ if shutil.which('binary-sign-tool') is None:
     parser.error('binary-sign-tool missing; check the LLVM tools PATH')
 if (root / 'node_modules').exists():
     parser.error('use a fresh source checkout without node_modules')
+release = json.loads((root / 'ohos/release.json').read_text())
+if hashlib.sha256((root / 'pnpm-lock.yaml').read_bytes()).hexdigest() != release['source_lock_sha256']:
+    parser.error('source lockfile differs from the reviewed release input; prepare and review new inputs first')
 output = args.output.resolve()
 output.mkdir(parents=True, exist_ok=False)
 packages = prepare(root, output / 'tools')
@@ -34,6 +37,7 @@ env = dict(os.environ, PATH=str(output / 'bin') + ':' + os.environ['PATH'],
            TMPDIR=str(output / 'tmp'), CI='true',
            pnpm_config_store_dir=str(args.store.resolve()), pnpm_config_offline='true',
            pnpm_config_script_shell='/usr/bin/zsh', pnpm_config_package_import_method='copy',
+           pnpm_config_trust_lockfile='true',
            pnpm_config_manage_package_manager_versions='false', pnpm_config_update_notifier='false')
 
 
@@ -41,7 +45,7 @@ def run(*command):
     subprocess.run(list(map(str, command)), cwd=root, env=env, check=True)
 
 
-run('pnpm', 'install', '--offline', '--frozen-lockfile', '--ignore-scripts')
+run('pnpm', 'install', '--offline', '--frozen-lockfile', '--ignore-scripts', '--trust-lockfile')
 connect(root, packages)
 run('pnpm', 'run', 'build')
 run('pnpm', '--filter', 'dsh-ohos-runtime', 'deploy', '--prod', '--offline', '--ignore-scripts',

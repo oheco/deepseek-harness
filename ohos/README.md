@@ -36,6 +36,8 @@ python3 ohos/build.py --store /absolute/path/to/prepared-pnpm-store --output /ab
 python3 ohos/package.py --deployment /absolute/path/to/fresh-build/deployment --output /absolute/path/to/fresh-release
 ```
 
+The recipe checks the reviewed source lockfile SHA-256 in `release.json` before using pnpm's `trust-lockfile` mode. This prevents pnpm 11 from starting online policy verification during offline installation or deployment. Changed lockfiles require input preparation and policy review before updating that pin.
+
 The build compiles the system addon and Host/Client/Web outputs on HarmonyOS, then deploys the production closure offline. Lightning CSS 1.32.0 uses the same-version upstream WASM API for CSS Modules and frontend builds. Esbuild uses upstream WASM; Rolldown, Rollup and Oxc Resolver use official OHOS binaries signed locally. These build tools are not rebuilt from source by this recipe. Missing or changed fixed inputs fail the build.
 
 Packaging preserves the signed system addon and records native build provenance, source commit, lockfile hash, addon hash and bundled package versions in `build-info.json`. Publish only archives built from the accepted clean commit. npm runs no dependency build scripts during oo installation.
