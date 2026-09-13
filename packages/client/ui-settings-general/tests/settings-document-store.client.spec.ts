@@ -61,9 +61,10 @@ describe('SettingsDocumentStore', () => {
   })
 
   it('publishes the revealed path where the Host has no native opener, and dismisses it', async () => {
-    const openDocument = vi.fn(() => Promise.resolve({
-      ok: true as const,
-      value: { opened: false as const, path: '/home/u/.dsh/settings.yaml' },
+    type OpenValue = { opened: true } | { opened: false; path: string }
+    const openDocument = vi.fn((): Promise<RemoteResult<OpenValue>> => Promise.resolve({
+      ok: true,
+      value: { opened: false, path: '/home/u/.dsh/settings.yaml' },
     }))
     const controller = derivedDocumentStore({
       settings: { describe: () => Promise.resolve(response(true)), openSettingsDocument: openDocument },
@@ -76,7 +77,7 @@ describe('SettingsDocumentStore', () => {
     controller.dismissPath()
     expect(controller.store.getSnapshot().revealedPath).toBeNull()
     // A later native open publishes no path.
-    openDocument.mockResolvedValue({ ok: true as const, value: { opened: true as const } })
+    openDocument.mockResolvedValue({ ok: true, value: { opened: true } })
     await controller.open()
     expect(controller.store.getSnapshot().revealedPath).toBeNull()
   })
