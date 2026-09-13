@@ -253,6 +253,18 @@ describe('the settings Remote namespace a configuration page calls', () => {
     expect(openTextFile).toHaveBeenCalledWith('/tmp/settings.yaml', signal)
   })
 
+  it('reveals the provider-owned path when this host has no native opener', async () => {
+    const ctx = new Context()
+    await ctx.plugin(DocumentSettings)
+    vi.spyOn(ctx.settings, 'prepareDocument').mockResolvedValue('/tmp/settings.yaml')
+    const openTextFile = vi.fn((_path: string, _signal: AbortSignal) => Promise.resolve())
+    const controller = new SettingsController(ctx, { nativeOpen: false }, { openTextFile })
+
+    await expect(controller.openSettingsDocument(new AbortController().signal))
+      .resolves.toEqual({ opened: false, path: '/tmp/settings.yaml' })
+    expect(openTextFile).not.toHaveBeenCalled()
+  })
+
   it('preserves settings-document absence, failure, and cancellation', async () => {
     const absent = await boot()
     const missingDocument = absent.controller.openSettingsDocument(new AbortController().signal)

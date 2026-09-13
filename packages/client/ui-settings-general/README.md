@@ -33,7 +33,7 @@ The General section holds rows registered into `settings.general.item` by featur
 
 ### Opening the configuration file
 
-On a loopback browser, the shell renders **Open configuration file** only when the Host confirms that a provider-owned local document can be prepared. The action opens that document in the native text editor (bypassing the browser file association on macOS). Remote browsers never register the action and never issue the privileged settings read.
+On a loopback browser, the shell renders **Open configuration file** only when the Host confirms that a provider-owned local document can be prepared. The action opens that document in the native text editor (bypassing the browser file association on macOS). Where the Host has no native opener, the action answers with the provider-owned path and shows it in a dialog with a copy control, so the user can open it in an editor of their own. Remote browsers never register the action and never issue the privileged settings read.
 
 ### Onboarding steps
 

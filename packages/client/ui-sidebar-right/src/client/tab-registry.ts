@@ -185,15 +185,20 @@ interface Ranked {
  * The address's URI path: what a pattern with no scheme separator matches
  * against. `dsh-resource://file/session/s1/home/me/b.md` gives `/session/s1/home/me/b.md`;
  * `sidebar://guide` gives `''`; an address that is not a URI gives nothing.
+ *
+ * Read from the string instead of through `new URL`: a non-special scheme's
+ * authority is engine-dependent, and ArkWeb keeps `//file/…` in the opaque
+ * path, which would make this answer `//file/session/…`.
  */
 function pathOf(address: string): string | undefined {
-  try {
-    return new URL(address).pathname
-  } catch {
-    // The only thrower is the URL parser rejecting a non-URI address, which by
-    // the rule above matches no path pattern.
-    return undefined
-  }
+  const schemeEnd = address.indexOf('://')
+  if (schemeEnd === -1) return undefined
+  const rest = address.slice(schemeEnd + 3)
+  const pathStart = rest.search(/[/?#]/)
+  if (pathStart === -1) return ''
+  const tail = rest.slice(pathStart)
+  const stop = tail.search(/[?#]/)
+  return stop === -1 ? tail : tail.slice(0, stop)
 }
 
 /** Compile one declared pattern into the test the router runs. */

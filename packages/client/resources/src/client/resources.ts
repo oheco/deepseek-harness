@@ -46,25 +46,30 @@ interface ResourceRecord {
 export const RESOURCE_SCHEME = 'dsh-resource'
 
 /**
- * The protocol key of one address: the host of a `dsh-resource://` URL, as the
- * URL parser reads it (lower-cased). Any other string — another scheme, or one
- * the URL parser rejects — names no protocol and is treated like an address
- * whose protocol has no provider.
+ * The protocol key of one address: the authority `dsh-resource://<type>/…`
+ * names, read from the string instead of through `new URL`.
+ *
+ * The URL parser cannot be trusted for a non-special scheme's authority:
+ * ArkWeb leaves `hostname` empty for `dsh-resource://file/…` and keeps
+ * `//file/…` in the opaque path, which would erase every address's protocol
+ * key and leave every resource provider unattached. The grammar is fixed, so
+ * the string carries the answer.
  * @param address - the full address.
- * @returns the protocol key, or `undefined` when the address is not a resource address.
+ * @returns the lower-cased protocol key, or `undefined` when the address is not
+ * a `dsh-resource://<type>/…` address carrying a type.
  */
 export function protocolOf(address: string): string | undefined {
-  let parsed: URL
-  try {
-    parsed = new URL(address)
-  } catch {
-    // The URL parser rejects strings without a scheme (`/a/b.txt`, `''`);
-    // nothing else throws here, and an unparseable address is simply not ours.
-    return undefined
-  }
-  if (parsed.protocol !== `${RESOURCE_SCHEME}:`) return undefined
-  // A non-special scheme's host is opaque to the URL parser and keeps its case.
-  return parsed.hostname === '' ? undefined : parsed.hostname.toLowerCase()
+  const prefix = `${RESOURCE_SCHEME}://`
+  // The scheme is case-insensitive, as the URL parser's is.
+  if (address.slice(0, prefix.length).toLowerCase() !== prefix) return undefined
+  const rest = address.slice(prefix.length)
+  const end = rest.search(/[/?#]/)
+  const authority = end === -1 ? rest : rest.slice(0, end)
+  // The type is a URI host: an empty authority, or one carrying userinfo,
+  // a port or brackets, names no protocol — exactly as an unparseable
+  // address would.
+  if (authority === '' || /[@:\[\]\s]/.test(authority)) return undefined
+  return authority.toLowerCase()
 }
 
 function idle(status: 'none' | 'loading'): ResourceSnapshot<unknown> {

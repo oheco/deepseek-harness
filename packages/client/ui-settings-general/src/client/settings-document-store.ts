@@ -14,13 +14,15 @@ export interface SettingsDocumentState {
   opening: boolean
   /** Last metadata/native-open diagnostic; UI exposes only localized copy. */
   error: string | null
+  /** Provider-owned path the Host returned when it has no native opener, else null. */
+  revealedPath: string | null
 }
 
 /** Derives local-document availability from the shared mirror and invokes the pathless Host-owned open operation. */
 export class SettingsDocumentStore {
   /** uSES-safe state source shared by the registered header action. */
   readonly store: SnapshotStore<SettingsDocumentState> = createSnapshotStore({
-    status: 'idle', opening: false, error: null,
+    status: 'idle', opening: false, error: null, revealedPath: null,
   })
 
   private following: (() => void) | undefined
@@ -45,6 +47,7 @@ export class SettingsDocumentStore {
     this.store.update((state) => {
       state.status = 'loading'
       state.error = null
+      state.revealedPath = null
     })
     await this.describeFace.ensure()
     this.derive()
@@ -60,16 +63,27 @@ export class SettingsDocumentStore {
     this.store.update((state) => {
       state.opening = true
       state.error = null
+      state.revealedPath = null
     })
     try {
       const result = await this.ctx.remote.settings.openSettingsDocument()
       if (!result.ok) {
         const { message } = result.error
         this.store.update((state) => { state.error = message })
+      } else if (!result.value.opened) {
+        // The Host has no native opener: keep the provider-owned path so the
+        // action can show it for the user's own editor.
+        const { path } = result.value
+        this.store.update((state) => { state.revealedPath = path })
       }
     } finally {
       this.store.update((state) => { state.opening = false })
     }
+  }
+
+  /** Dismiss the revealed path shown where the Host has no native opener. */
+  dismissPath(): void {
+    this.store.update((state) => { state.revealedPath = null })
   }
 
   /** Stop following the mirror. */

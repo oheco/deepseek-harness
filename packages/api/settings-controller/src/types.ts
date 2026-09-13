@@ -28,10 +28,15 @@ declare module '@deepseek-ai/dsh-typert-protocol' {
   }
 }
 
-/** Confirmation that the settings document was handed to the native editor. */
-export interface SettingsDocumentOpenValue {
-  readonly opened: true
-}
+/**
+ * Result of the settings-document gesture: confirmation that the native editor
+ * accepted the document, or the provider-owned path when this host has no
+ * native opener to hand it to (a host that reaches no desktop application from
+ * the command line reveals the path for the user's own editor instead).
+ */
+export type SettingsDocumentOpenValue =
+  | { readonly opened: true }
+  | { readonly opened: false; readonly path: string }
 
 /** Result of opening or revealing one locally authored Agent preset directory. */
 export type AgentPresetDirectoryOpenValue =

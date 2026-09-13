@@ -129,6 +129,35 @@ describe('SettingsDocumentAction', () => {
     expect(describe).toHaveBeenCalledTimes(2)
   })
 
+  it('shows the revealed path in a dialog where the Host has no native opener', async () => {
+    const controller = derivedDocumentStore({
+      settings: {
+        describe: vi.fn(() => Promise.resolve({
+          ok: true as const,
+          value: { writable: true, hasDocument: true, namespaces: [] },
+        })),
+        openSettingsDocument: vi.fn(() => Promise.resolve({
+          ok: true as const,
+          value: { opened: false as const, path: '/home/u/.dsh/settings.yaml' },
+        })),
+      },
+    })
+    render(<SettingsDocumentAction
+      {...kit}
+      t={t}
+      controller={controller}
+      useSnapshot={bindSnapshotSelector(controller.store)}
+    />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Open configuration file' }))
+    const dialog = await screen.findByRole('dialog')
+    expect(dialog.textContent).toContain('/home/u/.dsh/settings.yaml')
+    expect(screen.getByRole('button', { name: 'Copy path' })).toBeTruthy()
+    const close = screen.getAllByRole('button', { name: 'Close' }).at(-1)
+    expect(close).toBeTruthy()
+    fireEvent.click(close as HTMLElement)
+    await waitFor(() => { expect(screen.queryByRole('dialog')).toBeNull() })
+  })
+
   it('keeps the action available and reports a native-open failure', async () => {
     const controller = derivedDocumentStore({
       settings: {

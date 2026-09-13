@@ -29,7 +29,7 @@ describe('SettingsDocumentStore', () => {
     const controller = derivedDocumentStore({ settings: { describe, openSettingsDocument: openDocument } })
     await controller.load()
     expect(controller.store.getSnapshot()).toEqual({
-      status: 'ready', opening: false, error: null,
+      status: 'ready', opening: false, error: null, revealedPath: null,
     })
     await controller.open()
     expect(openDocument).toHaveBeenCalledWith()
@@ -58,6 +58,27 @@ describe('SettingsDocumentStore', () => {
     expect(rejected.store.getSnapshot()).toMatchObject({
       status: 'unavailable', error: 'provider failed',
     })
+  })
+
+  it('publishes the revealed path where the Host has no native opener, and dismisses it', async () => {
+    const openDocument = vi.fn(() => Promise.resolve({
+      ok: true as const,
+      value: { opened: false as const, path: '/home/u/.dsh/settings.yaml' },
+    }))
+    const controller = derivedDocumentStore({
+      settings: { describe: () => Promise.resolve(response(true)), openSettingsDocument: openDocument },
+    })
+    await controller.load()
+    await controller.open()
+    expect(controller.store.getSnapshot()).toMatchObject({
+      status: 'ready', opening: false, error: null, revealedPath: '/home/u/.dsh/settings.yaml',
+    })
+    controller.dismissPath()
+    expect(controller.store.getSnapshot().revealedPath).toBeNull()
+    // A later native open publishes no path.
+    openDocument.mockResolvedValue({ ok: true as const, value: { opened: true as const } })
+    await controller.open()
+    expect(controller.store.getSnapshot().revealedPath).toBeNull()
   })
 
   it('collapses concurrent open gestures and recovers after a failure', async () => {

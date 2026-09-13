@@ -104,6 +104,31 @@ describe('protocolOf', () => {
     expect(protocolOf('/a/b.txt')).toBeUndefined()
     expect(protocolOf('')).toBeUndefined()
   })
+
+  it('reads the authority from the string, whatever the engine URL parser reports', () => {
+    // ArkWeb parses a non-special scheme without an authority: `protocol` is
+    // ours but `hostname` is empty and `//file/…` stays in the opaque path.
+    // The protocol key must survive that parser, so the address string is the
+    // source of truth here.
+    class ArkWebUrl {
+      readonly protocol = `${RESOURCE_SCHEME}:`
+      readonly hostname = ''
+      readonly pathname = '//file/session/s1/a.txt'
+    }
+    vi.stubGlobal('URL', ArkWebUrl)
+    onTestFinished(() => { vi.unstubAllGlobals() })
+    expect(protocolOf('dsh-resource://file/session/s1/a.txt')).toBe('file')
+  })
+
+  it('reads a bare host authority and ignores query and fragment suffixes', () => {
+    expect(protocolOf('dsh-resource://file')).toBe('file')
+    expect(protocolOf('dsh-resource://file?q=1')).toBe('file')
+    expect(protocolOf('dsh-resource://file#frag')).toBe('file')
+    expect(protocolOf('dsh-resource://file/absolute/C:/x.txt')).toBe('file')
+    expect(protocolOf('dsh-resource:file/x')).toBeUndefined()
+    expect(protocolOf('dsh-resource://file:80/x')).toBeUndefined()
+    expect(protocolOf('dsh-resource://user@file/x')).toBeUndefined()
+  })
 })
 
 describe('ResourceRegistry providers', () => {
