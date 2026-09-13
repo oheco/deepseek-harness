@@ -766,6 +766,7 @@ describe('writeFileAtomic — temp-file safety', () => {
     const denied = Object.assign(new Error('link denied'), { code: 'EACCES' })
 
     await expect(writeFileAtomic(file, 'ours', undefined, undefined, {
+      platform: 'linux',
       linkFile: async () => { throw denied },
     }, { displayPath: file })).rejects.toMatchObject({ code: 'FS_IO_ERROR', cause: denied })
     await expect(stat(file)).rejects.toMatchObject({ code: 'ENOENT' })
@@ -778,6 +779,7 @@ describe('writeFileAtomic — temp-file safety', () => {
     const inspectionFailure = Object.assign(new Error('inspection denied'), { code: 'EACCES' })
 
     await expect(writeFileAtomic(file, 'ours', undefined, undefined, {
+      platform: 'linux',
       linkFile: async () => { throw linkFailure },
       inspectPublicationTarget: async () => { throw inspectionFailure },
     }, { displayPath: file })).rejects.toMatchObject({ code: 'FS_IO_ERROR', cause: inspectionFailure })
@@ -790,6 +792,7 @@ describe('writeFileAtomic — temp-file safety', () => {
     const collision = Object.assign(new Error('target existed'), { code: 'EEXIST' })
 
     await expect(writeFileAtomic(file, 'ours', undefined, undefined, {
+      platform: 'linux',
       linkFile: async () => { throw collision },
     }, { displayPath: file })).rejects.toMatchObject({
       code: 'FS_NOT_OBSERVED',
@@ -820,6 +823,44 @@ describe('writeFileAtomic — temp-file safety', () => {
       message: `cannot write "${displayPath}": not a regular file`,
     })
     expect((await stat(file)).isDirectory()).toBe(true)
+  })
+
+  it.skipIf(!['linux', 'openharmony'].includes(process.platform))('publishes a HarmonyOS guarded create through the no-replace rename', async () => {
+    const file = join(dir, 'a.txt')
+
+    await writeFileAtomic(file, 'ours', undefined, undefined, { platform: 'openharmony' }, { displayPath: file })
+
+    expect(await readFile(file, 'utf8')).toBe('ours')
+    expect((await stat(file)).nlink).toBe(1)
+    expect((await readdir(dir)).filter(name => name.includes('.tmp'))).toEqual([])
+  })
+
+  it('maps a HarmonyOS guarded-create collision and cleans staging', async () => {
+    const file = join(dir, 'a.txt')
+    const collision = Object.assign(new Error('target existed'), { code: 'EEXIST' })
+
+    await expect(writeFileAtomic(file, 'ours', undefined, undefined, {
+      platform: 'openharmony',
+      publishNewFile: async () => { throw collision },
+    }, { displayPath: file })).rejects.toMatchObject({
+      code: 'FS_NOT_OBSERVED',
+      message: `cannot overwrite existing "${file}" without reading it first`,
+      cause: collision,
+    })
+    await expect(stat(file)).rejects.toMatchObject({ code: 'ENOENT' })
+    expect((await readdir(dir)).filter(name => name.includes('.tmp'))).toEqual([])
+  })
+
+  it('maps a HarmonyOS guarded-create publication failure and cleans staging', async () => {
+    const file = join(dir, 'a.txt')
+    const denied = Object.assign(new Error('renameat2 denied'), { code: 'EACCES' })
+
+    await expect(writeFileAtomic(file, 'ours', undefined, undefined, {
+      platform: 'openharmony',
+      publishNewFile: async () => { throw denied },
+    }, { displayPath: file })).rejects.toMatchObject({ code: 'FS_IO_ERROR', cause: denied })
+    await expect(stat(file)).rejects.toMatchObject({ code: 'ENOENT' })
+    expect((await readdir(dir)).filter(name => name.includes('.tmp'))).toEqual([])
   })
 
   it('does not turn post-commit staging cleanup failure into a failed guarded write', async () => {

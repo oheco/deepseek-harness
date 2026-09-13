@@ -16,7 +16,7 @@ description: "在鸿蒙 PC ARM64 上安装、构建和验证 DeepSeek Harness。
 
 ```sh
 oo update
-oo npm install --global --prefix "$HOME/.local" @deepseek-ai/dsh@0.1.5-rc.2-ohos.2
+oo npm install --global --prefix "$HOME/.local" @deepseek-ai/dsh@0.1.5-rc.2-ohos.4
 export PATH="$HOME/.local/bin:$PATH"
 dsh --help
 ```

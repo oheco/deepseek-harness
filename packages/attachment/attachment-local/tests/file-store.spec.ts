@@ -112,8 +112,13 @@ describe('saveFileVerbatim', () => {
     expect(again).toEqual(first)
     const renamed = await saveFileVerbatim(root, { data, name: 'b.txt' })
     expect(renamed.attachmentId).toBe(first.attachmentId)
-    expect((await stat(storedFilePath(root, first))).ino)
-      .toBe((await stat(storedFilePath(root, renamed))).ino)
+    if (process.platform === 'openharmony') {
+      // HarmonyOS denies hard links, so equal bytes take one durable copy per name.
+      expect(await readFile(storedFilePath(root, renamed))).toEqual(Buffer.from(data))
+    } else {
+      expect((await stat(storedFilePath(root, first))).ino)
+        .toBe((await stat(storedFilePath(root, renamed))).ino)
+    }
     const digestDir = join(root, 'files', sha256(data).slice(0, 2), sha256(data))
     expect((await readdir(digestDir)).sort()).toEqual(['a.txt', 'b.txt'])
   })

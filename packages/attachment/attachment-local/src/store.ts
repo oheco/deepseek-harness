@@ -14,6 +14,7 @@ import type {
   SaveImageAttachment,
   StoredImageAttachment,
 } from '@deepseek-ai/dsh-attachment'
+import { duplicateFileOhos, publishNewFileOhos } from './ohos.ts'
 import { normalizeImage } from './normalization.ts'
 import type { NormalizationPolicy } from './normalization.ts'
 import { detectImage, probeImage } from './image.ts'
@@ -143,6 +144,13 @@ async function syncDirectory(path: string): Promise<void> {
 }
 
 /**
+ * Whether the platform refused to open one directory entry for fsync.
+ */
+function isPermissionDenied(error: unknown): boolean {
+  return error instanceof Error && 'code' in error && (error.code === 'EACCES' || error.code === 'EPERM')
+}
+
+/**
  * Create one private directory tree and persist every ancestor entry up to a
  * caller-vouched durable boundary. The walk deliberately ignores what mkdir
  * reports as newly created: a concurrent first save can create a level this
@@ -152,8 +160,12 @@ async function syncDirectory(path: string): Promise<void> {
  * entry is harmless; skipping an unsynced one is not.
  * @param path - absolute directory to create.
  * @param boundary - absolute ancestor the caller vouches is already durable.
+ * @param stopAtDeniedAncestor - end the walk at an ancestor this process may not
+ * open for fsync instead of failing. A platform-owned entry (HarmonyOS mounts
+ * its system directories execute-only) is never created or dropped by this app,
+ * so the entries already synced below it are as durable as the platform allows.
  */
-async function ensureDurableDirectory(path: string, boundary: string): Promise<void> {
+async function ensureDurableDirectory(path: string, boundary: string, stopAtDeniedAncestor = false): Promise<void> {
   const target = resolve(path)
   const stop = resolve(boundary)
   await mkdir(target, { recursive: true, mode: 0o700 })
@@ -161,7 +173,13 @@ async function ensureDurableDirectory(path: string, boundary: string): Promise<v
   let level = target
   while (level !== stop) {
     const parent = dirname(level)
-    await syncDirectory(parent)
+    try {
+      await syncDirectory(parent)
+    } catch (error) {
+      /* v8 ignore next 3 -- POSIX-only: Windows cannot deny opening an ancestor entry, so its coverage lane never reaches this stop. */
+      if (!stopAtDeniedAncestor || !isPermissionDenied(error)) throw error
+      return
+    }
     /* v8 ignore next -- filesystem-root guard: callers pass a boundary that is an ancestor of path, so the walk reaches it first. */
     if (parent === level) return
     level = parent
@@ -169,14 +187,16 @@ async function ensureDurableDirectory(path: string, boundary: string): Promise<v
 }
 
 /**
- * Establish this process's proof that one DSH_HOME entry and every ancestor
- * below the filesystem root are durable. Mere existence is insufficient: a
- * concurrent process may have created the directory but not synced its parent.
+ * Establish this process's proof that one DSH_HOME entry and every ancestor it
+ * may open below the filesystem root are durable. Mere existence is
+ * insufficient: a concurrent process may have created the directory but not
+ * synced its parent. The walk stops at a platform-owned entry this process may
+ * not open (see {@link ensureDurableDirectory}); everything below it was synced.
  */
 async function ensureDurableHome(path: string): Promise<string> {
   const home = resolve(path)
   if (!durableHomes.has(home)) {
-    await ensureDurableDirectory(home, parse(home).root)
+    await ensureDurableDirectory(home, parse(home).root, true)
     durableHomes.add(home)
   }
   return home
@@ -201,21 +221,34 @@ export async function commitPreparedImageFile(
   return prepared.ref
 }
 
+/** Publication boundaries overridden by platform-path coverage. */
+export interface StoreInternals {
+  /** Override the host platform for HarmonyOS publication coverage. */
+  platform?: NodeJS.Platform | 'openharmony'
+  /** Override the HarmonyOS no-replace publication boundary. */
+  publishNewFile?: (stagedPath: string, newPath: string) => Promise<void>
+  /** Override the HarmonyOS immutable-name duplication boundary. */
+  duplicateFile?: (source: string, destination: string) => Promise<void>
+}
+
 /**
  * Publish one immutable content-addressed object below a versioned attachment
- * root: staged write, fsync, hard-link into place, digest-verified EEXIST
+ * root: staged write, fsync, no-replace publication (a hard link elsewhere, a
+ * `renameat2(RENAME_NOREPLACE)` move on HarmonyOS), digest-verified EEXIST
  * deduplication, read-only mode, and durable directory entries from the
  * target's parent up to (excluding) `root`.
  * @param root - absolute `DSH_HOME/attachments/v1` root.
  * @param target - absolute final object path below `root`.
  * @param data - exact object bytes whose digest is `sha256`.
  * @param sha256 - hex digest the stored bytes must match on deduplication.
+ * @param internals - Test hook for the platform publication boundaries.
  */
 export async function publishImmutableObject(
   root: string,
   target: string,
   data: Uint8Array,
   sha256: string,
+  internals: StoreInternals = {},
 ): Promise<void> {
   const staged = await stageImmutableObject(root, (function* (): Iterable<Uint8Array> {
     yield data
@@ -224,7 +257,7 @@ export async function publishImmutableObject(
     await removeTemporary(staged.path)
     throw new AttachmentError('Attachment bytes do not match their publication digest.', 'ATTACHMENT_CORRUPT')
   }
-  await publishStagedObject(root, target, staged)
+  await publishStagedObject(root, target, staged, internals)
 }
 
 /** Digest and byte count produced while streaming one immutable object to disk. */
@@ -240,6 +273,7 @@ export interface StreamedImmutableObject {
  * @param data - exact object bytes in order.
  * @param targetFor - derive the final absolute target from the completed digest and byte count.
  * @param signal - optional cancellation for source reads and storage writes.
+ * @param internals - Test hook for the platform publication boundaries.
  * @returns digest and exact byte count of the published object.
  */
 export async function publishImmutableObjectStream(
@@ -247,6 +281,7 @@ export async function publishImmutableObjectStream(
   data: AsyncIterable<Uint8Array>,
   targetFor: (sha256: string, bytes: number) => string,
   signal?: AbortSignal,
+  internals: StoreInternals = {},
 ): Promise<StreamedImmutableObject> {
   const staged = await stageImmutableObject(root, data, signal)
   let target: string
@@ -258,29 +293,35 @@ export async function publishImmutableObjectStream(
     throw error
     /* v8 ignore stop */
   }
-  await publishStagedObject(root, target, staged)
+  await publishStagedObject(root, target, staged, internals)
   return { sha256: staged.sha256, bytes: staged.bytes }
 }
 
 /**
- * Publish another durable hard-link name for an existing immutable object.
+ * Publish another durable name for an existing immutable object: a hard link
+ * elsewhere, and a copy on HarmonyOS, which denies `link(2)`.
  * @param root - absolute versioned attachment root.
  * @param source - existing content-addressed object below `root`.
  * @param target - new alias below `root`.
  * @param sha256 - expected object digest for an existing-target race.
+ * @param internals - Test hook for the platform publication boundaries.
  */
 export async function publishImmutableAlias(
   root: string,
   source: string,
   target: string,
   sha256: string,
+  internals: StoreInternals = {},
 ): Promise<void> {
+  const platform = internals.platform ?? process.platform
+  const duplicateFile = internals.duplicateFile ?? duplicateFileOhos
   const parent = dirname(target)
   try {
     const boundary = await ensureDurableHome(dirname(dirname(resolve(root))))
     await ensureDurableDirectory(parent, boundary)
     try {
-      await link(source, target)
+      if (platform === 'openharmony') await duplicateFile(source, target)
+      else await link(source, target)
     } catch (error) {
       /* v8 ignore next -- Private same-filesystem directories make EEXIST the only recoverable link race. */
       if (!(error instanceof Error && 'code' in error && error.code === 'EEXIST')) throw error
@@ -351,23 +392,34 @@ async function publishStagedObject(
   root: string,
   target: string,
   staged: StagedImmutableObject,
+  internals: StoreInternals,
 ): Promise<void> {
+  const platform = internals.platform ?? process.platform
+  const publishNewFile = internals.publishNewFile ?? publishNewFileOhos
   const parent = dirname(target)
   try {
     await ensureDurableDirectory(parent, staged.boundary)
+    let stageMoved = false
     try {
-      await link(staged.path, target)
+      if (platform === 'openharmony') {
+        await publishNewFile(staged.path, target)
+        stageMoved = true
+      } else {
+        await link(staged.path, target)
+      }
     } catch (error) {
-      /* v8 ignore next -- Private same-filesystem directories make EEXIST the only recoverable link race. */
+      /* v8 ignore next -- Private same-filesystem directories make EEXIST the only recoverable publication race. */
       if (!(error instanceof Error && 'code' in error && error.code === 'EEXIST')) throw error
       if (await digestFile(target) !== staged.sha256) {
         throw new AttachmentError('Stored attachment failed integrity verification.', 'ATTACHMENT_CORRUPT')
       }
     }
-    // Windows shares the read-only attribute across hard links and refuses to
-    // unlink either name once it is set, so discard the staging name first.
-    await unlink(staged.path)
-    // The target remains the sole link for a new object; this also restores
+    // A HarmonyOS publication consumes the staging name, so only a hard link
+    // leaves a second name to discard. Windows shares the read-only attribute
+    // across hard links and refuses to unlink either name once it is set, so
+    // the staging name always goes before the target is made read-only.
+    if (!stageMoved) await unlink(staged.path)
+    // The target remains the sole name for a new object; this also restores
     // read-only mode when the deduplication path observes an existing object.
     await chmod(target, 0o400)
     // Persist the target entry and close every concurrent parent-creation

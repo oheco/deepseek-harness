@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
-import { constants } from 'node:fs'
-import { chmod, mkdir, readFile, readdir, stat, writeFile } from 'node:fs/promises'
+import { constants, closeSync, openSync } from 'node:fs'
+import { chmod, mkdir, readFile, readdir, rename, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join, parse, resolve } from 'node:path'
 import { mkdtemp, rm } from 'node:fs/promises'
@@ -11,6 +11,7 @@ import type { NormalizationPolicy } from '../src/normalization.ts'
 import {
   commitPreparedImageFile,
   prepareImageFile,
+  publishImmutableAlias,
   publishImmutableObject,
   readImageFile,
   saveImageFile,
@@ -75,12 +76,30 @@ function parentChainToRoot(path: string): string[] {
   return parents
 }
 
+/**
+ * The prefix of one ancestor chain the durable-home walk attempts: every entry
+ * it may open, plus the first platform-owned entry it may not. A platform that
+ * mounts a system directory without read permission caps the walk there.
+ */
+function attemptedAncestors(chain: string[]): string[] {
+  const attempted: string[] = []
+  for (const ancestor of chain) {
+    attempted.push(ancestor)
+    try {
+      closeSync(openSync(ancestor, constants.O_RDONLY))
+    } catch {
+      break
+    }
+  }
+  return attempted
+}
+
 afterEach(async () => {
   await Promise.all(roots.splice(0).map(path => rm(path, { recursive: true, force: true })))
 })
 
 describe('local attachment store', () => {
-  it.skipIf(process.platform === 'win32')('syncs every object ancestor up to the durable boundary before returning', async () => {
+  it.skipIf(process.platform === 'win32')('syncs every object ancestor it may open up to the durable boundary before returning', async () => {
     const storageRoot = await root()
     const base = join(storageRoot, '..', '..')
     const sha256 = createHash('sha256').update(PNG).digest('hex')
@@ -90,11 +109,11 @@ describe('local attachment store', () => {
 
     await saveImageFile(storageRoot, { data: PNG, mediaType: 'image/png' }, LIMITS, POLICY)
 
-    // Each process first proves DSH_HOME durable all the way to the filesystem
-    // root; existence alone cannot vouch for a concurrent creator's fsync.
+    // Each process first proves DSH_HOME durable through every ancestor it may
+    // open; existence alone cannot vouch for a concurrent creator's fsync.
     // Later directory creation can then stop at that process-proven boundary.
     expect(fsControl.syncedDirectories).toEqual([
-      ...parentChainToRoot(base),
+      ...attemptedAncestors(parentChainToRoot(base)),
       // Staging precedes publication because the streamed digest selects the
       // target bucket only after every byte has been written.
       storageRoot,
@@ -117,6 +136,24 @@ describe('local attachment store', () => {
     const ref = await saveImageFile(storageRoot, { data: PNG, mediaType: 'image/png' }, LIMITS, POLICY)
 
     await expect(readImageFile(storageRoot, ref)).resolves.toEqual({ ref, data: PNG })
+  })
+
+  it.skipIf(process.platform === 'win32')('stops the durable-home walk at an ancestor the process may not open', async () => {
+    const base = await mkdtemp(join(tmpdir(), 'dsh-attachment-denied-'))
+    roots.push(base)
+    const denied = join(base, 'denied')
+    const storageRoot = join(denied, 'home', 'attachments', 'v1')
+    await mkdir(storageRoot, { recursive: true })
+    const sha256 = createHash('sha256').update(PNG).digest('hex')
+    const target = join(storageRoot, 'objects', sha256.slice(0, 2), sha256)
+    await chmod(denied, 0o111)
+    try {
+      await publishImmutableObject(storageRoot, target, PNG, sha256)
+
+      expect(new Uint8Array(await readFile(target))).toEqual(PNG)
+    } finally {
+      await chmod(denied, 0o700)
+    }
   })
 
   it('publishes one private content-addressed object and deduplicates equal bytes', async () => {
@@ -146,6 +183,68 @@ describe('local attachment store', () => {
     await saveImageFile(storageRoot, { data: PNG, mediaType: 'image/png' }, LIMITS, POLICY)
     if (process.platform !== 'win32') expect((await stat(object)).mode & 0o777).toBe(0o400)
     await expect(readImageFile(storageRoot, first)).resolves.toEqual({ ref: first, data: PNG })
+  })
+
+  it('publishes through the HarmonyOS no-replace move and consumes the staging name', async () => {
+    const storageRoot = await root()
+    const sha256 = createHash('sha256').update(PNG).digest('hex')
+    const object = join(storageRoot, 'objects', sha256.slice(0, 2), sha256)
+    const calls: Array<[string, string]> = []
+
+    await publishImmutableObject(storageRoot, object, PNG, sha256, {
+      platform: 'openharmony',
+      publishNewFile: async (source, target) => {
+        calls.push([source, target])
+        await rename(source, target)
+      },
+    })
+
+    expect(calls).toHaveLength(1)
+    expect(calls[0]![1]).toBe(object)
+    expect(new Uint8Array(await readFile(object))).toEqual(PNG)
+    expect(await readdir(join(storageRoot, 'tmp'))).toEqual([])
+  })
+
+  it.skipIf(!['linux', 'openharmony'].includes(process.platform))('publishes and deduplicates through the real HarmonyOS move', async () => {
+    const storageRoot = await root()
+    const sha256 = createHash('sha256').update(PNG).digest('hex')
+    const object = join(storageRoot, 'objects', sha256.slice(0, 2), sha256)
+
+    await publishImmutableObject(storageRoot, object, PNG, sha256, { platform: 'openharmony' })
+    await publishImmutableObject(storageRoot, object, PNG, sha256, { platform: 'openharmony' })
+
+    expect(new Uint8Array(await readFile(object))).toEqual(PNG)
+    expect(await readdir(join(storageRoot, 'tmp'))).toEqual([])
+  })
+
+  it('verifies an existing object when the HarmonyOS publication boundary reports a collision', async () => {
+    const storageRoot = await root()
+    const sha256 = createHash('sha256').update(PNG).digest('hex')
+    const object = join(storageRoot, 'objects', sha256.slice(0, 2), sha256)
+    await mkdir(dirname(object), { recursive: true })
+    await writeFile(object, PNG)
+
+    await expect(publishImmutableObject(storageRoot, object, PNG, sha256, {
+      platform: 'openharmony',
+      publishNewFile: async () => { throw Object.assign(new Error('target existed'), { code: 'EEXIST' }) },
+    })).resolves.toBeUndefined()
+    expect(new Uint8Array(await readFile(object))).toEqual(PNG)
+    expect(await readdir(join(storageRoot, 'tmp'))).toEqual([])
+  })
+
+  it('gives an existing object a second durable name on HarmonyOS', async () => {
+    const storageRoot = await root()
+    const sha256 = createHash('sha256').update('object bytes').digest('hex')
+    const source = join(storageRoot, 'file-objects', sha256.slice(0, 2), sha256)
+    const alias = join(storageRoot, 'files', sha256.slice(0, 2), sha256, 'name.bin')
+    await mkdir(dirname(source), { recursive: true })
+    await writeFile(source, 'object bytes')
+
+    await publishImmutableAlias(storageRoot, source, alias, sha256, { platform: 'openharmony' })
+    await publishImmutableAlias(storageRoot, source, alias, sha256, { platform: 'openharmony' })
+
+    expect(await readFile(source, 'utf8')).toBe('object bytes')
+    expect(await readFile(alias, 'utf8')).toBe('object bytes')
   })
 
   it('rejects publication when the supplied digest does not match the staged bytes', async () => {

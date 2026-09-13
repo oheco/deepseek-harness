@@ -1,5 +1,5 @@
 {
-  "version": "0.1.5-rc.2-ohos.3",
+  "version": "0.1.5-rc.2-ohos.4",
   "upstream_version": "0.1.5-rc.2",
   "upstream_commit": "c291e7961a515f6d7af9304e7fd1d257929aef26",
   "dependencies": {
@@ -8,5 +8,5 @@
     "sharp": "0.35.3-ohos.1",
     "@vscode/ripgrep": "1.18.0-ohos.2"
   },
-  "source_lock_sha256": "71bf36f0e63d15ad17da9f9200c6346937aeaea17e309d66dc89e45d1b955b43"
+  "source_lock_sha256": "1ae6d2c766413dc7b1e9e1c30d75c25473c4769b3c7884e3e7af82417787c4e6"
 }
