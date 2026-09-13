@@ -179,6 +179,63 @@ def headless(scenario):
         print(f'PASS installed {scenario}: real profile, provider round trip, zsh/file effects, durable session, exit', flush=True)
 
 
+CLIENT_RESOURCE_PROBE = r"""
+// Load the shipped client-resources bundle and prove that a `dsh-resource://`
+// address keeps its protocol key even where the engine URL parser reports an
+// empty authority (ArkWeb) — the Host/Client compatibility fix under test.
+const bundle = process.argv[2]
+globalThis.URL = class {
+  constructor() { this.protocol = 'dsh-resource:'; this.hostname = ''; this.pathname = '//file/session/s1/a.txt' }
+}
+const factories = new Map()
+globalThis.window = globalThis
+globalThis.__ModuleLoader__ = { load: registration => { factories.set(registration.id, registration.factory) } }
+const createSnapshotStore = initial => {
+  let state = initial
+  const subscribers = new Set()
+  return {
+    getSnapshot: () => state,
+    subscribe: listener => { subscribers.add(listener); return () => subscribers.delete(listener) },
+    set: value => { state = value; for (const listener of [...subscribers]) listener() },
+    update: mutator => { state = { ...state }; mutator(state); for (const listener of [...subscribers]) listener() },
+  }
+}
+const requireModule = specifier => {
+  if (specifier === '@deepseek-ai/dsh-client-store') return { createSnapshotStore }
+  if (specifier === '@deepseek-ai/cordis') return {}
+  throw new Error(`unexpected require: ${specifier}`)
+}
+await import(bundle)
+const plugin = factories.get('@deepseek-ai/dsh-client-resources')(requireModule)
+let hooks
+const ctx = {
+  reflect: { provide: (key, value) => { ctx[key] = value; return () => {} } },
+  effect: execute => { const dispose = execute(); return typeof dispose === 'function' ? dispose : () => {} },
+  slots: { provideRoot: contribution => { hooks = contribution.keyedHooks } },
+}
+plugin.apply(ctx)
+let opened = 0
+ctx.resources.register({
+  protocol: 'file',
+  async *open() { opened += 1; yield { ok: true, value: { path: 'probe' } } },
+})
+const source = hooks.resource('dsh-resource://file/session/s1/a.txt')
+if (source.getSnapshot().status === 'none') throw new Error('protocol key missing for a dsh-resource address')
+const unsubscribe = source.subscribe(() => {})
+await new Promise(resolve => { setTimeout(resolve, 10) })
+unsubscribe()
+if (opened !== 1) throw new Error('the file provider never opened the address')
+console.log('resource provider attached')
+"""
+
+
+def client_resource_bundle():
+    start = args.dsh.resolve().parent.parent
+    hits = list(start.glob('**/@deepseek-ai/dsh-client-resources/lib/client.js'))
+    assert len(hits) == 1, hits
+    return hits[0]
+
+
 def web():
     with tempfile.TemporaryDirectory(prefix='dsh web ', dir=args.tmp_parent) as tmp:
         root = Path(tmp)
@@ -211,6 +268,23 @@ def web():
                         print(f'Checking Web script {path}', flush=True)
                         with client.open(urllib.parse.urljoin(page_url, path), timeout=15) as response:
                             assert response.status == 200 and len(response.read()) > 0
+                    endpoint = urllib.parse.urljoin(page_url, '/api/settings/openSettingsDocument')
+                    request = urllib.request.Request(
+                        endpoint, method='POST', headers={'content-type': 'application/json'},
+                        data=json.dumps({'type': 'client-request', 'rpcId': 'acceptance-settings-document',
+                                         'method': 'settings/openSettingsDocument',
+                                         'payload': {'args': {}}}).encode())
+                    with client.open(request, timeout=15) as response:
+                        answer = json.loads(response.read().decode())['result']
+                    assert answer['ok'] is True and answer['value']['opened'] is False, answer
+                    document = Path(answer['value']['path'])
+                    assert document.is_file(), document
+                    print('PASS installed Web: the settings-document gesture answers with its provider path', flush=True)
+                    probe = root / 'client-resource-probe.mjs'
+                    probe.write_text(CLIENT_RESOURCE_PROBE)
+                    subprocess.run(['node', str(probe), str(client_resource_bundle())],
+                                   env=environment(root), check=True, timeout=60)
+                    print('PASS installed Web: the shipped resource bundle keys a dsh-resource address without the engine URL parser', flush=True)
                     success = True
                     break
                 if child.poll() is not None:
