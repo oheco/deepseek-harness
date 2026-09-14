@@ -1,0 +1,11 @@
+{
+  "color": [
+    { "name": "start_window_background", "value": "#F5F7FF" },
+    { "name": "canvas", "value": "#F5F7FF" },
+    { "name": "panel", "value": "#FFFFFF" },
+    { "name": "ink", "value": "#182644" },
+    { "name": "muted", "value": "#52617D" },
+    { "name": "accent", "value": "#536DFE" },
+    { "name": "warning", "value": "#995100" }
+  ]
+}

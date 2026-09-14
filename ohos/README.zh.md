@@ -16,7 +16,7 @@ description: "在鸿蒙 PC ARM64 上安装、构建和验证 DeepSeek Harness。
 
 ```sh
 oo update
-oo npm install --global --prefix "$HOME/.local" @deepseek-ai/dsh@0.1.5-rc.2-ohos.4
+oo npm install --global --prefix "$HOME/.local" @deepseek-ai/dsh@0.1.5-rc.2-ohos.5
 export PATH="$HOME/.local/bin:$PATH"
 dsh --help
 ```
@@ -24,6 +24,10 @@ dsh --help
 将 `DSH_HOME` 设置为可写的应用私有目录。调用远程提供方前配置 `DEEPSEEK_API_KEY`。`dsh --profile headless "your task"` 运行命令行任务；`dsh web --host 127.0.0.1 --port 0 --no-open` 启动浏览器界面。按 Web 配置输出的地址和认证说明操作。
 
 鸿蒙默认允许完整的文件系统和进程访问，并禁用审批。显式权限配置仍然有效；请求沙箱时，如果没有受支持的后端，则运行失败。Shell 工具使用 zsh 语法。可选的持久终端工具需要带 `termios` 的 Python 3。Sharp 使用上游 WASM 实现；其支持的图片格式与原生 libvips 构建有所不同。
+
+## 本地 App 工程
+
+实验性的 [DevEco 启动器工程](app/README.zh.md) 使用已安装且已签名的 Node 和独立 DSH 运行副本，等待带认证信息的就绪链接后通过 ArkWeb 打开。它的私有配置与终端相互独立。工程仅供本地验证，尚未接入正式索引；正常签名的普通 HAP 仍需真机验收。[验证说明](app/VALIDATION.md) 区分了原生终端检查和 App 权限验证。
 
 ## 可复现构建
 
@@ -38,7 +42,7 @@ python3 ohos/package.py --deployment /absolute/path/to/fresh-build/deployment --
 
 构建脚本先核对 `release.json` 中已审查源码锁文件的 SHA-256，再使用 pnpm 的 `trust-lockfile` 模式，避免 pnpm 11 在离线安装或部署时发起联网策略验证。锁文件变化后，必须先准备输入并审查策略，才能更新该固定摘要。
 
-构建在鸿蒙上编译系统扩展和 Host/Client/Web 产物，再离线部署生产依赖闭包。Lightning CSS 1.32.0 使用同版本上游 WASM API 构建 CSS Modules 和前端。Esbuild 使用上游 WASM；Rolldown、Rollup 和 Oxc Resolver 使用官方鸿蒙二进制并在本机签名。此构建流程不从源码重建这些构建工具。固定输入缺失或变化时，构建失败。
+构建选择上游 `official` 客户端配置，以显示原有侧栏品牌和页面标题，在鸿蒙上编译系统扩展和 Host/Client/Web 产物，再离线部署生产依赖闭包。Lightning CSS 1.32.0 使用同版本上游 WASM API 构建 CSS Modules 和前端。Esbuild 使用上游 WASM；Rolldown、Rollup 和 Oxc Resolver 使用官方鸿蒙二进制并在本机签名。此构建流程不从源码重建这些构建工具。固定输入缺失或变化时，构建失败。
 
 打包保留已签名系统扩展，并在 `build-info.json` 中记录原生构建来源、源码提交、锁文件摘要、扩展摘要和内置包版本。仅发布从已验收的干净提交构建的归档。oo 安装时，npm 不运行依赖构建脚本。
 

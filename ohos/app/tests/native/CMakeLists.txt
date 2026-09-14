@@ -1,0 +1,25 @@
+cmake_minimum_required(VERSION 3.16)
+project(dsh_launcher_native_tests LANGUAGES CXX)
+
+set(DSH_BUILD_NAPI OFF CACHE BOOL "Fixture tests use only the portable core" FORCE)
+add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/../../entry/src/main/cpp" supervisor)
+add_executable(dsh_launcher_fixture fixture.cpp)
+set_target_properties(dsh_launcher_fixture PROPERTIES OUTPUT_NAME "fixture with spaces")
+add_executable(dsh_supervisor_test supervisor_test.cpp)
+add_executable(dsh_probe_test probe_test.cpp)
+add_executable(dsh_launcher_smoke smoke.cpp)
+foreach(target dsh_launcher_fixture dsh_supervisor_test dsh_probe_test dsh_launcher_smoke)
+    target_compile_features(${target} PRIVATE cxx_std_17)
+    target_compile_options(${target} PRIVATE -Wall -Wextra -Wpedantic)
+endforeach()
+target_link_libraries(dsh_supervisor_test PRIVATE dsh_supervisor)
+target_link_libraries(dsh_probe_test PRIVATE dsh_supervisor)
+target_link_libraries(dsh_launcher_smoke PRIVATE dsh_supervisor)
+
+enable_testing()
+add_test(NAME dsh_supervisor_native COMMAND dsh_supervisor_test
+    "$<TARGET_FILE:dsh_launcher_fixture>" "${CMAKE_CURRENT_BINARY_DIR}/test state")
+set_tests_properties(dsh_supervisor_native PROPERTIES TIMEOUT 60)
+add_test(NAME dsh_probe_native COMMAND dsh_probe_test
+    "$<TARGET_FILE:dsh_launcher_fixture>" "${CMAKE_CURRENT_BINARY_DIR}/probe state")
+set_tests_properties(dsh_probe_native PROPERTIES TIMEOUT 120)

@@ -34,7 +34,7 @@ launcher = output / 'bin/pnpm'
 launcher.write_text('#!/usr/bin/zsh\nexec node ' + "'" + str(pnpm).replace("'", "'\\''") + "'" + ' "$@"\n')
 launcher.chmod(0o755)
 env = dict(os.environ, PATH=str(output / 'bin') + ':' + os.environ['PATH'],
-           TMPDIR=str(output / 'tmp'), CI='true',
+           TMPDIR=str(output / 'tmp'), CI='true', DSH_BUILD_CLIENT_PROFILE='official',
            pnpm_config_store_dir=str(args.store.resolve()), pnpm_config_offline='true',
            pnpm_config_script_shell='/usr/bin/zsh', pnpm_config_package_import_method='copy',
            pnpm_config_trust_lockfile='true',

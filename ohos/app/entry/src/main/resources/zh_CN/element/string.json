@@ -1,0 +1,60 @@
+{
+  "string": [
+    {
+      "name": "ability_description",
+      "value": "打开你在终端中启动的 DeepSeek Harness Web 界面。"
+    },
+    {
+      "name": "documents_reason",
+      "value": "读取你放在“文档”目录中的服务日志，以便打开其中记录的地址。"
+    },
+    {
+      "name": "opening",
+      "value": "正在打开工作空间…"
+    },
+    {
+      "name": "command_title",
+      "value": "1 · 在鸿蒙终端中执行这一行命令"
+    },
+    {
+      "name": "copy_command",
+      "value": "复制命令"
+    },
+    {
+      "name": "command_copied",
+      "value": "已复制"
+    },
+    {
+      "name": "waiting_title",
+      "value": "2 · 正在等待 DSH 启动"
+    },
+    {
+      "name": "log_waiting",
+      "value": "正在读取日志，服务输出地址后会自动打开。"
+    },
+    {
+      "name": "log_waiting_picked",
+      "value": "正在使用你选择的文件，等待地址出现。"
+    },
+    {
+      "name": "log_missing",
+      "value": "还没有日志文件，请先在终端执行上面的命令。"
+    },
+    {
+      "name": "log_unreadable",
+      "value": "无法读取日志，请用下面的按钮选择它。"
+    },
+    {
+      "name": "pick_log",
+      "value": "选择日志文件"
+    },
+    {
+      "name": "external_blocked",
+      "value": "已阻止外部跳转，此窗口只打开本地服务。"
+    },
+    {
+      "name": "dismiss",
+      "value": "知道了"
+    }
+  ]
+}

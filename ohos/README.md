@@ -16,7 +16,7 @@ Use oo 0.5.0 or later. Install into a writable npm prefix and add its `bin` dire
 
 ```sh
 oo update
-oo npm install --global --prefix "$HOME/.local" @deepseek-ai/dsh@0.1.5-rc.2-ohos.4
+oo npm install --global --prefix "$HOME/.local" @deepseek-ai/dsh@0.1.5-rc.2-ohos.5
 export PATH="$HOME/.local/bin:$PATH"
 dsh --help
 ```
@@ -24,6 +24,10 @@ dsh --help
 Set `DSH_HOME` to a writable application-private directory. Configure `DEEPSEEK_API_KEY` before calling a remote provider. `dsh --profile headless "your task"` runs a command-line task; `dsh web --host 127.0.0.1 --port 0 --no-open` starts the browser interface. Follow the address and authentication instructions printed by the Web profile.
 
 The HarmonyOS default is full filesystem/process access with approvals disabled. Explicit permission configuration remains authoritative; a requested sandbox fails when no supported backend exists. Shell tools use zsh syntax. Python 3 with `termios` is required for the optional persistent-terminal tool. Sharp uses the upstream WASM implementation; its supported image formats differ from native libvips builds.
+
+## Local App project
+
+The experimental [DevEco launcher project](app/README.md) starts an existing signed Node executable and a separate DSH runtime copy, waits for the authenticated readiness URL, and opens it in ArkWeb. Its private configuration is independent of the terminal. This project is local-only and is not available from the official index; a signed ordinary HAP still needs device acceptance. [Validation](app/VALIDATION.md) separates native terminal checks from App permissions.
 
 ## Reproducible build
 
@@ -38,7 +42,7 @@ python3 ohos/package.py --deployment /absolute/path/to/fresh-build/deployment --
 
 The recipe checks the reviewed source lockfile SHA-256 in `release.json` before using pnpm's `trust-lockfile` mode. This prevents pnpm 11 from starting online policy verification during offline installation or deployment. Changed lockfiles require input preparation and policy review before updating that pin.
 
-The build compiles the system addon and Host/Client/Web outputs on HarmonyOS, then deploys the production closure offline. Lightning CSS 1.32.0 uses the same-version upstream WASM API for CSS Modules and frontend builds. Esbuild uses upstream WASM; Rolldown, Rollup and Oxc Resolver use official OHOS binaries signed locally. These build tools are not rebuilt from source by this recipe. Missing or changed fixed inputs fail the build.
+The build selects the upstream `official` client profile to render the original sidebar brand and document title, compiles the system addon and Host/Client/Web outputs on HarmonyOS, then deploys the production closure offline. Lightning CSS 1.32.0 uses the same-version upstream WASM API for CSS Modules and frontend builds. Esbuild uses upstream WASM; Rolldown, Rollup and Oxc Resolver use official OHOS binaries signed locally. These build tools are not rebuilt from source by this recipe. Missing or changed fixed inputs fail the build.
 
 Packaging preserves the signed system addon and records native build provenance, source commit, lockfile hash, addon hash and bundled package versions in `build-info.json`. Publish only archives built from the accepted clean commit. npm runs no dependency build scripts during oo installation.
 

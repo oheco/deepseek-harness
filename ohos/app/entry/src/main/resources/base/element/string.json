@@ -1,0 +1,60 @@
+{
+  "string": [
+    {
+      "name": "ability_description",
+      "value": "Open the DeepSeek Harness web interface you started in a terminal."
+    },
+    {
+      "name": "documents_reason",
+      "value": "Read the service log file you keep in Documents so the app can open the address it contains."
+    },
+    {
+      "name": "opening",
+      "value": "Opening your workspace…"
+    },
+    {
+      "name": "command_title",
+      "value": "1 · Run this command in a HarmonyOS terminal"
+    },
+    {
+      "name": "copy_command",
+      "value": "Copy command"
+    },
+    {
+      "name": "command_copied",
+      "value": "Copied"
+    },
+    {
+      "name": "waiting_title",
+      "value": "2 · Waiting for DSH to start"
+    },
+    {
+      "name": "log_waiting",
+      "value": "Reading the log. The address appears here as soon as the service prints it."
+    },
+    {
+      "name": "log_waiting_picked",
+      "value": "Using the file you selected. Waiting for the address."
+    },
+    {
+      "name": "log_missing",
+      "value": "No log yet. Run the command above in a terminal."
+    },
+    {
+      "name": "log_unreadable",
+      "value": "The log cannot be read. Select it with the button below."
+    },
+    {
+      "name": "pick_log",
+      "value": "Select the log file"
+    },
+    {
+      "name": "external_blocked",
+      "value": "External navigation was blocked. This window only opens the local service."
+    },
+    {
+      "name": "dismiss",
+      "value": "Dismiss"
+    }
+  ]
+}
