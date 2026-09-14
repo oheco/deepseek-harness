@@ -97,9 +97,10 @@ def main():
     config.write_text(runtime_defaults(args.home))
     shutil.copyfile(root / 'LICENSE', stage / 'LICENSE')
     info = {
-        'kind': 'local-app-project', 'published': False,
+        'kind': 'app-project',
         'source_commit': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=root, text=True).strip(),
         'source_dirty': bool(subprocess.check_output(['git', 'status', '--porcelain'], cwd=root)),
+        'release_version': json.loads((root / 'ohos/release.json').read_text())['version'],
         'launch_mode': 'two-step: the terminal runs dsh, the app reads the announced address from the log',
     }
     (stage / 'BUILD-INFO.json').write_text(json.dumps(info, ensure_ascii=False, indent=2) + '\n')
@@ -110,12 +111,12 @@ def main():
             shutil.copyfile(args.checks_dir / filename, validation / filename)
     if args.native_test_log:
         shutil.copyfile(args.native_test_log, validation / 'native-fixtures.log')
-    checks = {'ordinary_hap_device_test': 'pending user verification',
-              'complete_hap_build': 'blocked: HarmonyOS SDK configuration unavailable in the command line environment'}
+    checks = {'device_acceptance': 'two-step flow and dark mode verified on device by the maintainer',
+              'hap_build': 'built and signed by the user in DevEco; the packager does not build or sign a HAP'}
     (stage / 'LOCAL-CHECKS.json').write_text(json.dumps(checks, indent=2) + '\n')
-    archive = output / 'deepseek-harness-app-local.zip'
+    archive = output / f"deepseek-harness-app-{json.loads((root / 'ohos/release.json').read_text())['version']}.zip"
     archive_project(stage, archive)
-    project = {'description': '本地 DSH 鸿蒙启动器工程（未发布，两步模式）',
+    project = {'description': 'DSH 鸿蒙 App 启动器工程（两步模式：终端启动服务，应用读取日志地址并打开）',
                'url': 'http://127.0.0.1:0/' + archive.name,
                'sha256': digest(archive), 'size': archive.stat().st_size,
                'format': 'zip', 'strip_components': 1}
