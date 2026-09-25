@@ -49,6 +49,12 @@ def stop(child):
             child.wait(timeout=10)
 
 
+def tool_results(body):
+    """Read tool-result blocks from the 0.1.7 DeepSeek Messages wire format."""
+    return [block for message in body.get('messages', []) for block in message.get('content', [])
+            if isinstance(block, dict) and block.get('type') == 'tool_result']
+
+
 @contextmanager
 def provider(calls, ptc):
     requests = []
@@ -61,33 +67,40 @@ def provider(calls, ptc):
         def do_POST(self):
             try:
                 body = json.loads(self.rfile.read(int(self.headers['Content-Length'])))
-                tools = {item['function']['name']: item['function'] for item in body.get('tools', [])}
-                completed = sum(message.get('role') == 'tool' for message in body.get('messages', []))
+                assert self.path.endswith('/v1/messages'), self.path
+                tools = {item['name']: item for item in body.get('tools', [])}
+                completed = len(tool_results(body))
                 if not tools:
-                    assert any('Create a concise title' in str(message.get('content'))
-                               for message in body.get('messages', [])), 'unexpected request without tools'
+                    assert 'title' in json.dumps(body).lower(), 'unexpected auxiliary request without tools'
                 elif ptc:
                     assert list(tools) == ['run_code'], list(tools)
                 else:
                     assert 'zsh' in tools['bash']['description'], tools['bash']['description']
                 if tools:
                     requests.append(body)
-                if not tools:
-                    delta = {'content': 'Local acceptance'}
-                    finish = 'stop'
-                elif completed < len(calls):
+                if tools and completed < len(calls):
                     name, values = calls[completed]
                     assert name in tools, (name, list(tools))
-                    delta = {'tool_calls': [{'index': 0, 'id': f'ohos-call-{completed}', 'type': 'function',
-                                            'function': {'name': name, 'arguments': json.dumps(values)}}]}
-                    finish = 'tool_calls'
+                    block = {'type': 'tool_use', 'id': f'ohos-call-{completed}', 'name': name, 'input': {}}
+                    delta = {'type': 'input_json_delta', 'partial_json': json.dumps(values)}
+                    finish = 'tool_use'
                 else:
-                    assert completed == len(calls), completed
-                    delta = {'content': 'OHOS_ACCEPTANCE_OK'}
-                    finish = 'stop'
-                chunks = [{'choices': [{'delta': delta}]}, {'choices': [{'delta': {}, 'finish_reason': finish}],
-                          'usage': {'prompt_tokens': 10, 'completion_tokens': 4}}]
-                output = (''.join('data: ' + json.dumps(chunk) + '\n\n' for chunk in chunks) + 'data: [DONE]\n\n').encode()
+                    if tools:
+                        assert completed == len(calls), completed
+                    block = {'type': 'text', 'text': ''}
+                    delta = {'type': 'text_delta', 'text': 'OHOS_ACCEPTANCE_OK' if tools else 'Local acceptance'}
+                    finish = 'end_turn'
+                events = [
+                    {'type': 'message_start', 'message': {'id': 'ohos-message', 'model': body['model'],
+                     'usage': {'input_tokens': 10, 'output_tokens': 0}}},
+                    {'type': 'content_block_start', 'index': 0, 'content_block': block},
+                    {'type': 'content_block_delta', 'index': 0, 'delta': delta},
+                    {'type': 'content_block_stop', 'index': 0},
+                    {'type': 'message_delta', 'delta': {'stop_reason': finish}, 'usage': {'output_tokens': 4}},
+                    {'type': 'message_stop'},
+                ]
+                output = ''.join('event: ' + event['type'] + '\ndata: ' + json.dumps(event) + '\n\n'
+                                 for event in events).encode()
                 self.send_response(200)
                 self.send_header('Content-Type', 'text/event-stream')
                 self.send_header('Content-Length', str(len(output)))
@@ -159,7 +172,7 @@ def headless(scenario):
             assert child.returncode == 0, (child.returncode, err.decode()[-3000:])
             assert b'OHOS_ACCEPTANCE_OK' in out, out
             assert (workspace / 'harness-zsh.txt').read_text() == 'alpha\n'
-            messages = [m for m in requests[-1]['messages'] if m.get('role') == 'tool']
+            messages = tool_results(requests[-1])
             assert len(messages) == len(calls), messages
             outputs = '\n'.join(str(m['content']) for m in messages)
             assert 'alpha' in outputs, outputs
@@ -252,6 +265,8 @@ def web():
                     if not data:
                         break
                     output += data.decode(errors='replace')
+                if 'dsh: fatal uncaught exception:' in output:
+                    break
                 match = re.search(r'dsh web:\s*(http://127\.0\.0\.1:\d+/[^\s\x1b]*)', output)
                 if match:
                     cookies = http.cookiejar.CookieJar()
@@ -259,6 +274,7 @@ def web():
                     with client.open(match.group(1), timeout=15) as response:
                         html = response.read().decode()
                         assert response.status == 200 and '<html' in html.lower()
+                        assert '<title>DeepSeek Harness</title>' in html, 'official Web title missing'
                         page_url = response.url
                     assert list(cookies), 'no authentication cookie'
                     scripts = re.findall(r'<script[^>]+src="([^"]+)"', html)
@@ -310,7 +326,7 @@ for scenario in scenarios:
         headless(scenario)
 (args.logs / 'acceptance.json').write_text(json.dumps({
     'node': node, 'python': sys.version.split()[0], 'python_platform': sys.platform,
-    'provider': 'local deterministic DeepSeek-compatible stream', 'passed': scenarios,
+    'provider': 'local deterministic DeepSeek Messages stream', 'passed': scenarios,
     'live_remote_provider': 'not tested',
 }, indent=2) + '\n')
 print('PASS selected installed HarmonyOS acceptance scenarios', flush=True)

@@ -612,7 +612,14 @@ class ResolutionRouter {
 
 function internalModules(): InternalModules {
   const require = createRequire(import.meta.url)
-  const addon = require('node-addon-require-builtin') as { requireBuiltin(moduleId: string): unknown }
+  const ohos = (process.platform as string) === 'openharmony'
+  if (ohos && !process.execArgv.includes('--expose-internals')) {
+    throw new Error('profile resolution: HarmonyOS requires Node --expose-internals; no native require-builtin binding is available')
+  }
+  // HarmonyOS exposes these modules through the launcher flag, not a native addon.
+  const addon: { requireBuiltin(moduleId: string): unknown } = ohos
+    ? { requireBuiltin: require }
+    : require('node-addon-require-builtin') as { requireBuiltin(moduleId: string): unknown }
   const esmModule = addon.requireBuiltin('internal/modules/esm/loader') as {
     getOrInitializeCascadedLoader(): ModuleLoaderV1 | ModuleLoaderV2
   }
@@ -705,6 +712,7 @@ function throwWithoutCjsAnchor(error: unknown, anchor: string): never {
  * Install one runtime resolution as the interception on Node's default ESM and CommonJS resolvers.
  * @param resolution - complete package table and profile scope.
  * @returns an interception that publishes a successor or restores the native methods.
+ * @throws on HarmonyOS without Node's explicit `--expose-internals` flag, or with unsupported Node loaders.
  */
 export function installRuntimeInterception(
   resolution: RuntimeResolution,

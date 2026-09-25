@@ -124,6 +124,7 @@ for name in ['LICENSE', 'THIRD_PARTY_NOTICES.md']:
     shutil.copyfile(root / name, package / name)
 shutil.copyfile(root / 'ohos/README.md', package / 'README.md')
 shutil.copyfile(root / 'ohos/README.zh.md', package / 'README.zh.md')
+shutil.copyfile(root / 'ohos/LOCAL-VALIDATION.md', package / 'LOCAL-VALIDATION.md')
 shutil.copyfile(root / 'pnpm-lock.yaml', package / 'pnpm-lock.source.yaml')
 shutil.copyfile(root / 'ohos/release.json', package / 'release.json')
 shutil.copyfile(root / 'tpr/ohos-build-tools/SOURCES.json', package / 'build-tools.json')
