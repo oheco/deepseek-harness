@@ -27,6 +27,8 @@ Every base-backed `dsh --profile` surface runs on `dsh-base`, so those surfaces 
 
 You get the dsh core automatically: the shipped `web`, `headless`, `sdk`, and `acp` profiles already include it, and a custom profile names it as its first bundle. After that, everything works with no further configuration.
 
+HarmonyOS defaults to `danger-full-access` with approval policy `never`, because this port has no sandbox implementation. Commands run with the terminal application's authority. An explicit `DSH_PERMISSION_MODE` still wins; requesting unsupported confinement fails instead of silently running unconfined. Session telemetry is disabled by default on HarmonyOS.
+
 ### A minimal custom profile
 
 To build a profile on the shared core, create a profile with a `package.json` that names `@deepseek-ai/dsh-base` first:

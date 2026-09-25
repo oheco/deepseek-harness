@@ -28,11 +28,13 @@ Importing either entry does not load an addon. A missing Landlock executable pro
 
 ## Support
 
-Linux x64/arm64 packages contain the static Landlock executable and separate glibc/musl `system.node` files. macOS x64/arm64 packages contain `system.node` only. Landlock additionally needs an enforcing Linux kernel; Windows uses the Harness's existing locking implementation. The [support matrix](docs/support-matrix.md) names builders and verification owners.
+Linux x64/arm64 packages contain the static Landlock executable and separate glibc/musl `system.node` files. macOS x64/arm64 and HarmonyOS ARM64 packages contain `system.node` only. HarmonyOS selects its signed Node-API v8 addon with `process.platform === "openharmony"`; it provides no Landlock launcher. Landlock additionally needs an enforcing Linux kernel; Windows uses the Harness's existing locking implementation. The [support matrix](docs/support-matrix.md) names builders and verification owners.
 
 ## Development
 
 From this directory, `pnpm build:ts` builds the entry, `pnpm build:native` builds the host's declared native payload, and `pnpm build:test-oracle` builds an independent flock syscall fixture. Then `pnpm test` exercises entry, lock, packaging, and available kernel behavior. Linux requires musl-gcc for a complete build; macOS uses cc. The root `pnpm run build:native-system` builds only the current host addon for source tests.
+
+On HarmonyOS with Node 24 and its development headers, run `node native/system/scripts/build.ts --host-addon-only` from the repository root. Put `clang` and `binary-sign-tool` in PATH (check the LLVM tools PATH if missing) and point `TMPDIR` at application-private temporary storage. Compilation and signing directories are cleaned after success or failure; publication copies to a unique pending file beside the destination before renaming, including when TMPDIR and the source tree are on different filesystems.
 
 The [architecture](docs/architecture.md), [packaging](docs/packaging.md), and [release procedure](docs/release.md) own implementation and publication details.
 

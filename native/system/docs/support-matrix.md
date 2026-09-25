@@ -6,8 +6,11 @@
 | linux-arm64 | ubuntu-24.04-arm | static Landlock executable; glibc and musl system.node |
 | darwin-x64 | macos-15-intel | system.node |
 | darwin-arm64 | macos-latest | system.node |
+| openharmony-arm64 | native HarmonyOS PC, local only | signed system.node; no Landlock |
 
-The stable Node-API v8 addon is built once per platform/libc and exercised by CI under Node 20, 22, 24, and 26. macOS builds target 11.0 or later. Linux binding selection uses the running Node process's libc; the static launcher serves both libc variants.
+HarmonyOS requires native clang, Node development headers, and `binary-sign-tool`; [development](../README.md#development) describes temporary storage and signing. No GitHub runner is configured for it; CI matrix generation rejects this target until a native runner is configured. Its Node-version compatibility matrix is not verified.
+
+On Linux and macOS, the stable Node-API v8 addon is built once per platform/libc and exercised by CI under Node 20, 22, 24, and 26. macOS builds target 11.0 or later. Linux binding selection uses the running Node process's libc; the static launcher serves both libc variants.
 
 Landlock additionally requires an enforcing Linux kernel. The functional probe determines full, partial, or unusable enforcement; kernel version alone is not an availability guarantee.
 

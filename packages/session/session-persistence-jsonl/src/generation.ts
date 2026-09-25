@@ -37,6 +37,7 @@ import type {
 import { validateStoredEvents } from '@deepseek-ai/dsh-session-persistence'
 import type { JsonlCompression } from './format.ts'
 import { generationLogFilename, logSuffix, SessionLogScanner } from './format.ts'
+import { publishNewFileOhos } from './ohos.ts'
 import { publishNewFileWin32 } from './win32.ts'
 import {
   compressZstdFrame,
@@ -190,8 +191,9 @@ type GenerationBarrierPhase =
 interface JsonlGenerationInternals {
   readonly fs: GenerationFileSystem
   readonly randomToken: () => string
-  readonly platform: NodeJS.Platform
+  readonly platform: NodeJS.Platform | 'openharmony'
   readonly publishNewWin32: typeof publishNewFileWin32
+  readonly publishNewOhos: typeof publishNewFileOhos
   readonly barrier: (phase: GenerationBarrierPhase, attempt: number) => void | Promise<void>
 }
 
@@ -228,6 +230,7 @@ const defaultInternals: JsonlGenerationInternals = {
   randomToken: () => randomBytes(8).toString('hex'),
   platform: process.platform,
   publishNewWin32: publishNewFileWin32,
+  publishNewOhos: publishNewFileOhos,
   barrier: () => {},
 }
 
@@ -831,7 +834,8 @@ async function publishCurrentExclusive(
     }
   }
   try {
-    await internals.fs.link(staged, currentPath)
+    if (internals.platform === 'openharmony') await internals.publishNewOhos(staged, currentPath)
+    else await internals.fs.link(staged, currentPath)
   } catch (error) {
     /* v8 ignore else -- a non-collision filesystem error propagates unchanged. */
     if (isEEXIST(error)) return false

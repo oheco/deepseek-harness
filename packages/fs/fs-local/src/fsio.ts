@@ -12,6 +12,7 @@ import type { BigIntStats, Dirent, Stats } from 'node:fs'
 import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path'
 import { TextDecoder, promisify } from 'node:util'
 import { FsError, FsTargetKey, FsVersion } from '@deepseek-ai/dsh-fs'
+import { publishNewFileOhos } from './ohos.ts'
 import { copyFileDaclWin32, replaceFileWin32 } from './win32.ts'
 
 const BINARY_SAMPLE_BYTES = 8192
@@ -82,7 +83,7 @@ function versionOf(info: BigIntStats): FsVersion {
  */
 export interface FsIoInternals {
   /** Override the host platform for native-publication unit coverage. */
-  platform?: NodeJS.Platform
+  platform?: NodeJS.Platform | 'openharmony'
   /** Override the generated private staging-dir name (relative to the target dir). */
   tempDirName?: (writePath: string) => string
   /** Override the generated temp-file name (relative to the private staging dir). */
@@ -93,6 +94,8 @@ export interface FsIoInternals {
   replaceFile?: (replaced: string, replacement: string) => Promise<void>
   /** Override the hard-link no-replace publication boundary. */
   linkFile?: (existingPath: string, newPath: string) => Promise<void>
+  /** Override the HarmonyOS no-replace publication boundary. */
+  publishNewFile?: typeof publishNewFileOhos
   /** Override target inspection after guarded publication fails. */
   inspectPublicationTarget?: (path: string) => Promise<BigIntStats>
   /** Override staging-directory removal for commit-point failure coverage. */
@@ -581,8 +584,8 @@ async function throwGuardedCreateFailure(
  * inert as a mode on Windows but identifies replacement security semantics.
  * @param signal - cancellation checked before final publication.
  * @param internals - Test hook for pinning temp names and observing the staged file.
- * @param createIfAbsent - when provided, publish with a hard-link no-replace
- * primitive; a concurrent creator's file is preserved and this write is
+ * @param createIfAbsent - when provided, publish without replacement using
+ * renameat2 on HarmonyOS or a hard link elsewhere; a concurrent creator's file is preserved and this write is
  * rejected with `FS_NOT_OBSERVED` using the supplied display path.
  */
 export async function writeFileAtomic(
@@ -606,6 +609,7 @@ export async function writeFileAtomic(
   const copyFileDacl = internals.copyFileDacl ?? copyFileDaclWin32
   const replaceFile = internals.replaceFile ?? replaceFileWin32
   const linkFile = internals.linkFile ?? link
+  const publishNewFile = internals.publishNewFile ?? publishNewFileOhos
   const inspectPublicationTarget = internals.inspectPublicationTarget
     ?? (path => lstat(path, { bigint: true }))
   const removeStagingDir = internals.removeStagingDir
@@ -632,7 +636,8 @@ export async function writeFileAtomic(
     throwIfAborted(signal, 'write')
     if (createIfAbsent !== undefined) {
       try {
-        await linkFile(tempPath, absolutePath)
+        if (platform === 'openharmony') await publishNewFile(tempPath, absolutePath)
+        else await linkFile(tempPath, absolutePath)
       } catch (error: unknown) {
         await throwGuardedCreateFailure(error, absolutePath, createIfAbsent.displayPath, inspectPublicationTarget)
       }

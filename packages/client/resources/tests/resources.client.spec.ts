@@ -93,6 +93,26 @@ function bench() {
 }
 
 describe('protocolOf', () => {
+  it('preserves the authority when ArkWeb treats the non-special URL as opaque', () => {
+    vi.stubGlobal('URL', class {
+      readonly protocol = `${RESOURCE_SCHEME}:`
+      readonly hostname = ''
+      readonly pathname = '//file/session/s1/a.txt'
+    })
+    onTestFinished(() => { vi.unstubAllGlobals() })
+    expect(protocolOf('dsh-resource://file/session/s1/a.txt')).toBe('file')
+  })
+
+  it('handles bare authorities and refuses non-resource authority syntax', () => {
+    for (const address of ['dsh-resource://file', 'dsh-resource://file?q=1', 'dsh-resource://file#frag']) {
+      expect(protocolOf(address)).toBe('file')
+    }
+    for (const address of ['dsh-resource:file/x', 'dsh-resource://file:80/x', 'dsh-resource://user@file/x',
+      'dsh-resource://[::1]/x', 'dsh-resource://bad host/x', 'dsh-resource://bad\\\\host/x']) {
+      expect(protocolOf(address)).toBeUndefined()
+    }
+  })
+
   it('reads the dsh-resource host, lower-cased, and reports none for any other address', () => {
     expect(protocolOf('dsh-resource://file/session/s1/home/ys/b.txt')).toBe('file')
     expect(protocolOf('DSH-RESOURCE://File/session/s1/a')).toBe('file')

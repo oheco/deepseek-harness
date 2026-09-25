@@ -485,6 +485,14 @@ class LinuxProcessInspector extends PosixProcessInspector {
 
 }
 
+// HarmonyOS exposes proc identities and foreground groups, but not Linux's
+// per-thread syscall records. Prompt markers and idle bounds remain available.
+class HarmonyProcessInspector extends LinuxProcessInspector {
+  override isStdinWaiting(_pgid: number, _shellPid: number): boolean {
+    return false
+  }
+}
+
 // `ps` exposes neither the session id nor a state column in this format, so a
 // macOS row can answer presence and parentage but never session membership.
 function macProcessTable(internals: ProcessInspectorInternals): { rows: ProcessRow[]; complete: boolean } {
@@ -540,11 +548,12 @@ class MacProcessInspector extends PosixProcessInspector {
  * @returns Platform process inspector.
  */
 export function createProcessInspector(
-  platform: NodeJS.Platform = process.platform,
+  platform: NodeJS.Platform | 'openharmony' = process.platform,
   arch: NodeJS.Architecture = process.arch,
   internals: ProcessInspectorInternals = DEFAULT_INTERNALS,
 ): ProcessInspector {
   if (platform === 'linux') return new LinuxProcessInspector(arch, internals)
+  if (platform === 'openharmony') return new HarmonyProcessInspector(arch, internals)
   if (platform === 'darwin') return new MacProcessInspector(internals)
   if (platform === 'win32') return createWindowsProcessInspector()
   throw new Error(`subprocess-local: terminal inspection is unsupported on platform ${platform}`)

@@ -3,20 +3,20 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/terminal/terminal-bash/README.md
 /:
-  en: 7451cb97579aa088
-  zh: 836bff293fae7bd3
+  en: b3d32d3009bdd012
+  zh: 3924a3d3f91ab2d0
 /deepseek-ai-dsh-terminal-bash:
   en: 70eb464a6754f633
   zh: f7ad67d8a9eb7195
 /deepseek-ai-dsh-terminal-bash/summary:
-  en: b50ba02f6602a1fd
-  zh: 1c954a0e0999280d
+  en: 2129ceada87b7145
+  zh: 6892491ef02c3846
 /deepseek-ai-dsh-terminal-bash/table-of-contents:
   en: d152484eb41ac6b4
   zh: 09388d293f9be9cb
 /deepseek-ai-dsh-terminal-bash/use-this-package:
-  en: 13e1b604a235290e
-  zh: 5292c92ffe20537e
+  en: e8c53303e32c4b6d
+  zh: f56052c683d99f42
 /deepseek-ai-dsh-terminal-bash/use-this-package/when-to-choose-it:
   en: f4304ced55e55d4f
   zh: 739d7a16691e4cc0
@@ -24,11 +24,11 @@
   en: 71449ef1985b2f1b
   zh: 562e9b5ef73cd5e1
 /deepseek-ai-dsh-terminal-bash/use-this-package/configuration:
-  en: 229375735e02e80a
-  zh: 347c617ae312643a
+  en: 35b1a5cec2cbe75d
+  zh: aeea11c95dd6eeda
 /deepseek-ai-dsh-terminal-bash/use-this-package/shell-dialects-and-readiness:
-  en: bab340c3347f1794
-  zh: a4c32b651fea000d
+  en: f45660ba3401d43a
+  zh: 68cce76bb7d4b899
 /deepseek-ai-dsh-terminal-bash/use-this-package/sandboxing-and-safe-operation:
   en: 39e0f0b429b024a7
   zh: 440171193664d13b
@@ -39,14 +39,14 @@
   en: 97f4f07114f5a995
   zh: d30b07058a3103c7
 /deepseek-ai-dsh-terminal-bash/understand-the-implementation/design-concept:
-  en: 5808eba7c8ff1993
-  zh: c85f1ab0a869c177
+  en: fa08d6cff0452490
+  zh: 9416dfe47474271f
 /deepseek-ai-dsh-terminal-bash/understand-the-implementation/source-map:
   en: 9a525f7a7228a09b
   zh: d57537edfacc9f8b
 /deepseek-ai-dsh-terminal-bash/understand-the-implementation/readiness-model:
-  en: a768d621c2ea2585
-  zh: 8213317da48766e3
+  en: e1bfe8717d1a248a
+  zh: 94de3f8cb98c4579
 /deepseek-ai-dsh-terminal-bash/understand-the-implementation/send-cancellation-and-teardown:
   en: 025325caab883327
   zh: 1decfdea61e95ae1

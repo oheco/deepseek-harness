@@ -29,7 +29,7 @@ kind: "package-reference"
 
 `settings.describe()` 返回部署信息，以及在 `redactSecrets: true` 下读取的所有 namespace。`settings.update`、`settings.replace` 与 `settings.mutate` 暴露 settings 服务的三种写入操作，并返回该 namespace 的新脱敏视图；陈旧写入使用 `settings-conflict`，其他提供方拒绝使用 `settings-rejected`。
 
-`settings.openSettingsDocument()` 准备提供方持有的文档，并用原生文本编辑器打开；该方法不接受浏览器提供的文件系统目标。
+`settings.openSettingsDocument()` 准备提供方持有的文档，并用原生文本编辑器打开。在鸿蒙等没有原生打开器的系统上，改为返回 `{ opened: false, path }` 供显示与复制。该方法不接受浏览器提供的文件系统目标；准备失败、取消及受支持平台的打开器失败仍会拒绝。
 
 -----
 

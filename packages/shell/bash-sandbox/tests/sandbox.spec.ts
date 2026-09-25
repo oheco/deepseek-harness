@@ -103,6 +103,23 @@ function executionPolicy(mode: SandboxMode, workspaceRoot = resolve(process.cwd(
 }
 
 describe('the provider hand-off', () => {
+  it.each(['read-only', 'workspace-write', 'danger-full-access'] as const)(
+    'uses the configured interpreter in %s mode', async (mode) => {
+      const { ctx, bash, calls } = await setup({ mode, shellPath: process.execPath, shellArgs: ['-e'] })
+      try {
+        const command = 'process.stdout.write("configured\\n")'
+        const result = await run(bash, bash.resolve({ command }))
+        expect(result.exitCode).toBe(0)
+        expect(result.stdout.text).toBe('configured\n')
+        expect(calls.map(call => call.argv)).toEqual(mode === 'danger-full-access'
+          ? []
+          : [[process.execPath, '-e', command]])
+      } finally {
+        await ctx.fiber.dispose()
+      }
+    },
+  )
+
   it('reports caller cancellation when a failed launch result is read after abort', async () => {
     const { ctx, bash } = await setup({}, () => passthrough(['node']))
     const controller = new AbortController()

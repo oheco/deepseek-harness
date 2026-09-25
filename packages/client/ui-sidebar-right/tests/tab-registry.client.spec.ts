@@ -7,7 +7,7 @@
  * then registration order — and every step is contract: a type shipped from
  * another package relies on each one. So each is asserted, not assumed.
  */
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, onTestFinished, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { SidebarRightTabRegistry } from '../src/client/tab-registry.ts'
 import type { SidebarRightTabDefinition } from '../src/client/tab-registry.ts'
@@ -28,6 +28,15 @@ function ranked(registry: SidebarRightTabRegistry, address: string): string[] {
 }
 
 describe('SidebarRightTabRegistry — recognition', () => {
+  it('matches internal paths independently of ArkWeb opaque URL parsing', () => {
+    vi.stubGlobal('URL', class { readonly pathname = '//file/session/s/a.md?q=1#L2' })
+    onTestFinished(() => { vi.unstubAllGlobals() })
+    const registry = new SidebarRightTabRegistry(new Context())
+    registry.register(typeFor('markdown', ['*.md']))
+    expect(registry.claim('dsh-resource://file/session/s/a.md?q=1#L2').kind).toBe('markdown')
+    expect(ranked(registry, 'sidebar://guide?view=1')).toEqual([])
+  })
+
   it('rejects default-page resolution when the selected kind is not registered', () => {
     expect(() => defaultSeed(new SidebarRightTabRegistry(new Context())))
       .toThrow('default tab kind "guide" is not registered')

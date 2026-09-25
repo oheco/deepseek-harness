@@ -1,5 +1,5 @@
 ---
-description: "持久终端会话的随产品交付的 shell 后端：在共享沙箱策略下启动交互式 bash 或 pwsh，带就绪检测与有界逐行输出。"
+description: "持久终端会话的随产品交付的 shell 后端：在共享沙箱策略下启动交互式 bash、zsh 或 pwsh，带就绪检测与有界逐行输出。"
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-terminal-bash` 在部署的沙箱策略下启动持久交互式 shell：会话跨工具调用存活，检测 shell 何时可以接收输入，并保留有界的逐行输出供读取。它提供 `shell` 后端类型，并通过 `shellDialect` 设置在 POSIX 上支持 bash、在 Windows 上支持 pwsh。通过已挂载的子进程提供方，同一个后端既可以与本地执行世界组合，也可以与远程执行世界组合。全屏终端应用不在其逐行约定的范围内。
+`dsh-terminal-bash` 在部署的沙箱策略下启动持久交互式 shell：会话跨工具调用存活，检测 shell 何时可以接收输入，并保留有界的逐行输出供读取。它提供 `shell` 后端类型，并通过 `shellDialect` 设置在 POSIX 上支持 bash 和 zsh、在 Windows 上支持 pwsh。通过已挂载的子进程提供方，同一个后端既可以与本地执行世界组合，也可以与远程执行世界组合。全屏终端应用不在其逐行约定的范围内。
 
 ## 目录
 
@@ -26,6 +26,8 @@ kind: "package-reference"
 ## 使用本包
 
 当组合需要持久 shell 会话时挂载此后端——cwd、导出的变量、函数或正在运行的交互式子进程等状态必须跨工具调用存活。它是默认的 `shell` 类型：组合只挂载 `@deepseek-ai/dsh-terminal` 而不挂载它时，将没有任何会话可打开。
+
+鸿蒙默认使用 `/usr/bin/zsh -f -i` 与 `zsh` 方言。前台控制权返回后，通过零宽 OSC 提示符标记确认就绪。鸿蒙提供进程身份与前台进程组信息，但不提供 Linux 系统调用等待证据；没有受控提示符的程序使用静默与超时判断。
 
 ### 何时选择
 
@@ -51,7 +53,7 @@ kind: "package-reference"
 | 字段 | 默认值 | 含义 |
 |---|---|---|
 | `backendType` | `shell` | 注册到 `ctx.terminals` 的后端类型 |
-| `shellDialect` | `bash` | 交互式 shell 栈：`bash` 或 `pwsh` |
+| `shellDialect` | 鸿蒙 `zsh`；其他平台 `bash` | 交互式 shell：`bash`、`zsh` 或 `pwsh` |
 | `shellPath` / `shellArgs` | 按方言 | shell 可执行文件与参数；为空时选择方言默认值 |
 | `maxReadBytes` | `262144` | 一次读取或一次结算发送返回的最大 UTF-8 字节数 |
 | `timeoutMs` | `30000` | 一次发送等待的绝对上限 |
@@ -61,7 +63,7 @@ kind: "package-reference"
 
 ### shell 方言与就绪
 
-两种方言暴露相同的就绪约定，因此消费方与方言无关。当 shell 再次就绪时发送即结算：受控提示符被验证之后、前台进程组被证明在等待 stdin（Linux）之后、输出静默（`inferred_idle`）之后，或到达绝对 `timeoutMs`。`inferred_idle` 或 `timeout` 结果并不证明前台命令已退出。
+所有方言暴露相同的就绪约定，因此消费方与方言无关。当 shell 再次就绪时发送即结算：受控提示符被验证之后、前台进程组被证明在等待 stdin（Linux）之后、输出静默（`inferred_idle`）之后，或到达绝对 `timeoutMs`。`inferred_idle` 或 `timeout` 结果并不证明前台命令已退出。
 
 ### 沙箱与安全运行
 
@@ -83,7 +85,7 @@ shell 在整个生命周期内运行在有效的沙箱边界之下。当所有�
 
 ### 设计理念
 
-一个后端服务两种方言：bash 与 pwsh 共享同一套会话机制——清理器、有界缓冲区、就绪轮询、取消与关闭——只在 argv、环境与提示符安装方式上不同。bash 通过 `PS1` 加 `PROMPT_COMMAND` 接收私有标记。pwsh 会写入提示符函数、固定 UTF-8 控制台编码，并只在后端报告 `stdin_read` 后发布启动；回显的设置文本不能发布 shell。一个不保留 scrollback 的 `@xterm/headless` 实例会消费原始 PTY 数据，并通过同一句柄返回终端协议响应；逐行 sanitizer 仍是唯一输出投影。
+一个后端服务所有方言：bash、zsh 与 pwsh 共享同一套会话机制——清理器、有界缓冲区、就绪轮询、取消与关闭——只在 argv、环境与提示符安装方式上不同。bash 通过 `PS1` 加 `PROMPT_COMMAND` 接收私有标记。pwsh 会写入提示符函数、固定 UTF-8 控制台编码，并只在后端报告 `stdin_read` 后发布启动；回显的设置文本不能发布 shell。一个不保留 scrollback 的 `@xterm/headless` 实例会消费原始 PTY 数据，并通过同一句柄返回终端协议响应；逐行 sanitizer 仍是唯一输出投影。
 
 Scrollback 和尚未读取的发送输出保留独立拥有的字符串，并增量维护字节数与换行符数，因此清理后的切片不会保留已丢弃的控制序列。追加与淘汰文本的摊还耗时与输入文本量成正比；读取时才拼接保留的分片。保留策略维持码点边界，并将末尾换行符之后的空行计入行数。[保留策略决策](../../../.agents/notes/implemented/bug-fix/2026-09-11-incremental-terminal-retention.zh.md)记录复杂度与测量依据。
 
@@ -98,7 +100,7 @@ Scrollback 和尚未读取的发送输出保留独立拥有的字符串，并增
 
 ### 就绪模型
 
-三个有界档位结算一次发送：来自子进程提供方的精确 stdin 等待证据（仅 Linux）、带精确可打印尾部的受控私有提示符标记，以及输出静默（`inferred_idle`）；绝对超时始终限制等待。pwsh 启动的完整设置循环共用同一个截止时间，因此 `inferred_idle` 后续发送不会重新计时。提供方写入前收集的证据会在写入边界丢弃，早于写入的 stdin 等待不算写入后就绪，未知的前台状态绝不是精确空闲的正向信号。
+三个有界档位结算一次发送：来自子进程提供方的精确 stdin 等待证据（仅 Linux）、带精确可打印尾部的受控私有提示符标记，以及输出静默（`inferred_idle`）；绝对超时始终限制等待。zsh 与 pwsh 启动的完整设置循环共用同一个截止时间，因此 `inferred_idle` 后续发送不会重新计时。提供方写入前收集的证据会在写入边界丢弃，早于写入的 stdin 等待不算写入后就绪，未知的前台状态绝不是精确空闲的正向信号。
 
 ### 发送取消与关闭
 

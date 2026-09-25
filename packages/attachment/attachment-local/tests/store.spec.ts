@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { constants } from 'node:fs'
+import { closeSync, constants, openSync } from 'node:fs'
 import { chmod, mkdir, readFile, readdir, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join, parse, resolve } from 'node:path'
@@ -71,6 +71,14 @@ function parentChainToRoot(path: string): string[] {
   while (level !== root) {
     level = dirname(level)
     parents.push(level)
+    if ((process.platform as string) === 'openharmony') {
+      try {
+        closeSync(openSync(level, constants.O_RDONLY))
+      } catch (error) {
+        if (error instanceof Error && 'code' in error && (error.code === 'EACCES' || error.code === 'EPERM')) break
+        throw error
+      }
+    }
   }
   return parents
 }

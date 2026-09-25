@@ -30,6 +30,8 @@ kind: "package-reference"
 
 挂载无需任何配置：插件提供 `ctx.resources`，并通过 `ctx.slots.provideRoot` 贡献 `resource` 根 keyed 钩子，因此每个 slot 组件不论作用域都能收到它。
 
+协议查找直接读取资源地址的 authority 并转为小写，不依赖 ArkWeb 对非特殊 URL 的解析。空 authority、用户信息、端口、方括号、空白及主机名禁用字符均不会选中提供方。
+
 <a id="read-a-resource"></a>
 ### 读取资源
 

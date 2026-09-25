@@ -28,11 +28,13 @@ kind: "package-library"
 
 ## Support
 
-Linux x64/arm64 包包含静态 Landlock 可执行文件，以及分别用于 glibc/musl 的 `system.node` 文件。macOS x64/arm64 包仅包含 `system.node`。Landlock 还需要支持强制执行的 Linux 内核；Windows 使用 Harness 既有锁实现。[支持矩阵](docs/support-matrix.md) 指定构建者与验证负责人。
+Linux x64/arm64 包包含静态 Landlock 可执行文件，以及分别用于 glibc/musl 的 `system.node` 文件。macOS x64/arm64 和鸿蒙 ARM64 包仅包含 `system.node`。鸿蒙通过 `process.platform === "openharmony"` 选择已签名的 Node-API v8 addon，不提供 Landlock 启动器。Landlock 还需要支持强制执行的 Linux 内核；Windows 使用 Harness 既有锁实现。[支持矩阵](docs/support-matrix.md) 指定构建者与验证负责人。
 
 ## Development
 
 在本目录运行 `pnpm build:ts` 构建入口、`pnpm build:native` 构建当前宿主声明的原生产物、`pnpm build:test-oracle` 构建独立的 flock 系统调用 fixture（测试前置数据）。随后用 `pnpm test` 验证入口、锁、打包及可用的内核行为。Linux 完整构建需要 musl-gcc；macOS 使用 cc。根目录 `pnpm run build:native-system` 只构建源码测试所需的当前宿主 addon。
+
+鸿蒙上使用 Node 24 及其开发头文件，在仓库根目录运行 `node native/system/scripts/build.ts --host-addon-only`。将 `clang` 和 `binary-sign-tool` 加入 PATH（缺失时检查 LLVM 工具目录的 PATH），并将 `TMPDIR` 指向应用私有临时存储。编译与签名目录在成功或失败后均清理；产物先复制到目标旁的唯一 pending 文件再重命名，因此 TMPDIR 与源码位于不同文件系统时也可安全替换。
 
 [架构](docs/architecture.md)、[打包](docs/packaging.md)和[发布流程](docs/release.md)分别负责实现与发布细节。
 

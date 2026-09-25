@@ -27,6 +27,8 @@ kind: "package-bundle"
 
 直接启动该 profile，或从 Python SDK 选择它。提供显式 `DSH_HOME`、使用一次性 workspace，并通过 `DEEPSEEK_API_KEY` 提供模型凭据。
 
+在鸿蒙上，持久 `bash` 工具运行 `/usr/bin/zsh`，并告知模型使用 zsh 语法。禁用终端回显需要带 `termios` 的 Python 3；此 profile 保留其显式 `danger-full-access` 策略。
+
 ```sh
 export DSH_HOME=/absolute/path/to/example-dsh-home
 dsh --profile sdk-minimal
