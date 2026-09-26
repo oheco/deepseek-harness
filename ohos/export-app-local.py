@@ -51,7 +51,7 @@ def main():
     # This temporary index exports only the new project, never an old npm payload
     # relabelled with the new version. The official descriptor remains read-only.
     version = {'version': version_name}
-    descriptor['package_manager'] = 'native'
+    descriptor['package_manager'] = 'oheco'
     descriptor.pop('package_name', None)
     descriptor['schema_version'] = 4
     descriptor['versions'] = [version]
