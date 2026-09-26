@@ -1,0 +1,75 @@
+{
+  "string": [
+    {
+      "name": "ability_description",
+      "value": "打开你在终端中启动的 DeepSeek Harness Web 界面。"
+    },
+    {
+      "name": "documents_reason",
+      "value": "读取你放在“文档”目录中的服务日志，以便打开其中记录的地址。"
+    },
+    {
+      "name": "opening",
+      "value": "正在打开工作空间…"
+    },
+    {
+      "name": "command_title",
+      "value": "1 · 在鸿蒙终端中执行这一行命令"
+    },
+    {
+      "name": "copy_command",
+      "value": "复制命令"
+    },
+    {
+      "name": "command_copied",
+      "value": "已复制"
+    },
+    {
+      "name": "waiting_title",
+      "value": "2 · 正在等待 DSH 启动"
+    },
+    {
+      "name": "log_waiting",
+      "value": "正在读取日志，服务输出地址后会自动打开。"
+    },
+    {
+      "name": "log_waiting_picked",
+      "value": "正在使用你选择的文件，等待地址出现。"
+    },
+    {
+      "name": "log_missing",
+      "value": "还没有日志文件，请先在终端执行上面的命令。"
+    },
+    {
+      "name": "log_unreadable",
+      "value": "无法读取日志，请用下面的按钮选择它。"
+    },
+    {
+      "name": "pick_log",
+      "value": "选择日志文件"
+    },
+    {
+      "name": "external_failed",
+      "value": "设备上没有能打开该链接的应用。"
+    },
+    { "name": "find_placeholder", "value": "在页面中搜索" },
+    { "name": "find_previous", "value": "上一个匹配（Shift+Enter）" },
+    { "name": "find_next", "value": "下一个匹配（Enter）" },
+    { "name": "find_close", "value": "关闭搜索（Esc）" },
+    { "name": "context_copy", "value": "复制" },
+    { "name": "context_browser", "value": "通过浏览器打开" },
+    { "name": "context_files", "value": "在文件管理中查看" },
+    { "name": "find_drag", "value": "拖拽背景移动搜索框" },
+    { "name": "path_access_denied", "value": "系统拒绝访问此路径或启动文件管理器。" },
+    { "name": "path_no_handler", "value": "系统文件管理器不可用。" },
+    { "name": "path_not_found", "value": "文件或文件夹不存在。" },
+    { "name": "path_invalid", "value": "这不是完整的用户目录路径，带省略号的路径不能打开。" },
+    { "name": "path_unsupported", "value": "此路径是符号链接，或不是此操作支持的普通文件。" },
+    { "name": "web_action_failed", "value": "操作未成功，请在页面就绪后重试。" },
+    { "name": "path_open_failed", "value": "无法在文件管理中查看此位置，你仍可复制路径。" },
+    {
+      "name": "dismiss",
+      "value": "知道了"
+    }
+  ]
+}

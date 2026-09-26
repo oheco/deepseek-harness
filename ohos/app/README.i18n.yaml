@@ -1,0 +1,25 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write ohos/app/README.md
+/dsh-harmonyos-app-local-validation-project:
+  en: 7906754cf94786aa
+  zh: 15fe16231733c7e0
+/dsh-harmonyos-app-local-validation-project/1-open-in-deveco:
+  en: 8bd74773a48ff591
+  zh: 100586ed916bd47f
+/dsh-harmonyos-app-local-validation-project/2-why-two-steps:
+  en: 75df82893b919143
+  zh: 7c1277f2b5e108ca
+/dsh-harmonyos-app-local-validation-project/3-how-it-works:
+  en: 0471ffaf7b2c8a77
+  zh: c01e9e4cf43d9db6
+/dsh-harmonyos-app-local-validation-project/3-how-it-works/desktop-interactions:
+  en: b55b6b4a7709065d
+  zh: ad73455c09c27654
+/dsh-harmonyos-app-local-validation-project/4-known-limitations:
+  en: 01bc28e893611faa
+  zh: 12cf8492c9c4c511
+/dsh-harmonyos-app-local-validation-project/local-source-checks:
+  en: 21c8cca76fdfac57
+  zh: 3080bd71d320a307
