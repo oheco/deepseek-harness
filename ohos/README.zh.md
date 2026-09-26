@@ -21,7 +21,7 @@ python3 ohos/build.py --store /absolute/private/prepared-store --output /absolut
 python3 ohos/package.py --deployment /absolute/private/fresh-build/deployment --output /absolute/private/local-package
 ```
 
-构建使用全新依赖安装、离线冻结锁文件、copy 模式和上游 `official` 品牌，不执行桌面应用打包步骤。临时文件位于 `$TMPDIR` 并在结束时清理。生成本地运行包不等于发布。
+构建使用全新依赖安装、离线冻结锁文件、copy 模式和上游 `official` 品牌，不执行桌面应用打包步骤。临时文件位于 `$TMPDIR` 并在结束时清理；该路径必须足够短，因为 TypeScript 加载器会在其中创建 Unix 套接字，而鸿蒙对 `sun_path` 有长度上限。生成本地运行包不等于发布。
 
 ## 运行与验证
 

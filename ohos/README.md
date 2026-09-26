@@ -21,7 +21,7 @@ python3 ohos/build.py --store /absolute/private/prepared-store --output /absolut
 python3 ohos/package.py --deployment /absolute/private/fresh-build/deployment --output /absolute/private/local-package
 ```
 
-The build requires a fresh dependency installation, uses offline/frozen/copy mode, selects the original `official` client branding, and excludes the desktop bundling step. Temporary work goes under `$TMPDIR`. Local package creation is not publication.
+The build requires a fresh dependency installation, uses offline/frozen/copy mode, selects the original `official` client branding, and excludes the desktop bundling step. Temporary work goes under `$TMPDIR`, which must be short: the TypeScript loader creates a Unix socket below it and HarmonyOS rejects a `sun_path` beyond the platform limit. Local package creation is not publication.
 
 ## Runtime and validation
 

@@ -45,7 +45,9 @@ def run(*command):
     subprocess.run(list(map(str, command)), cwd=root, env=env, check=True)
 
 
-with tempfile.TemporaryDirectory(prefix='dsh-web-build-', dir=os.environ['TMPDIR']) as temporary:
+# Short prefix: tsx creates a Unix socket here and HarmonyOS rejects a
+# sun_path beyond the platform limit, so TMPDIR must stay short.
+with tempfile.TemporaryDirectory(prefix='dshb-', dir=os.environ['TMPDIR']) as temporary:
     env['TMPDIR'] = temporary
     run('pnpm', 'install', '--offline', '--frozen-lockfile', '--ignore-scripts', '--trust-lockfile')
     connect(root, packages)
