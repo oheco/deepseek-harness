@@ -32,10 +32,10 @@ The home page has exactly two blocks:
 1. **One command**, copied and run in a HarmonyOS terminal:
 
    ```sh
-   zsh /storage/Users/currentUser/dev/ohos/harness-ohos-0.1.7-local/run-web.zsh > /storage/Users/currentUser/Documents/dsh-0.1.7-run.log 2>&1 &
+   dsh web --host 127.0.0.1 --port 0 --no-open > /storage/Users/currentUser/Documents/dsh-0.1.7-run.log 2>&1 &
    ```
 
-   The command explicitly starts the adapted local 0.1.7 runtime, not the old `dsh` on PATH. It selects an available port and uses separate `$XDG_CONFIG_HOME/dsh-0.1.7-local` state; it neither takes port 9000 nor copies old credentials or sessions. Prepare the adjacent `harness-ohos-0.1.7-local/` runtime directory first. After moving paths, re-export with `ohos/package-app-project.py --web-launcher <new-path> --home <shared-home>`; both the displayed command and log name come from `RuntimeDefaults.ets`. Do not repeat the startup command while this instance is already running.
+   The command uses the installed `dsh` on your PATH (0.1.7 in this distribution), keeps your existing settings, sessions and credentials, and picks an available port, so it does not take port 9000. The log goes to Documents under the shared home; the app reads it through the normal-level Documents permission and falls back to the **Select the log file** picker when the direct path is refused. The displayed command and log name come from `RuntimeDefaults.ets`: `ohos/package-app-project.py` generates the installed entry above by default. Only override it with `--web-launcher <path>` when you deliberately point at a local development runtime, passing `--home <shared-home>` for the log location. Do not repeat the startup command while this instance is already running.
 
 2. **A persistent waiting indicator.** The app reads that log once per second and takes the readiness address from it; **before opening anything it connects once**: only an address that actually answers switches the page to the WebView. A log left behind by an earlier run therefore cannot open a dead page. A new port (restarted service) is re-checked and reloaded.
 
@@ -47,7 +47,7 @@ Opening the WebView also flashed white once: ArkWeb paints a default empty surfa
 
 The page only talks to local `127.0.0.1`, but ArkWeb reports `navigator.onLine` as false while a fresh WebView is still resolving system network state. The Harness client reads that flag at boot and parks in its disconnected state until its own reconnect control is used. The app therefore injects a small script before the document starts, so the page sees the local connection it actually uses, and a transient system offline event cannot park it.
 
-The log lives in `~/Documents/dsh-0.1.7-run.log`, not `~/.dsh/`: `~/.dsh` is the terminal app's private directory and this app runs in a different sandbox. Even in Documents, files are `-rw-rw----` (owner plus the `file_manager` group), which this app does not join, so it requests the normal-level `ohos.permission.READ_WRITE_DOCUMENTS_DIRECTORY`; if the direct path is still refused, the waiting block shows a **Select the log file** button that grants read access through the system file picker, which needs no special permission.
+The log lives in `~/Documents/dsh-0.1.7-run.log`, not under the dsh state directory: this app runs in its own sandbox and cannot assume read access to the terminal's dsh data, whose location also depends on that process's environment. Even in Documents, files are `-rw-rw----` (owner plus the `file_manager` group), which this app does not join, so it requests the normal-level `ohos.permission.READ_WRITE_DOCUMENTS_DIRECTORY`; if the direct path is still refused, the waiting block shows a **Select the log file** button that grants read access through the system file picker, which needs no special permission.
 
 Address rules: a **newline-terminated** complete line, an explicit `http://127.0.0.1:<port>` or `http://[::1]:<port>` authority, a nonzero port and a nonempty token; a line carrying the upstream LAN suffix is accepted, but only the loopback address is opened. The address reaches the WebView in memory only and is never written to preferences or log files.
 

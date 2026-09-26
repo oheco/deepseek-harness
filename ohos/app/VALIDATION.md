@@ -37,3 +37,21 @@
 本轮不构建、签名或安装 HAP，也不把旧版 App 已完成的真机验收当作新版已验收。早期原生监管器未改动、两步页面不使用它，因此没有重跑其 CMake 测试；没有重建已验收的 Web 后端或运行全仓回归。
 
 打开独立的 `export/DSHApp-0.1.7`，自行配置签名并 Run。复制首页命令到终端执行后，应连接新版 Web；需要选择日志时请选择 `dsh-0.1.7-run.log`，不要选旧 `dsh-run.log`。确认 Ctrl+F、右键操作、拖动搜索条、外链、深浅色和禁止缩放仍与旧版一致。日志含认证 token，不要分享；同一后台实例已运行时不要重复启动。
+
+## 发布候选修订（0.1.7-rc.2-ohos.1）
+
+上面的迁移与本地检查记录保持不变。用于正式发布的候选在它们之上做了两点修订：
+
+1. **首页命令改用正式安装入口。** 首页不再指向维护者的 `harness-ohos-0.1.7-local/run-web.zsh`，而是 `dsh web --host 127.0.0.1 --port 0 --no-open`，日志仍为共享用户目录下的 `Documents/dsh-0.1.7-run.log`。`ohos/package-app-project.py` 默认生成该安装入口；`--web-launcher` 仅保留给本地开发验证，会写进 `BUILD-INFO.json` 的 `development_override`。App 仍只需要 normal 级 Documents 权限，权限回退后的 `Index.ets`、`module.json5` 未再改动。
+
+2. **HMR 测试参数修复。** 之前在 Vitest 中失败的 6 项 settings-controller HMR 用例已确认不是业务缺陷：各 Vitest 项目显式设置 `execArgv`，没有把 OHOS 需要的 `--expose-internals` 传给 worker，导致 Cordis Loader 取不到 Node internals。仅在 `vitest.shared.ts` 对 `openharmony` 追加该参数（保留 `--no-webstorage`），并在 `packages/boot/app-boot/tests/loader-shape.compat.spec.ts` 增加实际 worker argv 断言。没有关闭 HMR、跳过用例或弱化断言。修复后原文件 9/9 通过，相关 loader 检查 1/1 通过。
+
+### 导出树中的 HAP 不能作为本候选证据
+
+`export/DSHApp-0.1.7/.hvigor/outputs` 下 2026-09-26 18:30 生成并签名的 HAP，其公开 `module.json` 仍声明 `READ_WRITE_USER_FILE`。那是随后被撤销的权限试验构建，早于当前恢复 Documents 权限的源码（18:48）。因此：
+
+- 它只证明那次试验版能完整构建、签名和打包；
+- **不能**证明当前候选通过完整 HAP 构建或真机验收；
+- 当前候选仍需在 DevEco 中重新 Sync、Build、用个人签名 Run，并确认交互。
+
+用户已确认的 0.1.5 App 验收同样不能替代 0.1.7 候选的真机验收。真实模型提供商、ArkWeb 人工交互和完整 HAP 构建在本轮发布准备中未执行，发布说明不得声称已完成。

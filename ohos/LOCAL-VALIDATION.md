@@ -5,7 +5,7 @@
 - 上游：`dsh-v0.1.7-rc.2`，`477b4f420553e8a52c2fbccc464d7561b239c443`；选择时 GitHub 最新已发布 0.1.7 版本为 RC.2。
 - 本地目录：`/storage/Users/currentUser/dev/ohos/deepseek-harness-0.1.7`；分支：`ohos/0.1.7-rc.2`。
 - 本地包版本：`0.1.7-rc.2-ohos.1`，**未发布**；没有推送、标签、Release、软件目录更新或现有安装替换。
-- 仅 CLI/Web，不迁移上游桌面应用或 0.1.5 的鸿蒙 App，不写 `export/DSHApp`。
+- 仅 CLI/Web 运行包；不迁移上游桌面应用。`ohos/app` 下的鸿蒙封装工程由独立流程导出，不进入 npm 包。
 - 旧适配参考范围为 `c291e7961a..79bc906508`，不是旧版标签到分支的全部差异；新版上游代码保持为基础。
 
 ## 本机环境与固定输入
@@ -71,9 +71,9 @@ python3 ohos/acceptance.py --dsh "$private/package/bin/dsh" --tmp-parent "$priva
 
 - 未调用真实远端模型提供商；新测试配置独立，不复制原来的凭据或会话。
 - 未进行实际浏览器/ArkWeb 人工操作，不把 HTTP 与 bundle probe 当作视觉、剪贴板、附件上传 UI 或完整 HMR 热更新交互验收。
-- 未运行全仓回归。完整 settings-controller 源码测试中 6 个依赖 HMR internal loader 的既有 fixture 在 Vitest 环境未通过；新增路径回退用例和真实打包 Web 对应接口均通过，不将这 6 项计入通过数。
+- 未运行全仓回归。完整 settings-controller 源码测试中 6 个依赖 HMR internal loader 的既有 fixture 在 Vitest 环境未通过；根因是各 Vitest 项目显式 `execArgv` 未向 worker 传递 OHOS 需要的 `--expose-internals`。发布候选只在 `vitest.shared.ts` 为 `openharmony` 追加该参数并补 worker argv 断言，未关闭 HMR 或跳过用例；修复后原文件 9/9 通过。详见 `app/VALIDATION.md`。
 - 持久终端不能精确识别“等待 stdin”；sharp 为 WASM，格式能力不同于原生 libvips；原生系统浏览器/编辑器启动未适配。
-- GitHub native matrix 没有鸿蒙 runner，保留 fail-closed；本轮不扩展 CI 或开展正式发布。
-- 编译产物最初来自本轮工作树，后续已整理成本地提交。包内 `build-info.json` 记录打包提交，`native_build` 保留实际构建阶段记录；这不是正式发布门禁完成声明。
+- GitHub native matrix 没有鸿蒙 runner，保留 fail-closed；本轮不扩展 CI。
+- 编译产物来自发布候选提交；包内 `build-info.json` 绑定该提交与锁摘要，`native_build` 记录真实构建阶段。正式发布前仍需按发布门槛重新构建并验收。
 
 日志及本地运行包位于相邻 `harness-ohos-0.1.7-local/`。验收临时目录和子进程均由脚本清理；未替换或停止原有 9000 服务。

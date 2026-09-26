@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Check the generated App command against the local Web runtime without a HAP."""
+"""Check the release App command against an installed dsh, without a HAP."""
+import argparse
 import http.cookiejar
 import importlib.util
 import json
@@ -28,16 +29,27 @@ const url = parser.readinessUrl(fs.readFileSync(process.argv[2], 'utf8'));
 if (!url || !parser.loopbackOrigin(url)) throw new Error('App cannot parse the actual Web readiness line');
 process.stdout.write(url);
 """
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--dsh', type=Path, help='installed dsh launcher to place first on PATH')
+parser.add_argument('--home', type=Path, help='shared user home recorded in the App command')
+args = parser.parse_args()
 with tempfile.TemporaryDirectory(prefix="dsh app '017' ", dir=os.environ['TMPDIR']) as temporary:
-    home = Path(temporary)
-    (home / 'Documents').mkdir()
-    config = packaging.runtime_defaults(home)
+    # The App command writes under the shared home; the isolated runtime state
+    # never touches the user's own DSH_HOME, and no port 9000 service is used.
+    shared = args.home.resolve() if args.home else Path(temporary) / 'shared'
+    (shared / 'Documents').mkdir(parents=True, exist_ok=True)
+    config = packaging.runtime_defaults(shared)
     command = json.loads(re.search(r'static runCommand: string = (.+);', config)[1])
-    log = home / 'Documents' / packaging.RUN_LOG_NAME
+    log = shared / 'Documents' / packaging.RUN_LOG_NAME
     env = {key: value for key, value in os.environ.items()
            if not key.startswith(('DSH_', 'DEEPSEEK_')) and not re.search('KEY|TOKEN|SECRET|PASSWORD', key, re.I)}
-    env.update(DSH_017_HOME=str(home / 'state'), DSH_017_PORT='0', NO_PROXY='127.0.0.1,localhost')
-    child = subprocess.Popen(['/usr/bin/zsh', '-f', '-c', command + '\nwait'], cwd=home,
+    env.update(DSH_HOME=str(Path(temporary) / 'dsh-home'), NO_PROXY='127.0.0.1,localhost')
+    if args.dsh is not None:
+        launcher = args.dsh.resolve()
+        if not launcher.is_file():
+            parser.error(f'installed dsh launcher does not exist: {launcher}')
+        env['PATH'] = str(launcher.parent) + ':' + env.get('PATH', '')
+    child = subprocess.Popen(['/usr/bin/zsh', '-f', '-c', command + '\nwait'], cwd=temporary,
                              env=env, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, start_new_session=True)
     try:
         deadline = time.monotonic() + 90
@@ -58,8 +70,8 @@ with tempfile.TemporaryDirectory(prefix="dsh app '017' ", dir=os.environ['TMPDIR
         with client.open(address, timeout=15) as response:
             assert response.status == 200 and '<title>DeepSeek Harness</title>' in response.read().decode()
         assert list(cookies), 'missing authentication cookie'
-        assert (home / 'state').is_dir(), 'isolated 0.1.7 state was not used'
-        print('PASS App command: local 0.1.7 launcher, quoted paths, matching new log, isolated state and non-9000 port')
+        assert (Path(temporary) / 'dsh-home').is_dir(), 'isolated dsh state was not used'
+        print('PASS App release command: installed dsh, quoted paths, announced log, isolated state and non-9000 port')
         print('PASS actual RunLogUrl.ets parser: real readiness URL, authentication cookie and original-brand Web page')
         print('Not a HAP, ArkWeb or device interaction test')
     finally:

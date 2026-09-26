@@ -142,7 +142,18 @@ class ProjectTests(unittest.TestCase):
         self.assertNotIn('dsh web --host', page)
         defaults = (ROOT / 'ohos/app/entry/src/main/ets/config/RuntimeDefaults.ets').read_text()
         self.assertIn('dsh-0.1.7-run.log', defaults)
-        self.assertIn('harness-ohos-0.1.7-local/run-web.zsh', defaults)
+        self.assertIn('dsh web --host 127.0.0.1 --port 0 --no-open', defaults)
+        self.assertNotIn('harness-ohos-0.1.7-local', defaults)
+
+    def test_release_command_uses_installed_dsh_without_a_checkout_path(self):
+        import re
+        import shlex
+        home = self.root / 'home with spaces'
+        content = packaging.runtime_defaults(home)
+        command = json.loads(re.search(r'static runCommand: string = (.+);', content)[1])
+        self.assertEqual(shlex.split(command), ['dsh', 'web', '--host', '127.0.0.1', '--port', '0',
+            '--no-open', '>', str(home / 'Documents/dsh-0.1.7-run.log'), '2>&1', '&'])
+        self.assertNotIn('run-web.zsh', command)
 
 
 class DistributionBrandTests(unittest.TestCase):

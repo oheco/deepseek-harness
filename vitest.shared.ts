@@ -3,10 +3,14 @@ import ts from 'typescript'
 const decoratorSyntax = /^\s*@[A-Za-z_$][\w$]*/m
 
 /**
- * Worker arguments that keep process-wide Web Storage from shadowing jsdom storage.
- * Node lists the positive spelling in `allowedNodeEnvironmentFlags` for this negatable flag.
+ * Worker arguments for HarmonyOS loader internals and isolated jsdom storage.
+ * Project execArgv replaces inherited Node flags; HarmonyOS has no native require-builtin addon.
+ * Node lists the positive spelling in `allowedNodeEnvironmentFlags` for the negatable storage flag.
  */
-export const vitestExecArgv = process.allowedNodeEnvironmentFlags.has('--webstorage') ? ['--no-webstorage'] : []
+export const vitestExecArgv = [
+  ...((process.platform as string) === 'openharmony' ? ['--expose-internals'] : []),
+  ...(process.allowedNodeEnvironmentFlags.has('--webstorage') ? ['--no-webstorage'] : []),
+]
 
 /**
  * Transform standard TypeScript decorators before Vite's default parser sees source files.

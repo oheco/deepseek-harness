@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Create a local-only DevEco project archive for the two-step launcher.
+"""Create a DevEco project archive for the two-step HarmonyOS launcher.
 
-The project carries no runtime copy: the terminal starts the isolated local
-0.1.7 Web launcher, and the app reads the address the new log announces. No
-registry, Release, package version, credentials, or signing profile is changed.
+The release project uses the installed dsh command, not a checkout-specific
+runtime. An explicit local launcher remains available for development. This
+packager never publishes artifacts or copies personal signing material.
 """
 import argparse
 import hashlib
@@ -52,12 +52,12 @@ def copy_inputs(source, target, *, project=False):
 
 
 RUN_LOG_NAME = 'dsh-0.1.7-run.log'
-DEFAULT_WEB_LAUNCHER = Path(__file__).resolve().parents[2] / 'harness-ohos-0.1.7-local/run-web.zsh'
 
 
-def runtime_defaults(home, web_launcher=DEFAULT_WEB_LAUNCHER):
-    """Project the local Web launcher and matching log path without copying credentials."""
-    command = f'zsh {shlex.quote(str(web_launcher))} > {shlex.quote(str(Path(home) / "Documents" / RUN_LOG_NAME))} 2>&1 &'
+def runtime_defaults(home, web_launcher=None):
+    """Project the installed command (or an explicit local override) and matching log path."""
+    launch = 'dsh web --host 127.0.0.1 --port 0 --no-open' if web_launcher is None else f'zsh {shlex.quote(str(web_launcher))}'
+    command = f'{launch} > {shlex.quote(str(Path(home) / "Documents" / RUN_LOG_NAME))} 2>&1 &'
     body = '// Generated device connection; regenerate with ohos/package-app-project.py after moving paths.\n'
     body += 'export class RuntimeDefaults {\n'
     body += f'  static homeDir: string = {json.dumps(str(home), ensure_ascii=False)};\n'
@@ -93,15 +93,15 @@ def main():
     parser.add_argument('--output', required=True, type=Path, help='new output directory')
     parser.add_argument('--home', type=Path, default=Path.home(),
                         help='shared user home the terminal command writes the log under')
-    parser.add_argument('--web-launcher', type=Path, default=DEFAULT_WEB_LAUNCHER,
-                        help='existing local 0.1.7 Web launcher, not the installed 0.1.5 dsh')
+    parser.add_argument('--web-launcher', type=Path,
+                        help='development-only local launcher override; release projects use dsh on PATH')
     parser.add_argument('--checks-dir', type=Path, help='local SDK check directory holding sanitized check logs')
     parser.add_argument('--native-test-log', type=Path, help='CTest LastTest.log from the native fixture run')
     args = parser.parse_args()
     root = Path(__file__).resolve().parent.parent
-    launcher = args.web_launcher.resolve()
-    if not launcher.is_file():
-        parser.error('prepare the local 0.1.7 Web runtime and its launcher first')
+    launcher = args.web_launcher.resolve() if args.web_launcher else None
+    if launcher is not None and not launcher.is_file():
+        parser.error('the explicit development launcher does not exist')
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=False)
     stage = output / 'project'
@@ -114,10 +114,10 @@ def main():
         'source_commit': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=root, text=True).strip(),
         'source_dirty': bool(subprocess.check_output(['git', 'status', '--porcelain'], cwd=root)),
         'release_version': json.loads((root / 'ohos/release.json').read_text())['version'],
-        'launch_mode': 'two-step: the terminal runs the isolated 0.1.7 Web launcher; the App reads its log',
-        'web_launcher': str(launcher),
+        'launch_mode': 'two-step: the terminal runs dsh; the App reads its readiness log',
+        'web_launcher': str(launcher) if launcher is not None else 'installed dsh on PATH',
         'log_name': RUN_LOG_NAME,
-        'published': False,
+        'development_override': launcher is not None,
     }
     (stage / 'BUILD-INFO.json').write_text(json.dumps(info, ensure_ascii=False, indent=2) + '\n')
     validation = stage / 'validation'

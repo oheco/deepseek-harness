@@ -8,6 +8,9 @@ import { describe, expect, it } from 'vitest'
 
 describe('Loader internal shape detection', () => {
   it('tags the running Node loader with the resolver signature that runtime accepts', async () => {
+    if ((process.platform as string) === 'openharmony') {
+      expect(process.execArgv, 'HarmonyOS workers require explicit loader-internals access').toContain('--expose-internals')
+    }
     const dir = mkdtempSync(join(tmpdir(), 'dsh-loader-shape-'))
     const baseUrl = pathToFileURL(dir).href + '/'
     const ctx = new Context()

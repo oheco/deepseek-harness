@@ -32,10 +32,10 @@
 1. **一条命令**，复制后在鸿蒙终端执行：
 
    ```sh
-   zsh /storage/Users/currentUser/dev/ohos/harness-ohos-0.1.7-local/run-web.zsh > /storage/Users/currentUser/Documents/dsh-0.1.7-run.log 2>&1 &
+   dsh web --host 127.0.0.1 --port 0 --no-open > /storage/Users/currentUser/Documents/dsh-0.1.7-run.log 2>&1 &
    ```
 
-   命令明确启动已完成移植的 0.1.7 本地运行包，不使用 PATH 中的旧 `dsh`。默认随机选择空闲端口，配置与会话使用独立的 `$XDG_CONFIG_HOME/dsh-0.1.7-local`，不占用现有 9000 服务，也不复制旧版凭据或会话。请先准备相邻 `harness-ohos-0.1.7-local/` 运行目录。路径迁移后用 `ohos/package-app-project.py --web-launcher <新路径> --home <共享用户目录>` 重新导出；首页命令与日志名均来自 `RuntimeDefaults.ets`。同一实例已经运行时不要重复执行启动命令。
+   命令使用你 PATH 中正式安装的 `dsh`（本发行版 0.1.7），保留你已有的设置、会话和凭据，并随机选择空闲端口，不占用现有 9000 服务。日志写入共享用户目录下的 Documents，应用通过 normal 级 Documents 权限读取；如果直接路径被拒绝，等待区会出现**选择日志文件**按钮回退到系统文件选择器。首页命令与日志名来自 `RuntimeDefaults.ets`：`ohos/package-app-project.py` 默认生成上面的安装入口；仅在你需要指到某个本地开发运行时，才用 `--web-launcher <路径>` 覆盖，并同时用 `--home <共享用户目录>` 指定日志所在用户目录。同一实例已经运行时不要重复执行启动命令。
 
 2. **持续等待提示**。应用每秒读取该日志，取出其中的就绪地址；**并且在打开之前先实际连接一次**：只有该地址真的响应，才切到 WebView。这样上一次运行遗留的日志不会直接打开一个已经失效的页面。检测到新端口（服务重启）会重新连接并加载。
 
@@ -47,7 +47,7 @@
 
 页面只与本机 `127.0.0.1` 通信，但 ArkWeb 在刚创建时会先把 `navigator.onLine` 报成 `false`，而 DSH 客户端在启动时读取该标记，一旦为假就停在“等待网络恢复”的断开状态，只能靠它自己的重连控件恢复。因此应用在文档开始前注入一小段脚本，让页面看到真实使用的本地连接可用，并阻止一次瞬时的系统 offline 事件把这条本地连接置为断开。
 
-日志放在 `~/Documents/dsh-0.1.7-run.log` 而不是 `~/.dsh/`：`~/.dsh` 是终端应用的私有目录，本应用属于另一个沙箱，读不到。即使换到 Documents，其中文件的权限是 `-rw-rw----`（属主 + `file_manager` 组），应用不在该组，所以应用会申请 normal 级的 `ohos.permission.READ_WRITE_DOCUMENTS_DIRECTORY`；如果直接路径仍被拒绝，等待区会出现**选择日志文件**按钮，通过系统文件选择器取得读取授权——这条路径不需要任何特殊权限。
+日志放在 `~/Documents/dsh-0.1.7-run.log` 而不是 dsh 状态目录下：本应用属于独立沙箱，不能假定能读终端进程的 dsh 数据，而且该位置还取决于终端进程自己的环境。即使换到 Documents，其中文件的权限是 `-rw-rw----`（属主 + `file_manager` 组），应用不在该组，所以应用会申请 normal 级的 `ohos.permission.READ_WRITE_DOCUMENTS_DIRECTORY`；如果直接路径仍被拒绝，等待区会出现**选择日志文件**按钮，通过系统文件选择器取得读取授权——这条路径不需要任何特殊权限。
 
 地址解析规则：必须是**已换行结束**的完整一行、显式 `http://127.0.0.1:<port>` 或 `http://[::1]:<port>`、非零端口、非空 token；带上游 LAN 后缀的行可以接受，但只打开回环地址。地址只在内存中交给 WebView，不写入偏好或日志文件。
 

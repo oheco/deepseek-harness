@@ -2,7 +2,6 @@
   "version": "0.1.7-rc.2-ohos.1",
   "upstream_version": "0.1.7-rc.2",
   "upstream_commit": "477b4f420553e8a52c2fbccc464d7561b239c443",
-  "status": "local-only-unpublished",
   "dependencies": {
     "node-pty": "1.2.0-beta.15-ohos.1",
     "koffi": "3.1.1-ohos.1",

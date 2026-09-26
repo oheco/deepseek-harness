@@ -4,7 +4,7 @@ English | [中文](README.zh.md)
 
 ## Scope
 
-This local-only port targets HarmonyOS PC ARM64 and upstream tag `dsh-v0.1.7-rc.2`, commit `477b4f420553e8a52c2fbccc464d7561b239c443`, on branch `ohos/0.1.7-rc.2`. The runtime package adapts CLI/Web, not the upstream desktop application. The separate [HarmonyOS App project](app/README.md) now carries the completed 0.1.5 wrapper features and connects to the isolated local 0.1.7 runtime; it is exported separately, not embedded in the npm package. No release, registry update, or installed-version replacement is part of this work.
+This port targets HarmonyOS PC ARM64 and upstream tag `dsh-v0.1.7-rc.2`, commit `477b4f420553e8a52c2fbccc464d7561b239c443`, on branch `ohos/0.1.7-rc.2`. The runtime package adapts CLI/Web, not the upstream desktop application. The separate [HarmonyOS App project](app/README.md) carries the completed 0.1.5 wrapper features and starts the installed `dsh`; it is exported separately, not embedded in the npm package. Release artifacts and their verification are recorded in the GitHub Release; this document describes the build and the port itself.
 
 The previous port is used only as a reference. Use a separate application-private `DSH_HOME`: newer session formats must not be tested against the existing 0.1.5 data. The normal Web service on port 9000 is not used for acceptance.
 
