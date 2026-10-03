@@ -28,12 +28,13 @@
 | ArkTS 语义 | `node ohos/check-app-arkts.cjs --sdk /storage/Users/currentUser/.oheco/packages/ohos-sdk-ets/26.0.0.35-Beta --output "$priv/check"`：errors 0、exit 0 | 按工程 SDK 字段检查新源码；10 个提示为 INTERNET、文件 API 异常处理、getContext 废弃。不是 assembleHap 或完整 DevEco 构建。 |
 | 图标 | `python3 -B ohos/sync-app-logo.py --check`：5 个 PNG 与分层描述通过、exit 0 | 不做无关图标重绘。 |
 | 主题兼容只读核对 | 新版 ui-theme 的 design-platform.css 仍定义浮层脚本读取的 7 个 `--dsw-*` 变量，并有深浅色定义 | 只是源码核对，不是新 ArkWeb 实际颜色验收，也不修改或测试该软件包。 |
-| Web 衔接 | 尚未执行；等待主线程准备独立运行包 | 测试使用 `DSH_020_HOME`、`DSH_020_PORT=0` 与临时 Documents 日志，结束时关闭自己的进程组。 |
-| 无签名导出 | `python3 -B ohos/package-app-project.py --output "$priv/archive" --export-project /storage/Users/currentUser/dev/ohos/export/DSHApp-0.2.0`：创建时 71 文件逐文件与归档 stage 一致、exit 0；其后只同步当前检查说明 | 只创建新的无签名 DevEco 目录；临时 ZIP 与 stage 已清理，不覆盖任何旧工程。 |
+| Web 衔接 | `python3 -B ohos/test-app-web.py`：真实启动本次 fresh candidate 的独立运行包，实际新 `RunLogUrl.ets` 解析就绪日志，鉴权 Cookie、原版页面标题及随机非 9000 端口均通过、exit 0 | 首页同一本地启动器与日志文件名；shared home/日志及 `DSH_020_HOME` 隔离在含空格／引号的 `$TMPDIR`，设 `DSH_020_PORT=0`，结束时关闭自己的进程组并清理。不是 HAP、ArkWeb 或真机交互测试。 |
+| 无签名导出 | `python3 -B ohos/package-app-project.py --output "$priv/archive" --export-project /storage/Users/currentUser/dev/ohos/export/DSHApp-0.2.0`：创建时 71 文件逐文件与归档 stage 一致、exit 0；其后同步当前检查说明，并加入本轮 Web 衔接日志与输入摘要记录（现为 73 文件） | 只创建新的无签名 DevEco 目录；临时 ZIP 与 stage 已清理，不覆盖任何旧工程。 |
 | 双语说明 | `node scripts/verify-translation-pairing.ts ohos/app/README.md ohos/app/tests/native/README.md`：2 个指定文档对一致、exit 0 | 只检查 App 文档，不运行全仓 doc-sync。 |
+| 导出复核 | 60 个安全 tracked 文件（说明链接按导出路径投影）、6 个本轮日志及输入摘要记录与新源码逐字节一致；总计 73 文件、exit 0 | 复核不读取受保护的身份、默认器或 build-profile，不访问任何旧导出。打包回归也验证迁移记录随包及相对链接可打开。 |
 
 ## 使用与未验证部分
 
-独立运行包准备好后，打开新的 `export/DSHApp-0.2.0`（根目录而非 entry）。该工程没有个人签名配置；如以后自行在 DevEco 配置签名并运行，同 bundle 身份会升级原 App，而非并存安装。复制首页命令到终端；需选择日志时只选 `dsh-0.2.0-run.log`。日志含认证 token，不要分享；服务已运行时不要重复启动。
+独立运行包已通过上述本地连接测试。打开新的 `export/DSHApp-0.2.0`（根目录而非 entry）。该工程没有个人签名配置；如以后自行在 DevEco 配置签名并运行，同 bundle 身份会升级原 App，而非并存安装。复制首页命令到终端；需选择日志时只选 `dsh-0.2.0-run.log`。日志含认证 token，不要分享；服务已运行时不要重复启动。
 
 本轮不做 HAP 构建、签名、安装或真机人工操作；普通 HAP 权限、ArkWeb 搜索／右键／外链／路径／深浅色交互仍需用户验收。早期原生监管器源码未改动、两步模式不使用它，因此不重跑其编译或签名测试。不运行其他软件包验证或全仓回归；任何旧检查、旧 HAP 或旧真机验收都不能替代本版本证据。

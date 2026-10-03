@@ -40,4 +40,6 @@ Actual focused tests and five isolated runtime scenarios are recorded in `LOCAL-
 
 ## Platform limitations
 
+**New upstream LibreOffice Kit 0.1.1 has no OpenHarmony engine selection.** Its capability query was confirmed to fail with `Unsupported LibreOfficeKit host: openharmony-arm64`. The default Web composition disables its Office-to-PDF provider on HarmonyOS while retaining general document previews and the independent Excel/CSV byte viewer. Engine-backed Office-to-PDF, conversion, recalculation and rendering are unsupported in this local port. Other JS/Python Office editing tools were not validated. No Linux binaries or global `process.platform` spoofing are used.
+
 Shell tools use `/usr/bin/zsh`. Persistent terminals require Python 3 with termios and cannot reliably detect a child waiting for input. HarmonyOS has no supported process sandbox backend: the default uses full access with approvals disabled, while an explicit sandbox request must fail rather than silently run unconfined. Shared HOME lacks hardlinks/private chmod; file publication uses the HarmonyOS implementation. Settings-document opening falls back to a path. The App retains Documents permission and the two-step launch flow; UserFile, broker buttons, and editor bridging are not added. Users build, personally sign, install, and verify HAP interactions through DevEco.

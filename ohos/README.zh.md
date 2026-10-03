@@ -40,4 +40,6 @@ python3 ohos/acceptance.py --dsh /absolute/local-package/package/bin/dsh --tmp-p
 
 ## 平台限制
 
+**0.2 新增的 LibreOffice Kit 0.1.1 没有 OpenHarmony 引擎选择分支。** 已实际确认其能力查询返回 `Unsupported LibreOfficeKit host: openharmony-arm64`。默认 Web 组合已在鸿蒙禁用 Office 转 PDF 提供者，保留通用文档预览和独立 Excel/CSV 字节查看器；本地移植不支持由它执行的 Office 转 PDF、转换、重算及渲染；其他 JS/Python Office 编辑工具未验证。不采用 Linux 二进制，也不伪装全局 `process.platform`。
+
 Shell 使用 `/usr/bin/zsh`；持久终端需具备 termios 的 Python 3，不能精确判断子进程是否等待输入。鸿蒙无受支持的进程沙箱后端，默认完整访问和关闭审批；显式请求沙箱必须失败，不能静默退化。HOME 文件系统不支持硬链接或私有 chmod，原子文件发布使用鸿蒙兼容实现。设置文件无法通过外部应用打开时返回路径。App 保留 Documents 权限与两步启动流程，不增加 UserFile 权限、broker 启动按钮或配置编辑器桥接。HAP 构建、个人签名、安装及真机交互由用户在 DevEco 中完成。

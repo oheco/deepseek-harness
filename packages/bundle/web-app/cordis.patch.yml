@@ -268,6 +268,7 @@
 
     - id: office-to-pdf
       name: '@deepseek-ai/dsh-office-to-pdf'
+      disabled: !!js process.platform === 'openharmony'
 
     # The right Sidebar's document tab: bounded file reads with selectable
     # Markdown, code, HTML, PDF, Office, and plain-text renderers.

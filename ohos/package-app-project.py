@@ -130,6 +130,9 @@ def main():
     (stage / 'BUILD-INFO.json').write_text(json.dumps(info, ensure_ascii=False, indent=2) + '\n')
     validation = stage / 'validation'
     validation.mkdir(exist_ok=True)
+    shutil.copyfile(root / 'ohos/app-migration.json', validation / 'app-migration.json')
+    record = stage / 'VALIDATION.md'
+    record.write_text(record.read_text().replace('](../app-migration.json)', '](validation/app-migration.json)'))
     if args.checks_dir:
         for filename in ['standalone-final.log', 'app-tests.log', 'project-tests.log', 'app-web-connection.log']:
             source_log = args.checks_dir / filename

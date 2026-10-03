@@ -195,6 +195,11 @@ class ProjectTests(unittest.TestCase):
         self.assertTrue(info['local_only'])
         self.assertEqual(info['web_launcher'], str(packaging.DEFAULT_WEB_LAUNCHER))
         self.assertEqual(json.loads((export / 'build-profile.json5').read_text())['app']['signingConfigs'], [])
+        self.assertEqual((export / 'validation/app-migration.json').read_bytes(),
+                         (ROOT / 'ohos/app-migration.json').read_bytes())
+        documentation = (export / 'VALIDATION.md').read_text()
+        self.assertIn('](validation/app-migration.json)', documentation)
+        self.assertNotIn('](../app-migration.json)', documentation)
         archive = output / ('deepseek-harness-app-' + info['release_version'] + '.zip')
         with zipfile.ZipFile(archive) as bundle:
             for item in bundle.infolist():
