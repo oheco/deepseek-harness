@@ -67,7 +67,7 @@ function fixture(t, { platform = 'linux', arch = 'x64', kind = 'node-api' } = {}
   const spec = { platform: `${platform}-${arch}`, binaries: [binary] };
   const manifest = { name: 'fixture', os: [platform], cpu: [arch] };
   const bytes = Buffer.alloc(256);
-  if (platform === 'linux') {
+  if (platform === 'linux' || platform === 'openharmony') {
     bytes.writeUInt32LE(0x464c457f, 0);
     bytes[4] = 2;
     bytes[5] = 1;
@@ -96,6 +96,41 @@ for (const platform of ['linux', 'darwin']) {
       assert.equal(verifyPlatformBinaries(fixture(t, { platform, arch }).dir).count, 1);
     });
   }
+}
+
+test('accepts the HarmonyOS ARM64 addon metadata and ELF header', (t) => {
+  assert.equal(verifyPlatformBinaries(fixture(t, { platform: 'openharmony', arch: 'arm64' }).dir).count, 1);
+});
+
+test('HarmonyOS package uses the native version and entry workspace range', () => {
+  const read = (name) => JSON.parse(fs.readFileSync(new URL(name, import.meta.url), 'utf8'));
+  const entry = read('../packages/entry/package.json');
+  const platform = read('../packages/openharmony-arm64/package.json');
+  const spec = read('../packages/openharmony-arm64/prebuilds.json');
+  assert.equal(platform.version, entry.version);
+  assert.equal(entry.optionalDependencies[platform.name], 'workspace:~');
+  assert.deepEqual(platform.os, ['openharmony']);
+  assert.deepEqual(platform.cpu, ['arm64']);
+  assert.equal(spec.platform, 'openharmony-arm64');
+  assert.deepEqual(spec.binaries, [{ tool: 'flock', kind: 'node-api', napi: 8, path: 'bin/system.node' }]);
+});
+
+for (const [name, change, expected] of [
+  ['Linux libc', (f) => { f.binary.libc = 'musl'; }, /must not declare/],
+  ['Landlock launcher', (f) => { f.binary.kind = 'static-musl'; f.binary.tool = 'landlock-run'; }, /kind\/tool\/NAPI/],
+  ['unsupported CPU', (f) => { f.manifest.cpu = ['x64']; f.spec.platform = 'openharmony-x64'; }, /os\/cpu/],
+  ['wrong architecture', (f) => { f.bytes.writeUInt16LE(62, 18); }, /ELF architecture/],
+  ['Mach-O format', (f) => { f.bytes.writeUInt32LE(0xfeedfacf, 0); }, /ELF64/],
+  ['executable type', (f) => { f.bytes.writeUInt16LE(2, 16); }, /ELF file type/],
+  ['missing NAPI exports', (f) => { f.bytes.fill(0, 64); }, /Node-API entry points/],
+]) {
+  test(`rejects incompatible HarmonyOS ${name}`, (t) => {
+    const f = fixture(t, { platform: 'openharmony', arch: 'arm64' });
+    change(f);
+    fs.writeFileSync(f.file, f.bytes);
+    f.save();
+    assert.throws(() => verifyPlatformBinaries(f.dir), expected);
+  });
 }
 
 test('accepts the Linux static launcher format', (t) => {

@@ -4,7 +4,9 @@
  * Node headers come from the Node installation running this script.
  */
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync } from 'node:fs'
+import { randomUUID } from 'node:crypto'
+import { constants, copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
 import { parseArgs } from 'node:util'
 
@@ -24,12 +26,13 @@ interface Binary {
   libc?: string
 }
 
-if (process.platform !== 'linux' && process.platform !== 'darwin') {
+const platform: string = process.platform
+if (platform !== 'linux' && platform !== 'darwin' && platform !== 'openharmony') {
   if (hostAddonOnly) process.exit(0)
-  throw new Error('build: system binaries are built on Linux or macOS; no native target for this host')
+  throw new Error('build: system binaries are built on Linux, macOS or HarmonyOS; no native target for this host')
 }
-const host = `${process.platform}-${process.arch}`
-const libc = process.platform === 'linux'
+const host = `${platform}-${process.arch}`
+const libc = platform === 'linux'
   ? ((process.report.getReport() as { header: { glibcVersionRuntime?: string } }).header.glibcVersionRuntime ? 'glibc' : 'musl')
   : undefined
 const headers = resolve(dirname(process.execPath), '../include/node')
@@ -51,20 +54,22 @@ for (const name of readdirSync(join(root, 'packages')).sort()) {
     let compiler: string
     let flags: string[]
 
-    if (binary.kind === 'static-musl' && process.platform === 'linux' && binary.tool === 'landlock-run') {
+    if (binary.kind === 'static-musl' && platform === 'linux' && binary.tool === 'landlock-run') {
       compiler = 'musl-gcc'
       flags = ['-std=c11', '-Os', '-Wall', '-Wextra', '-Werror', '-static', '-s']
     } else if (binary.kind === 'node-api' && binary.tool === 'flock' && binary.napi === 8) {
       if (!existsSync(join(headers, 'node_api.h'))) {
         throw new Error(`build: Node-API headers missing at ${headers}; use a Node installation with development headers`)
       }
-      compiler = process.platform === 'linux' && binary.libc === 'musl' ? 'musl-gcc' : 'cc'
+      compiler = platform === 'linux' && binary.libc === 'musl' ? 'musl-gcc' : platform === 'openharmony' ? 'clang' : 'cc'
       flags = ['-std=c11', '-O2', '-Wall', '-Wextra', '-Werror', '-fPIC', '-fvisibility=hidden', '-DNAPI_VERSION=8', '-I', headers]
-      if (process.platform === 'darwin') {
-        if (binary.libc !== undefined) throw new Error('build: macOS flock does not select a Linux libc')
+      if (platform !== 'linux' && binary.libc !== undefined) {
+        throw new Error('build: non-Linux flock must not select a Linux libc')
+      }
+      if (platform === 'darwin') {
         flags.push('-bundle', '-undefined', 'dynamic_lookup', '-mmacosx-version-min=11.0')
       } else {
-        if (binary.libc !== 'glibc' && binary.libc !== 'musl') {
+        if (platform === 'linux' && binary.libc !== 'glibc' && binary.libc !== 'musl') {
           throw new Error('build: Linux flock must select glibc or musl')
         }
         flags.push('-shared')
@@ -73,17 +78,30 @@ for (const name of readdirSync(join(root, 'packages')).sort()) {
       throw new Error(`build: unsupported ${binary.tool}/${binary.kind} target on ${host}`)
     }
 
-    mkdirSync(join(root, '.release'), { recursive: true })
-    const temporary = mkdtempSync(join(root, '.release', 'native-build-'))
+    const temporary = mkdtempSync(join(tmpdir(), 'native-build-'))
+    const pending = join(dirname(output), `.${basename(output)}.${randomUUID()}.pending`)
     try {
-      const pending = join(temporary, basename(output))
-      const result = spawnSync(compiler, [...flags, '-o', pending, join(root, source)], { stdio: 'inherit' })
+      const compiled = join(temporary, basename(output))
+      const result = spawnSync(compiler, [...flags, '-o', compiled, join(root, source)], { stdio: 'inherit' })
       if (result.error) throw result.error
       if (result.status !== 0) throw new Error(`build: ${compiler} failed for ${binary.path}`)
-      // Readers never see a truncated addon when source checks build concurrently.
+      let payload = compiled
+      if (platform === 'openharmony') {
+        payload = compiled + '.signed'
+        const signature = spawnSync('binary-sign-tool', ['sign', '-inFile', compiled, '-outFile', payload, '-selfSign', '1'], { stdio: 'inherit' })
+        if (signature.error) throw new Error('build: binary-sign-tool could not run; check the LLVM tools PATH', { cause: signature.error })
+        if (signature.status !== 0) throw new Error('build: HarmonyOS addon signing failed')
+      }
+      // TMPDIR may be on another filesystem. Copy fully before the same-directory
+      // rename, so concurrent readers never see a truncated or unsigned addon.
+      copyFileSync(payload, pending, constants.COPYFILE_EXCL)
       renameSync(pending, output)
     } finally {
-      rmSync(temporary, { recursive: true, force: true })
+      try {
+        rmSync(pending, { force: true })
+      } finally {
+        rmSync(temporary, { recursive: true, force: true })
+      }
     }
     console.log(`build: built ${basename(dir)}/${binary.path}`)
     built++

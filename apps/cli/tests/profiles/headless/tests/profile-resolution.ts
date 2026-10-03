@@ -292,7 +292,10 @@ export function testProfileResolution(mode: ExampleMode): void {
       expect(evidence.sourceLeafExplicitCjs).toBe(realpathSync.native(join(sourceDevLeaf, 'index.cjs')))
       expect(evidence.sourceLeafCjs).not.toBe(evidence.sourceLeafExplicitCjs)
       expect(evidence.scheduler).toBe(true)
-      expect(evidence.execArgv).toEqual(mode === 'src' ? launch.args.slice(0, 2) : [])
+      // src mode forwards the launcher's Node flags (on HarmonyOS an extra
+      // --expose-internals precedes --import) plus the resolved tsx entry.
+      const loaderFlagCount = (process.platform as string) === 'openharmony' ? 1 : 0
+      expect(evidence.execArgv).toEqual(mode === 'src' ? launch.args.slice(0, 2 + loaderFlagCount) : [])
       for (const name of ['tools', 'agent-loop']) {
         const selected = mode === 'src' ? 'src/index.ts' : 'lib/index.js'
         const other = mode === 'src' ? 'lib' : 'src'

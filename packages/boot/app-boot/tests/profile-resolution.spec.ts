@@ -27,6 +27,7 @@ import {
   type Profile,
   type RuntimeResolution,
 } from '../src/profile.ts'
+import { requireNodeInternal } from './node-internals.ts'
 import { registerHooksThreadStacks } from './hooks-thread-stack.ts'
 
 const roots: string[] = []
@@ -76,9 +77,7 @@ function conditionalPkg(dir: string, name: string, importMarker: number, require
 }
 
 async function importFrom(specifier: string, parent: string): Promise<Record<string, unknown>> {
-  const addon = createRequire(import.meta.url)('node-addon-require-builtin') as {
-    requireBuiltin(id: string): unknown
-  }
+  const addon = { requireBuiltin: requireNodeInternal }
   const loader = addon.requireBuiltin('internal/modules/esm/loader') as {
     getOrInitializeCascadedLoader(): {
       import(specifier: string, parent: string, attributes: ImportAttributes): Promise<Record<string, unknown>>
@@ -90,9 +89,7 @@ async function importFrom(specifier: string, parent: string): Promise<Record<str
 function resolveFrom(
   specifier: string, parent: string | undefined, attributes: ImportAttributes = {}, skipSyncHooks = false,
 ): string {
-  const addon = createRequire(import.meta.url)('node-addon-require-builtin') as {
-    requireBuiltin(id: string): unknown
-  }
+  const addon = { requireBuiltin: requireNodeInternal }
   const loader = addon.requireBuiltin('internal/modules/esm/loader') as {
     getOrInitializeCascadedLoader(): {
       getOrCreateModuleJob?: unknown
@@ -853,7 +850,7 @@ describe('runtime resolution', { concurrent: false }, () => {
     expect(resolveFrom('fs', parent)).toBe('node:fs')
     expect(resolveFrom('node:path', pathToFileURL(join(f.root, 'outside.mjs')).href, {}, true)).toBe('node:path')
 
-    const addon = createRequire(import.meta.url)('node-addon-require-builtin') as { requireBuiltin(id: string): unknown }
+    const addon = { requireBuiltin: requireNodeInternal }
     const internal = addon.requireBuiltin('internal/modules/cjs/loader') as {
       Module: {
         _resolveFilename(
@@ -1363,7 +1360,7 @@ describe('runtime resolution', { concurrent: false }, () => {
     registrations.push(registration)
     expect(await importFrom('conditional-lib', pathToFileURL(join(f.profile.dir, 'entry.mjs')).href))
       .toMatchObject({ marker: 21 })
-    const addon = createRequire(import.meta.url)('node-addon-require-builtin') as { requireBuiltin(id: string): unknown }
+    const addon = { requireBuiltin: requireNodeInternal }
     const internal = addon.requireBuiltin('internal/modules/cjs/loader') as {
       Module: {
         new(id?: string): { filename?: string; paths?: string[] }
@@ -1393,7 +1390,7 @@ describe('runtime resolution', { concurrent: false }, () => {
     conditionalPkg(f.installed, 'conditional-lib', 11, 12)
     const registration = installRuntimeInterception(await resolutionOf(f))
     registrations.push(registration)
-    const addon = createRequire(import.meta.url)('node-addon-require-builtin') as { requireBuiltin(id: string): unknown }
+    const addon = { requireBuiltin: requireNodeInternal }
     const internal = addon.requireBuiltin('internal/modules/cjs/loader') as {
       Module: {
         new(id?: string): { filename?: string; paths?: string[] }
@@ -1420,7 +1417,7 @@ describe('runtime resolution', { concurrent: false }, () => {
     const f = fixture()
     const registration = installRuntimeInterception(await resolutionOf(f))
     registrations.push(registration)
-    const addon = createRequire(import.meta.url)('node-addon-require-builtin') as { requireBuiltin(id: string): unknown }
+    const addon = { requireBuiltin: requireNodeInternal }
     const internal = addon.requireBuiltin('internal/modules/cjs/loader') as {
       Module: {
         new(id?: string): { children: unknown[]; filename?: string; paths?: string[] }

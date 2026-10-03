@@ -47,10 +47,21 @@ describe('terminal-bash config', () => {
 
 describe('terminal-bash dialect resolution', () => {
   it('defaults bash argv to the interactive profile-free form', () => {
-    const { shellPath, shellArgs, shellDialect } = resolveConfig({ backendType: 'shell', rows: 24, cols: 80 })
+    const { shellPath, shellArgs, shellDialect } = resolveConfig({ backendType: 'shell', shellDialect: 'bash', rows: 24, cols: 80 })
     expect(shellDialect).toBe('bash')
     expect(shellPath).toBe('/bin/bash')
     expect(shellArgs).toEqual(['--noprofile', '--norc', '-i'])
+  })
+
+  it('defaults zsh to an interactive shell without user startup files', () => {
+    const resolved = resolveConfig({ shellDialect: 'zsh' })
+    expect(resolved.shellPath).toBe('/usr/bin/zsh')
+    expect(resolved.shellArgs).toEqual(['-f', '-i'])
+  })
+
+  it('uses the host dialect only when no dialect is configured', () => {
+    const harmony = (process.platform as string) === 'openharmony'
+    expect(resolveConfig({}).shellDialect).toBe(harmony ? 'zsh' : 'bash')
   })
 
   it('defaults pwsh argv to the interactive profile-free form and resolves the executable', () => {

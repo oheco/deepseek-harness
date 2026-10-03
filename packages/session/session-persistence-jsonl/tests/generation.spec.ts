@@ -1604,8 +1604,36 @@ describe('JSONL immutable generation publication', () => {
     expect((await readdir(root)).every(name => !name.includes('.tmp'))).toBe(true)
   })
 
+  it('uses HarmonyOS exclusive publication without replacing the source', async () => {
+    const root = await tempRoot()
+    const request = options(root)
+    const source = Buffer.from(line(header(0)) + line(event0))
+    await writeFile(request.sourcePath, source)
+    const publishNewOhos = vi.fn(async (from: string, to: string) => { await rename(from, to) })
+    await ensureWithOverrides(request, { platform: 'openharmony', publishNewOhos, fs: posixSimulationFs({}) })
+    expect(publishNewOhos).toHaveBeenCalledOnce()
+    expect(publishNewOhos.mock.calls[0]?.[1]).toBe(request.currentPath)
+    expect(await readFile(request.sourcePath)).toEqual(source)
+    expect(await readFile(request.currentPath, 'utf8')).toBe(line(header(SESSION_FORMAT_VERSION)) + line(event0))
+    expect((await readdir(root)).every(name => !name.includes('.tmp'))).toBe(true)
+  })
+
+  it('accepts an identical target that wins HarmonyOS publication', async () => {
+    const root = await tempRoot()
+    const request = options(root)
+    await writeFile(request.sourcePath, line(header(0)) + line(event0))
+    const publishNewOhos = vi.fn(async (_from: string, to: string) => {
+      await writeFile(to, line(header(SESSION_FORMAT_VERSION)) + line(event0))
+      throw fsError('EEXIST')
+    })
+    await expect(ensureWithOverrides(request, {
+      platform: 'openharmony', publishNewOhos, fs: posixSimulationFs({}),
+    })).resolves.toMatchObject({ path: request.currentPath })
+    expect((await readdir(root)).every(name => !name.includes('.tmp'))).toBe(true)
+  })
+
   it('propagates non-collision Windows and POSIX publication failures', async () => {
-    for (const platform of ['win32', 'darwin'] as const) {
+    for (const platform of ['win32', 'openharmony', 'darwin'] as const) {
       const root = await tempRoot()
       const request = options(root)
       const failure = new Error(`${platform} publication failed`)
@@ -1613,7 +1641,9 @@ describe('JSONL immutable generation publication', () => {
 
       await expect(ensureWithOverrides(request, platform === 'win32'
         ? { platform, publishNewWin32: async () => { throw failure } }
-        : { platform, fs: posixSimulationFs({ link: async () => { throw failure } }) }))
+        : platform === 'openharmony'
+          ? { platform, publishNewOhos: async () => { throw failure }, fs: posixSimulationFs({}) }
+          : { platform, fs: posixSimulationFs({ link: async () => { throw failure } }) }))
         .rejects.toBe(failure)
       expect(await readdir(root)).toEqual(['session.jsonl'])
     }

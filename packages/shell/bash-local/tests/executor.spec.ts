@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, describe, expect, it, vi } from 'vitest'
@@ -52,6 +52,19 @@ async function readUntil(proc: ShellProcess, expected: string, timeoutMs = 5_000
   }
   throw new Error(`process output did not include ${JSON.stringify(expected)}; accumulated ${JSON.stringify(all)}`)
 }
+
+describe.skipIf(!existsSync('/usr/bin/zsh'))('LocalBashExecutor zsh configuration', () => {
+  it('executes zsh syntax with the configured interpreter and arguments', async () => {
+    const { ctx, bash } = await setup({ shellPath: '/usr/bin/zsh', shellArgs: ['-f', '-c'] })
+    try {
+      const result = await run(bash, bash.resolve({ command: 'typeset -a values=(alpha beta); print -r -- "$values[1]"' }))
+      expect(result.exitCode).toBe(0)
+      expect(result.stdout.text).toBe('alpha\n')
+    } finally {
+      await ctx.fiber.dispose()
+    }
+  })
+})
 
 describe('LocalBashExecutor.run', () => {
   it('resolves with output and the effective timeout', async () => {

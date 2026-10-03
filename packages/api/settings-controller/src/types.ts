@@ -28,7 +28,7 @@ declare module '@deepseek-ai/dsh-typert-protocol' {
   }
 }
 
-/** Confirmation that the settings document was handed to the native editor. */
-export interface SettingsDocumentOpenValue {
-  readonly opened: true
-}
+/** Native-editor confirmation, or the provider-owned document path on hosts without a native opener. */
+export type SettingsDocumentOpenValue =
+  | { readonly opened: true }
+  | { readonly opened: false; readonly path: string }

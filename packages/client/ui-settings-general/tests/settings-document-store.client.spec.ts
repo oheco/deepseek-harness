@@ -29,7 +29,7 @@ describe('SettingsDocumentStore', () => {
     const controller = derivedDocumentStore({ settings: { describe, openSettingsDocument: openDocument } })
     await controller.load()
     expect(controller.store.getSnapshot()).toEqual({
-      status: 'ready', opening: false, error: null,
+      status: 'ready', opening: false, error: null, revealedPath: null,
     })
     await controller.open()
     expect(openDocument).toHaveBeenCalledWith()
@@ -58,6 +58,25 @@ describe('SettingsDocumentStore', () => {
     expect(rejected.store.getSnapshot()).toMatchObject({
       status: 'unavailable', error: 'provider failed',
     })
+  })
+
+  it('reveals a provider path and clears it after dismissal or a later open', async () => {
+    type OpenValue = { opened: true } | { opened: false; path: string }
+    const openDocument = vi.fn((): Promise<RemoteResult<OpenValue>> => Promise.resolve({
+      ok: true, value: { opened: false, path: '/home/u/.dsh/profiles/web/cordis.patch.yml' },
+    }))
+    const controller = derivedDocumentStore({
+      settings: { describe: () => Promise.resolve(response(true)), openSettingsDocument: openDocument },
+    })
+    await controller.load()
+    await controller.open()
+    expect(controller.store.getSnapshot().revealedPath).toBe('/home/u/.dsh/profiles/web/cordis.patch.yml')
+    controller.dismissPath()
+    expect(controller.store.getSnapshot().revealedPath).toBeNull()
+    await controller.open()
+    openDocument.mockResolvedValue(opened())
+    await controller.open()
+    expect(controller.store.getSnapshot().revealedPath).toBeNull()
   })
 
   it('collapses concurrent open gestures and recovers after a failure', async () => {

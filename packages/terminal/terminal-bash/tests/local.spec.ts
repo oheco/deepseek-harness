@@ -18,6 +18,25 @@ import { resolvePwshPath } from '@deepseek-ai/dsh-pwsh-local/src/resolve.ts'
 import * as ptyLocal from '@deepseek-ai/dsh-terminal-bash'
 import { unsupportedInbox } from '@deepseek-ai/dsh-agent-loop-testkit'
 
+describe.skipIf(!existsSync('/usr/bin/zsh'))('terminal-bash real zsh', () => {
+  it('starts with a completion marker, preserves shell state, and joins cleanup', async () => {
+    const { ctx, root, agent } = await harness('danger-full-access', { timeoutMs: 10_000 }, 'zsh')
+    const created = await ctx.terminals.spawn(agent, { type: 'shell', name: 'zsh', cwd: root })
+    expect(created.motd).toContain('dsh> ')
+    const first = await ctx.terminals.startSend(agent, created.sessionId, {
+      text: 'typeset -a values=(alpha beta); export KEEP=ok; cd /; false', submit: true,
+    }).done
+    expect(first.waitReason).toBe('stdin_read')
+    const second = await ctx.terminals.startSend(agent, created.sessionId, {
+      text: 'printf "cwd=%s keep=%s first=%s\\n" "$PWD" "$KEEP" "$values[1]"', submit: true,
+    }).done
+    expect(second.viewport).toContain('cwd=/ keep=ok first=alpha')
+    expect(second.waitReason).toBe('stdin_read')
+    expect(await ctx.terminals.kill(agent, created.sessionId)).toBe(true)
+    expect(ctx.terminals.list(agent)).toEqual([])
+  }, 20_000)
+})
+
 const roots: string[] = []
 const contexts: Context[] = []
 
@@ -54,7 +73,7 @@ function stubAgent(ctx: Context, rawId: string): Agent {
 async function harness(
   mode: 'danger-full-access' | 'workspace-write',
   timing: { idleSilenceMs?: number; handoffGraceMs?: number; timeoutMs?: number } = {},
-  dialect: 'bash' | 'pwsh' = 'bash',
+  dialect: 'bash' | 'zsh' | 'pwsh' = 'bash',
 ) {
   const root = mkdtempSync(join(tmpdir(), 'dsh-pty-local-'))
   roots.push(root)

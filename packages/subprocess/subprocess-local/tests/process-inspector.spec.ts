@@ -23,6 +23,23 @@ function stat(
   return `${pid} (command with space) ${rest.join(' ')}`
 }
 
+describe('HarmonyOS process inspection', () => {
+  it('retains proc identities and PID-reuse protection without claiming syscall readiness', () => {
+    const fake = fakeInternals()
+    fake.files.set('/proc/100/stat', stat(100, 100, 100, 101, '500'))
+    fake.files.set('/proc/101/stat', stat(101, 101, 100, 101, '501', 100))
+    fake.dirs.set('/proc', ['100', '101'])
+    const inspector = createProcessInspector('openharmony', 'arm64', fake.internals)
+    expect(inspector.foregroundPgid(100)).toBe(101)
+    expect(inspector.isStdinWaiting(101, 100)).toBe(false)
+    expect(inspector.snapshot().tree(100)).toEqual([{ pid: 101, started: '501' }, { pid: 100, started: '500' }])
+    expect(inspector.isAlive({ pid: 101, started: '501' })).toBe(true)
+    fake.files.set('/proc/101/stat', stat(101, 101, 100, 101, '502', 100))
+    inspector.signalProcess({ pid: 101, started: '501' }, 'SIGKILL')
+    expect(fake.kills).toEqual([])
+  })
+})
+
 function syscall(number: number, ...args: number[]): string {
   const six = [...args]
   while (six.length < 6) six.push(0)

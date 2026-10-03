@@ -25,7 +25,10 @@ describe('dsh SOURCE launcher (node --import tsx/esm)', () => {
   })
 
   it('boots the source entry and requires a profile', async () => {
-    const result = await execa(process.execPath, ['--import', 'tsx/esm', dshSourceBin], {
+    // HarmonyOS resolves Node internals through this flag because no native
+    // require-builtin addon exists for it; the launcher passes it in production.
+    const loaderFlags = (process.platform as string) === 'openharmony' ? ['--expose-internals'] : []
+    const result = await execa(process.execPath, [...loaderFlags, '--import', 'tsx/esm', dshSourceBin], {
       cwd: repoRoot,
       input: '',
       timeout: 25_000,

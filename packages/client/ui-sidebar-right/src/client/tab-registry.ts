@@ -198,6 +198,10 @@ interface Ranked {
  * `sidebar://guide` gives `''`; an address that is not a URI gives nothing.
  */
 function pathOf(address: string): string | undefined {
+  // ArkWeb can keep a non-special authority inside URL.pathname. Parse only
+  // our navigation schemes directly; other URI schemes retain URL semantics.
+  const internal = /^(?:dsh-resource|sidebar):\/\/[^/?#]*(\/[^?#]*)?(?:[?#].*)?$/i.exec(address)
+  if (internal !== null) return internal[1] ?? ''
   try {
     return new URL(address).pathname
   } catch {

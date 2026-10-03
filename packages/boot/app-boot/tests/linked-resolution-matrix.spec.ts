@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join, relative, resolve, sep } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { requireNodeInternal } from './node-internals.ts'
 import { createRuntimeResolution, type Profile } from '../src/profile.ts'
 import { barePackageName, installRuntimeInterception } from '../src/profile-resolution/resolver.ts'
 
@@ -94,7 +95,7 @@ interface NativeLoader {
 const requireHere = createRequire(import.meta.url)
 const nativeModule = requireHere('node:module') as { _initPaths(): void }
 const originalNodePath = process.env.NODE_PATH
-const addon = requireHere('node-addon-require-builtin') as { requireBuiltin(id: string): unknown }
+const addon = { requireBuiltin: requireNodeInternal }
 const loaderModule = addon.requireBuiltin('internal/modules/esm/loader') as {
   getOrInitializeCascadedLoader(): NativeLoader
 }
