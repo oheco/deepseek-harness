@@ -25,6 +25,8 @@ python3 ohos/package.py --deployment /absolute/private/fresh-build/deployment --
 
 ## 本地运行与验证
 
+`install-local.py --archive <归档> --dependencies-source <固定鸿蒙依赖目录> --output <全新目录>` 校验归档摘要并准备独立本地运行目录；拒绝覆盖已有目录，不执行 npm 全局安装。
+
 运行包依赖 `release.json` 指定的鸿蒙 node-pty、Koffi、sharp 与 ripgrep；不能使用上游 Linux 二进制。`local-dependencies.py` 为本地验证复制并核对已经安装的固定鸿蒙依赖，不修改现有安装。sharp 使用 WASM。system flock 扩展从当前源码在鸿蒙原生编译并签名。启动入口传入 `--expose-internals`，支持新版 Host 所需的 Node 内部加载器。
 
 ```sh

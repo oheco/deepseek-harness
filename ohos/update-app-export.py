@@ -21,8 +21,17 @@ import zipfile
 
 PROTECTED = {'build-profile.json5', 'AppScope/app.json5',
              'entry/src/main/ets/config/RuntimeDefaults.ets'}
-GENERATED = {'.git', '.hvigor', '.cxx', 'build', 'node_modules', 'oh_modules', '__pycache__', 'runtime'}
+GENERATED = {'.git', '.hvigor', '.cxx', 'build', 'node_modules', 'oh_modules', '__pycache__', 'runtime', 'validation'}
+PRIVATE_SUFFIXES = {'.p12', '.p7b', '.pfx', '.keystore', '.pem', '.key', '.cer', '.crt'}
 STATE_NAME = 'LOCAL-SYNC.json'
+
+
+def protected_key(key):
+    """Exclude signing/local/generated files before opening any source or export file."""
+    path = Path(key)
+    return (path.is_absolute() or '..' in path.parts or key in PROTECTED or
+            bool(set(path.parts) & GENERATED) or path.name in {'.env', 'local.properties', STATE_NAME} or
+            path.suffix.lower() in PRIVATE_SUFFIXES)
 
 
 def sha_bytes(data):
@@ -51,7 +60,7 @@ def main():
         names = set(baseline.namelist())
         for file in sorted(source.rglob('*')):
             relative = file.relative_to(source)
-            if not file.is_file() or set(relative.parts) & GENERATED or relative.as_posix() in PROTECTED:
+            if not file.is_file() or protected_key(relative.as_posix()):
                 continue
             if file.is_symlink():
                 raise ValueError(f'source symlink cannot be synchronized: {relative}')
@@ -82,7 +91,7 @@ def main():
     source_keys = set(verified)
     removals = []
     for key, recorded in sorted(synced.items()):
-        if key in source_keys or key in PROTECTED or set(Path(key).parts) & GENERATED:
+        if key in source_keys or protected_key(key):
             continue
         target = destination / key
         if not target.is_file():
@@ -91,8 +100,6 @@ def main():
             raise ValueError(f'retired file was modified by the user; remove it yourself: {key}')
         removals.append((target, key))
 
-    profile = destination / 'build-profile.json5'
-    profile_before = sha_file(profile)
     for target, key in removals:
         print(('REMOVE ' if args.apply else 'PLAN REMOVE ') + key)
         if args.apply:
@@ -104,8 +111,6 @@ def main():
             shutil.copyfile(file, target)
             if sha_file(target) != digest:
                 raise ValueError(f'copy verification failed: {key}')
-    if sha_file(profile) != profile_before:
-        raise ValueError('user-owned root build profile changed during synchronization')
     if args.apply:
         synced.update(verified)
         for _, key in removals:
@@ -116,7 +121,7 @@ def main():
             'files': dict(sorted(synced.items())),
         }, ensure_ascii=False, indent=2) + '\n')
     retired = f' and {len(removals)} retired file(s)' if removals else ''
-    print(f'{len(changes)} file(s){retired}; signing/SDK profile and runtime defaults preserved byte-for-byte.')
+    print(f'{len(changes)} file(s){retired}; signing/SDK profile and runtime defaults are never opened or written.')
 
 
 if __name__ == '__main__':

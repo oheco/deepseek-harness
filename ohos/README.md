@@ -25,6 +25,8 @@ All temporary files and directories use `$TMPDIR` and are cleaned. Keep its path
 
 ## Local operation and validation
 
+`install-local.py --archive <archive> --dependencies-source <pinned OHOS dependencies> --output <fresh directory>` verifies the archive digest and prepares an isolated local runtime. It refuses an existing output directory and never performs a global npm installation.
+
 The runtime requires the HarmonyOS node-pty, Koffi, sharp, and ripgrep versions pinned in `release.json`, not upstream Linux binaries. `local-dependencies.py` copies and verifies already-installed pinned HarmonyOS dependencies for isolated local validation without modifying the installation. sharp uses WASM. The system flock addon is compiled natively from current source and signed. The launcher passes `--expose-internals` for the Host's Node internal loader.
 
 ```sh

@@ -33,6 +33,8 @@ Use it when implementing the shared `dsh` launcher or embedding its lower-level 
 
 ### Starting the app
 
+On HarmonyOS, Node must start with the explicit `--expose-internals` flag so profile resolution can load Node's internal modules without a native addon; startup rejects clearly when the flag is absent.
+
 You give your entry point a config file, and the process starts the whole app: it loads your environment layers, applies patches and profiles, boots every plugin, and returns once the app is running. In replay mode it boots the sibling `cordis.snapshot.yml` instead, so a recorded session reproduces identically. The smallest entry point is two calls:
 
 ```text

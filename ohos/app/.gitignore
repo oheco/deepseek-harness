@@ -8,3 +8,9 @@ local.properties
 *.p7b
 *.cer
 *.keystore
+*.pfx
+*.pem
+*.key
+*.crt
+__pycache__/
+validation/

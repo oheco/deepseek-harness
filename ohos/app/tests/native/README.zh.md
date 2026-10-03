@@ -45,11 +45,9 @@ fixture 流程会构建并签名 `dsh_launcher_smoke`，但有意不执行它。
 
 私有根目录必须尚不存在；其父目录、HOME 和工作目录必须已经存在。该程序使用生产进程管理器，等待就绪的时间最长为 90 秒，请求带认证信息的回环页面，在需要时完成 DSH 的同源 HTTP 303/cookie 交接，要求随后得到的首页请求返回 HTTP 200，再请求停止并验证进程回收。它输出阶段、PASS 或失败诊断，不输出 URL、token、cookie、响应体或子进程的任意文本。它拒绝显式配置端口 9000；零表示选择空闲端口。调用方负责管理后台任务、收集输出，并且只保留或移除该次测试的专属状态。该程序运行成功仍然只是终端上下文中的验证，不是普通 HAP 授权的证据。
 
-## 已记录的原生结果
+## 本次本地迁移状态
 
-2026-09-14，完整流程在鸿蒙 aarch64 上直接通过，使用 SDK `26.0.0.35-Beta` 和 Clang `15.0.4`；同日的能力检测运行重新执行了整个流程：`dsh_supervisor_native` 在 24.97 秒内通过，新增的 `dsh_probe_native` 在 9.23 秒内通过，覆盖真实 open 回归、能力报告的格式与长度检查，以及共存/替换用例；NAPI 共享库也成功链接。fixture、测试程序和按需运行的冒烟测试程序均使用 `binary-sign-tool sign ... -selfSign 1` 完成签名。保留的证据位于 `$XDG_CACHE_HOME/dsh-launcher-native-*/Testing/Temporary/LastTest.log`，已签名的冒烟测试程序位于同一构建根目录。这两次记录的运行都没有调用冒烟测试程序。CMake 输出了未知 `HarmonyOS` 平台提示，但使用的是已安装的原生编译器目标，没有以 Linux 平台身份或其他平台的结果替代。
-
-目录回归使用旧的 `O_RDONLY` HOME/work 预检时，在实际 0100 HOME fixture 上以 errno 13 失败；改为仅检查元数据后通过。本机对 0600 和 000 目录执行 `access(X_OK)` 返回成功，但实际 `chdir` 返回 errno 13，因此 fixture 通过实际操作探测搜索权限。读取方向存在同样的不可靠性：对 0000 权限文件执行 `access(R_OK)` 返回成功，而实际 `open(O_RDONLY)` 返回 errno 13；fixture 会先记录这两个结果，再要求得到真实 open 的诊断。本机的能力报告还显示，执行应用私有目录中未签名的 `/system/bin/sh` 副本时 `execve` 返回 errno 13，而已签名的 fixture 和系统 shell 均能正常执行。核心还使用 `O_PATH` 遍历可搜索的 0711 `/data` 祖先目录，并使用逐个 `close` 调用，因为 OHOS 的 `close_range` 会触发 SIGSYS 而不是返回 ENOSYS。签名工具报告的程序头对齐警告没有妨碍已签名二进制执行。
+0.2.0 两步 App 不使用该监管器。其原生源码与 fixture 原样复制，本次迁移不构建、签名或执行它们。之前的原生结果与已签名产物不能作为本版本证据；当前 App 检查仅记录在 [VALIDATION.md](../../VALIDATION.md)。
 
 ## 这些测试尚未证明的事项
 

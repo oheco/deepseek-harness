@@ -27,6 +27,8 @@ Mount `dsh-subprocess-local` in any composition that runs child processes on the
 
 Mount the provider beside its consumers and start processes exactly as the subprocess service specifies; this package decides only how those processes run on the host. On Windows, non-terminal children and `taskkill` helpers start with their windows hidden so background operations do not take focus. This also hides GUI windows that honor the process startup visibility setting.
 
+HarmonyOS requires the adapted Node-API `node-pty` package and uses `/proc` identities for PTY foreground groups and cleanup, retaining PID-reuse protection and incomplete-snapshot reporting. It does not infer terminal-input waits from unavailable Linux syscall records. Command ranges use the explicitly weaker fallback where OS-owned range enforcement is unavailable.
+
 ### Mounting the provider
 
 Load the provider in the same composition as its consumers. It has no config fields: every choice arrives on the spawn request, so deployment-varying decisions stay with the caller's configuration. `terminalEnvironment()` reads a nonempty `SHELL` on POSIX, falling back to the account login shell, or a nonempty `ComSpec` on Windows. Empty values are omitted so the consumer can choose its platform fallback.

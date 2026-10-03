@@ -208,6 +208,31 @@ class ProjectTests(unittest.TestCase):
         self.assertIn('existing projects are read-only', refused.stdout)
         self.assertEqual(marker.read_text(), 'preserved')
 
+    def test_export_sync_never_opens_signing_identity_or_runtime_defaults(self):
+        destination = self.root / 'export'
+        for name in ['build-profile.json5', 'AppScope/app.json5',
+                     'entry/src/main/ets/config/RuntimeDefaults.ets']:
+            # Directories at protected file paths would fail any content read.
+            (destination / name).mkdir(parents=True, exist_ok=True)
+        baseline = self.root / 'empty.zip'
+        with zipfile.ZipFile(baseline, 'w'):
+            pass
+        result = subprocess.run(['python3', '-B', str(ROOT / 'ohos/update-app-export.py'),
+                                 '--baseline', str(baseline), '--export', str(destination)],
+                                text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        self.assertEqual(result.returncode, 0, result.stdout)
+        self.assertIn('never opened or written', result.stdout)
+        self.assertFalse((destination / 'LOCAL-SYNC.json').exists(), 'dry run must not write')
+
+    def test_export_sync_protects_private_files_and_untrusted_state_paths(self):
+        spec = importlib.util.spec_from_file_location('app_sync', ROOT / 'ohos/update-app-export.py')
+        updater = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(updater)
+        for name in ['build-profile.json5', 'local.properties', '.env', 'keys/personal.pem',
+                     'signing/key.p12', 'validation/old.log', '../escape', '/absolute']:
+            self.assertTrue(updater.protected_key(name), name)
+        self.assertFalse(updater.protected_key('entry/src/main/ets/pages/Index.ets'))
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

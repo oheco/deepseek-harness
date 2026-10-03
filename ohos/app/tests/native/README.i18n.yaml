@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write ohos/app/tests/native/README.md
-README.md: 5f6c68b9acb6cc6d0da25011f962095817002da2
-README.zh.md: afd78914f90c8c898b4e1de653c004021f1b3bc4
+/native-supervisor-verification:
+  en: 6c4d9d850e4163aa
+  zh: 134f206c85e6dd9e
+/native-supervisor-verification/build-and-sign-on-harmonyos:
+  en: 09b8181feecd3be9
+  zh: 35ed8d59f70cfcef
+/native-supervisor-verification/covered-behavior:
+  en: 86aa88b918d4b7ea
+  zh: 028f71146b2c4fc3
+/native-supervisor-verification/opt-in-real-service-driver:
+  en: b75c104e2a46d7db
+  zh: d92b5dd8bdd8a1b2
+/native-supervisor-verification/current-local-migration-status:
+  en: d86e23e4d7787252
+  zh: 5f7a3ad88278fbd0
+/native-supervisor-verification/not-established-by-these-tests:
+  en: 1becbce4082bf450
+  zh: b73a2582d6a45477

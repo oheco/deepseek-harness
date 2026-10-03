@@ -1,57 +1,39 @@
-# 0.1.7 鸿蒙 App 移植验证
+# 0.2.0 鸿蒙 App 本地迁移验证
 
-本工程仅在本地迁移和导出，没有发布、推送、安装 HAP，未修改旧 App 工作区、`export/DSHApp`、现有 dsh 安装或 9000 服务。
+本记录仅覆盖当前 App 源码与独立本地连接，不沿用 0.1.7 的通过结果。本 App 迁移操作没有构建、签名或安装 HAP，没有发布或推送，也不修改旧 App 工程、旧导出、个人签名文件、现有 dsh 安装或服务。
 
-## 迁移基线
+## 迁移输入与只读比对
 
-用户确认 0.1.5 App 已完成后，取 `deepseek-harness-eval/ohos/app` **当前工作树**，而不是仅取 `79bc906508` 提交。搜索、右键菜单、路径打开、主题浮层和日志读取优化包含未提交及未跟踪文件；原始 68 个 App/脚本输入的摘要记录在上级 `app-migration.json`。
+新 checkout 基线为 `dsh-v0.2.0-rc.2`，分支 `ohos/0.2.0-rc.2`。复制旧 `deepseek-harness-0.1.7` 干净工作树的 tracked App 文件 62 个与相关脚本 7 个；原始输入摘要及基线记录在 [app-migration.json](../app-migration.json)。不带 build、.hvigor、依赖、签名和 local 配置。
 
-与旧 `export/DSHApp` 比对后，60 个共同文件内容一致。差异仅为导出器生成的 RuntimeDefaults 和用户受保护的构建/签名配置，未发现漏回源的业务修复。没有复制用户的证书、私钥、签名 profile 或个人 `local.properties`。
+仅以安全白名单比较旧导出，不读取其根 build-profile、App 身份及生成的 RuntimeDefaults，更不读取或复制个人证书、私钥、签名 profile、local.properties 与构建产物。`export/DSHApp` 的 59 个可比文件全部与旧源码一致；`export/DSHApp-0.1.7` 为 55 个一致，只有 README 中英文、配对元数据及 VALIDATION 四个文档不同。两份导出的业务 ArkTS 源码均无缺失或差异，未发现业务修复未回源。
 
-## 保留与调整
+## 适配与保留
 
-- 保留 Ctrl+F、匹配计数、前后跳转、Esc、可拖动搜索条、右键复制和鼠标落点取词。
-- 保留外部 HTTP(S) 链接转浏览器、文件/目录在文件管理器中查看、路径边界与符号链接拒绝、三秒 toast。
-- 保留禁止缩放、深浅色及页面主题同步、首屏遮罩、全窗口 WebView 和本地网络状态适配。
-- 保留大日志头部就绪地址读取、日志截断与重启处理、Documents 权限和 Picker 回退。
-- 首页启动命令改为指定 `harness-ohos-0.1.7-local/run-web.zsh`，避免启动 PATH 中的旧 dsh；独立日志为 `~/Documents/dsh-0.1.7-run.log`。
-- 新版 Web 默认随机端口，状态为 `$XDG_CONFIG_HOME/dsh-0.1.7-local`，不复用原来的配置、凭据或会话。
-- App 版本改为 `0.1.7-rc.2 / 1000001`，SDK 三项仍为 `6.1.0(23)`，bundle 仍为 `org.oheco.deepseekharness`。因此手工安装新版会升级同名 App，并非并存安装。
-- 上游 favicon 只移除了主题 style，生成 App 图标所用 SVG path 投影一致；沿用用户已确认的图标，不做无关重绘。
+- App 身份仍为 `org.oheco.deepseekharness`；本地版本 `0.2.0-rc.2-ohos.1`，versionCode 从 1000001 递增至 1000002。SDK 三项保持 `6.1.0(23)`。
+- 首页与打包默认入口明确使用 `zsh /storage/Users/currentUser/dev/ohos/harness-ohos-0.2.0-local/run-web.zsh`，不使用 PATH 里的旧 dsh；日志为独立 `~/Documents/dsh-0.2.0-run.log`，默认端口由系统选择。
+- 保留 Ctrl+F、匹配计数、前后跳转、Esc、可拖动搜索条、右键复制和鼠标落点取词、外链转系统浏览器、路径在文件管理器中查看、边界与符号链接拒绝及三秒 toast。
+- 保留深浅色与页面颜色同步、首屏遮罩、禁止缩放、全窗口 WebView、Back 历史处理及本地网络状态适配；9 个业务 ArkTS 文件和 Documents 权限清单原样复制，新增测试检查其摘要。
+- 保留大日志头部就绪读取、日志截断／重启、normal 级 Documents 权限及系统 Picker 回退。不实施撤销的 UserFile 权限、broker 按钮、编辑器、逐文件授权或副本功能。
+- 打包器新增直接生成新无签名 DevEco 目录的 `--export-project`；拒绝已有目录，不运行 oo 验证。更新导出脚本也不再为“保护签名”而读取签名配置摘要，保护路径在任何内容读取前排除。
 
-## 本轮实际检查
+## 本轮实际执行
 
-| 检查 | 结果及边界 |
-| --- | --- |
-| App 逻辑 | `node --test ohos/app/tests/*.test.mjs`，18 项通过：上下文识别、路径菜单及拒绝规则、就绪解析、日志轮询与大日志/截断恢复。 |
-| 工程与连接生成 | `python3 ohos/test-app-project.py`，11 项通过：身份、SDK、版本、分层图标、归档保护、拒绝私钥/越界链接、路径引用及新旧启动入口隔离。 |
-| ArkTS 语义 | 本机 `ohos-sdk-ets/26.0.0.35-Beta` 的 checker 按工程 `6.1.0(23)` 字段检查，0 errors；保留 INTERNET 提示、部分文件 API 异常处理提示、getContext 废弃提示。不等同于 DevEco 完整 HAP 构建。 |
-| 实际 Web 衔接 | `python3 ohos/test-app-web.py` 使用应用生成的命令，真实启动 0.1.7 运行包，写入隔离日志，用实际 `RunLogUrl.ets` 解析就绪地址，验证鉴权 Cookie、原版页面标题及非 9000 端口。临时路径含空格和引号，状态与日志均在 `$TMPDIR`，结束时关闭进程并清理。 |
-| 主题兼容 | 新版 Web 保留浮层脚本使用的全部 `--dsw-*` 语义颜色变量；没有修改用户已确认的浮层逻辑。 |
-| 双语说明 | App README 的中英文启动说明和配对记录已同步检查。 |
+以下命令从新 checkout 根目录执行；结果只属于新 App。所有临时目录位于 `$TMPDIR`，由 trap 或 TemporaryDirectory 清理。原始检查日志位于被 Git 忽略的 [validation](validation/) 目录。
 
-检查日志保存在相邻 `harness-ohos-0.1.7-local/app-checks/`。导出通过临时、回环、项目专用的 oo 索引进行，不修改正式目录；归档和导出逐文件一致性记录在 App 归档目录的 `export-verification.json`。
+| 检查 | 命令与当前结果 | 边界 |
+| --- | --- | --- |
+| App 逻辑 | `NODE_PATH=/storage/Users/currentUser/dev/ohos/deepseek-harness-0.1.7/node_modules node --test ohos/app/tests/*.test.mjs`：23/23 通过、exit 0 | 旧 TypeScript 仅为只读检查工具输入；测试读取新源码，含新增外链、主题与业务保留回归，不是 ArkWeb 人工验收。 |
+| 工程与生成 | `python3 -B ohos/test-app-project.py`：16/16 通过、exit 0，含签名配置不读取回归 | 覆盖身份版本、SDK、图标、路径引号、独立入口、Documents 权限、新无签名导出与拒绝已有工程。 |
+| ArkTS 语义 | `node ohos/check-app-arkts.cjs --sdk /storage/Users/currentUser/.oheco/packages/ohos-sdk-ets/26.0.0.35-Beta --output "$priv/check"`：errors 0、exit 0 | 按工程 SDK 字段检查新源码；10 个提示为 INTERNET、文件 API 异常处理、getContext 废弃。不是 assembleHap 或完整 DevEco 构建。 |
+| 图标 | `python3 -B ohos/sync-app-logo.py --check`：5 个 PNG 与分层描述通过、exit 0 | 不做无关图标重绘。 |
+| 主题兼容只读核对 | 新版 ui-theme 的 design-platform.css 仍定义浮层脚本读取的 7 个 `--dsw-*` 变量，并有深浅色定义 | 只是源码核对，不是新 ArkWeb 实际颜色验收，也不修改或测试该软件包。 |
+| Web 衔接 | 尚未执行；等待主线程准备独立运行包 | 测试使用 `DSH_020_HOME`、`DSH_020_PORT=0` 与临时 Documents 日志，结束时关闭自己的进程组。 |
+| 无签名导出 | `python3 -B ohos/package-app-project.py --output "$priv/archive" --export-project /storage/Users/currentUser/dev/ohos/export/DSHApp-0.2.0`：创建时 71 文件逐文件与归档 stage 一致、exit 0；其后只同步当前检查说明 | 只创建新的无签名 DevEco 目录；临时 ZIP 与 stage 已清理，不覆盖任何旧工程。 |
+| 双语说明 | `node scripts/verify-translation-pairing.ts ohos/app/README.md ohos/app/tests/native/README.md`：2 个指定文档对一致、exit 0 | 只检查 App 文档，不运行全仓 doc-sync。 |
 
-## 仍需用户在 DevEco 验证
+## 使用与未验证部分
 
-本轮不构建、签名或安装 HAP，也不把旧版 App 已完成的真机验收当作新版已验收。早期原生监管器未改动、两步页面不使用它，因此没有重跑其 CMake 测试；没有重建已验收的 Web 后端或运行全仓回归。
+独立运行包准备好后，打开新的 `export/DSHApp-0.2.0`（根目录而非 entry）。该工程没有个人签名配置；如以后自行在 DevEco 配置签名并运行，同 bundle 身份会升级原 App，而非并存安装。复制首页命令到终端；需选择日志时只选 `dsh-0.2.0-run.log`。日志含认证 token，不要分享；服务已运行时不要重复启动。
 
-打开独立的 `export/DSHApp-0.1.7`，自行配置签名并 Run。复制首页命令到终端执行后，应连接新版 Web；需要选择日志时请选择 `dsh-0.1.7-run.log`，不要选旧 `dsh-run.log`。确认 Ctrl+F、右键操作、拖动搜索条、外链、深浅色和禁止缩放仍与旧版一致。日志含认证 token，不要分享；同一后台实例已运行时不要重复启动。
-
-## 发布候选修订（0.1.7-rc.2-ohos.1）
-
-上面的迁移与本地检查记录保持不变。用于正式发布的候选在它们之上做了两点修订：
-
-1. **首页命令改用正式安装入口。** 首页不再指向维护者的 `harness-ohos-0.1.7-local/run-web.zsh`，而是 `dsh web --host 127.0.0.1 --port 0 --no-open`，日志仍为共享用户目录下的 `Documents/dsh-0.1.7-run.log`。`ohos/package-app-project.py` 默认生成该安装入口；`--web-launcher` 仅保留给本地开发验证，会写进 `BUILD-INFO.json` 的 `development_override`。App 仍只需要 normal 级 Documents 权限，权限回退后的 `Index.ets`、`module.json5` 未再改动。
-
-2. **HMR 测试参数修复。** 之前在 Vitest 中失败的 6 项 settings-controller HMR 用例已确认不是业务缺陷：各 Vitest 项目显式设置 `execArgv`，没有把 OHOS 需要的 `--expose-internals` 传给 worker，导致 Cordis Loader 取不到 Node internals。仅在 `vitest.shared.ts` 对 `openharmony` 追加该参数（保留 `--no-webstorage`），并在 `packages/boot/app-boot/tests/loader-shape.compat.spec.ts` 增加实际 worker argv 断言。没有关闭 HMR、跳过用例或弱化断言。修复后原文件 9/9 通过，相关 loader 检查 1/1 通过。
-
-### 导出树中的 HAP 不能作为本候选证据
-
-`export/DSHApp-0.1.7/.hvigor/outputs` 下 2026-09-26 18:30 生成并签名的 HAP，其公开 `module.json` 仍声明 `READ_WRITE_USER_FILE`。那是随后被撤销的权限试验构建，早于当前恢复 Documents 权限的源码（18:48）。因此：
-
-- 它只证明那次试验版能完整构建、签名和打包；
-- **不能**证明当前候选通过完整 HAP 构建或真机验收；
-- 当前候选仍需在 DevEco 中重新 Sync、Build、用个人签名 Run，并确认交互。
-
-用户已确认的 0.1.5 App 验收同样不能替代 0.1.7 候选的真机验收。真实模型提供商、ArkWeb 人工交互和完整 HAP 构建在本轮发布准备中未执行，发布说明不得声称已完成。
+本轮不做 HAP 构建、签名、安装或真机人工操作；普通 HAP 权限、ArkWeb 搜索／右键／外链／路径／深浅色交互仍需用户验收。早期原生监管器源码未改动、两步模式不使用它，因此不重跑其编译或签名测试。不运行其他软件包验证或全仓回归；任何旧检查、旧 HAP 或旧真机验收都不能替代本版本证据。

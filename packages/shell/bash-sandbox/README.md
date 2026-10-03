@@ -41,6 +41,8 @@ Choose it when a deployment needs file-level confinement for Bash commands: the 
 
 ### Minimal configuration
 
+The inherited `shellPath` and `shellArgs` settings select the inner interpreter in every mode, including confined execution. HarmonyOS defaults to zsh; other platforms default to bash.
+
 The executor takes no sandbox configuration of its own: the default mode and workspace root come from `ctx.sandboxPolicy`, and the runner choice belongs to the `ctx.sandbox` provider. Its own config is the local executor's knobs verbatim; the generated [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-bash-sandbox) is the exhaustive source.
 
 ```yaml

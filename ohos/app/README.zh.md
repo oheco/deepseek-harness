@@ -74,7 +74,7 @@ Ctrl+F 打开带匹配计数的页内搜索条；Enter / Shift+Enter 切换匹�
 python3 -B ohos/test-app-project.py
 node --test ohos/app/tests/*.test.mjs
 python3 -B ohos/sync-app-logo.py --check
-# 仅在独立运行包准备好后执行：
+# Only after preparing the independent runtime:
 python3 -B ohos/test-app-web.py
 ```
 
