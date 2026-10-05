@@ -2,24 +2,24 @@
 # section, a hash of its English and Chinese blocks outside code blocks and generated regions.
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write ohos/app/README.md
-/dsh-harmonyos-app-local-validation-project:
-  en: 0c4700f179bdf654
-  zh: 8ca15bca9ea14e53
-/dsh-harmonyos-app-local-validation-project/1-open-in-deveco:
-  en: 8bd74773a48ff591
-  zh: 100586ed916bd47f
-/dsh-harmonyos-app-local-validation-project/2-why-two-steps:
-  en: 75df82893b919143
-  zh: 7c1277f2b5e108ca
-/dsh-harmonyos-app-local-validation-project/3-how-it-works:
-  en: c366884d27e85b67
-  zh: a488fc6297e45758
-/dsh-harmonyos-app-local-validation-project/3-how-it-works/desktop-interactions:
-  en: b55b6b4a7709065d
-  zh: ad73455c09c27654
-/dsh-harmonyos-app-local-validation-project/4-known-limitations:
-  en: 83c9726245fb3edf
-  zh: b827c49f3655f973
-/dsh-harmonyos-app-local-validation-project/local-source-checks:
-  en: 71921555346de409
-  zh: 1da3a8afd5017a4f
+/dsh-harmonyos-app-connection-manager:
+  en: 14bf179d4c987cf3
+  zh: 9c592782721b02f9
+/dsh-harmonyos-app-connection-manager/open-in-deveco:
+  en: 3ec8fb049187d389
+  zh: e808ee6ad1df7f3f
+/dsh-harmonyos-app-connection-manager/add-and-edit-connections:
+  en: 947586887784ac49
+  zh: 551f926e89551e03
+/dsh-harmonyos-app-connection-manager/add-and-edit-connections/local-mode:
+  en: a3a4271a63a57927
+  zh: e4d368c058a306ec
+/dsh-harmonyos-app-connection-manager/add-and-edit-connections/remote-mode:
+  en: 50112da9bed8d090
+  zh: d6ec08a9ef8f2d45
+/dsh-harmonyos-app-connection-manager/webview-and-appearance:
+  en: 3bb6a2dbe4051dec
+  zh: 15bdefa0351e7789
+/dsh-harmonyos-app-connection-manager/local-verification-and-export:
+  en: 0ff63922b63c1b21
+  zh: 08e335d15b2375e0

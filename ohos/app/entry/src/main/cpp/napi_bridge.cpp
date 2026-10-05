@@ -1,4 +1,5 @@
 #include "probe.h"
+#include "broker_napi.h"
 #include "supervisor.h"
 #include <napi/native_api.h>
 
@@ -189,6 +190,7 @@ napi_value initialize(napi_env env, napi_value exports) {
         check(napi_define_properties(env, exports, 5, properties));
         check(napi_add_async_cleanup_hook(env, cleanup, supervisor.get(), nullptr));
         supervisor.release();
+        installBrokerBindings(env, exports);
         return exports;
     } catch (const std::exception& error) { return report(env, error); }
 }

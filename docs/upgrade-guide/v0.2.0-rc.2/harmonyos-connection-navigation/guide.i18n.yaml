@@ -1,0 +1,16 @@
+# Bilingual-pair consistency record for guide.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/upgrade-guide/v0.2.0-rc.2/harmonyos-connection-navigation/guide.md
+/:
+  en: 6ae9505ee37d45ef
+  zh: f85076357b0b7b8f
+/harmonyos-connection-settings-use-native-navigation:
+  en: 37c6e5a06d96e3d6
+  zh: 5dbbf95399ea2067
+/harmonyos-connection-settings-use-native-navigation/change:
+  en: 70d7958bbf0d1cd8
+  zh: 54913bde7b41797c
+/harmonyos-connection-settings-use-native-navigation/migration:
+  en: 18ee0cdee413beb6
+  zh: ee61ba6bff0e44da

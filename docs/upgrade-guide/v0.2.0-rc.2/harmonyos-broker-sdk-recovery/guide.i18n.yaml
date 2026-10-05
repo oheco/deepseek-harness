@@ -1,0 +1,16 @@
+# Bilingual-pair consistency record for guide.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/upgrade-guide/v0.2.0-rc.2/harmonyos-broker-sdk-recovery/guide.md
+/:
+  en: 75b3810092da793f
+  zh: ef544e7c0fbf73e6
+/harmonyos-app-uses-broker-sdk-recovery:
+  en: 82b90431cbbe3ae7
+  zh: ee46f194d9723483
+/harmonyos-app-uses-broker-sdk-recovery/change:
+  en: bf85d176738a86b7
+  zh: fd56ae4d03c00121
+/harmonyos-app-uses-broker-sdk-recovery/migration:
+  en: 664914a2b39b75b7
+  zh: 98f785aca530587b

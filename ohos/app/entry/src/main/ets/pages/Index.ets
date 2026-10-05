@@ -1,23 +1,21 @@
 import webview from '@ohos.web.webview';
-import picker from '@ohos.file.picker';
 import pasteboard from '@ohos.pasteboard';
-import abilityAccessCtrl, { Permissions } from '@ohos.abilityAccessCtrl';
+import { ConnectionHome, ConnectionHomeController } from './ConnectionHome';
 import common from '@ohos.app.ability.common';
 import { RuntimeDefaults } from '../config/RuntimeDefaults';
+import { APP_FOREGROUND_EVENT, APP_BACKGROUND_EVENT } from '../launcher/AppActivity';
+import { WebConnection, WebConnectionState } from '../launcher/WebConnection';
+import { ConnectionProfile } from '../launcher/ConnectionProfile';
+import { WEB_VIEW_ACTIVE_EVENT } from '../launcher/WebOrientation';
 import { leavesWebView, openOutside } from '../launcher/ExternalLink';
 import { loopbackOrigin } from '../launcher/RunLogUrl';
-import { RunLogState, RunLogView, RunLogWatcher } from '../launcher/RunLogWatcher';
-import { serviceAnswers } from '../launcher/ServiceProbe';
+
 import { KeyCode } from '@ohos.multimodalInput.keyCode';
 import { CONTEXT_CAPTURE_SCRIPT, ContextSnapshot, contextSnapshotScript, contextTarget } from '../launcher/ContextActions';
 import { viewInFileManager, PathActionResult } from '../launcher/PathActions';
 import ConfigurationConstant from '@ohos.app.ability.ConfigurationConstant';
 import { OverlayPalette, overlayPaletteScript, parseOverlayPalette } from '../launcher/OverlayAppearance';
 
-/** The command the page asks the user to run; the log path is outside the app sandbox. */
-const RUN_COMMAND = RuntimeDefaults.runCommand;
-const RUN_LOG_NAME = RuntimeDefaults.runLogName;
-const DOCUMENTS_PERMISSION: Permissions = 'ohos.permission.READ_WRITE_DOCUMENTS_DIRECTORY';
 /** AppStorage key written by EntryAbility when the system colour mode changes. */
 const COLOR_MODE_KEY = 'dshColorMode';
 /**
@@ -38,9 +36,28 @@ const LOCAL_CONNECTION_SCRIPT: string =
 @Entry
 @Component
 struct Index {
-  @State private commandCopied: number = 0;
-  @State private logState: RunLogState = RunLogState.Idle;
-  @State private picked: boolean = false;
+  private homeController: ConnectionHomeController = new ConnectionHomeController();
+  private remote: boolean = false;
+  private remoteTimer: number = -1;
+  private closingWeb: boolean = false;
+  private activityContext: common.UIAbilityContext | undefined = undefined;
+  private activeConnection: ConnectionProfile | undefined = undefined;
+  private rendererAlive: boolean = true;
+  private currentWebAddress: string = '';
+  private detachedWork: Promise<void> = Promise.resolve();
+  private closeWork: Promise<void> | undefined = undefined;
+  @State private connectionState: WebConnectionState = WebConnectionState.Connected;
+  private webConnection: WebConnection = new WebConnection((state: WebConnectionState, recovered: boolean) =>
+    this.connectionChanged(state, recovered));
+  private appForeground: () => void = () => {
+    this.resumeWeb().catch((error: Error) => {
+      // Recovery retains the page and its disconnected state if a renderer cannot be resumed.
+    });
+  };
+  private appBackground: () => void = () => {
+    clearInterval(this.remoteTimer);
+    this.webConnection.background();
+  };
   // Bound only so a system theme change re-renders this page: the colours below
   // are $r() resources, and ArkUI re-resolves them on that re-render.
   @StorageProp(COLOR_MODE_KEY) private colorMode: number = -1;
@@ -51,10 +68,7 @@ struct Index {
   // ArkWeb paints an empty surface before the page content, so a themed cover
   // stays until the first paint instead of letting the default white show.
   @State private webPainted: boolean = false;
-  private logPath: string = RuntimeDefaults.homeDir + '/Documents/' + RUN_LOG_NAME;
-  private watcher: RunLogWatcher = new RunLogWatcher();
   private controller: webview.WebviewController = new webview.WebviewController();
-  private checking: string = '';
   // ArkWeb may report one navigation through more than one callback; the second
   // report of the same address must not open a second browser window.
   private handedOff: string = '';
@@ -86,64 +100,176 @@ struct Index {
   private paletteReading: boolean = false;
   private attached: boolean = false;
 
+  private updateWebOrientation(active: boolean): void {
+    try {
+      (this.getUIContext().getHostContext() as common.UIAbilityContext).eventHub.emit(WEB_VIEW_ACTIVE_EVENT, active);
+    } catch (error) {
+      // A detached ability owns its remaining window cleanup.
+    }
+  }
+
   aboutToAppear(): void {
     this.attached = true;
-    this.watcher.subscribe((view: RunLogView) => this.onLog(view));
-    this.watcher.setPath(this.logPath);
-    this.requestDocumentsAccess();
+    this.updateWebOrientation(this.webUrl !== '');
+    try {
+      this.activityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
+      this.activityContext.eventHub.on(APP_FOREGROUND_EVENT, this.appForeground);
+      this.activityContext.eventHub.on(APP_BACKGROUND_EVENT, this.appBackground);
+    } catch (error) {
+      // A detached context cannot deliver App activity; the page remains reachable through Back.
+    }
+    if (this.activeConnection && this.webUrl !== '') {
+      this.reattachWeb().catch((error: Error) => {
+        // A reattached renderer can retry on its next foreground event.
+      });
+    }
   }
 
   aboutToDisappear(): void {
-    this.watcher.unsubscribe();
     clearTimeout(this.searchTimer);
     clearTimeout(this.paletteTimer);
+    clearInterval(this.remoteTimer);
+    this.updateWebOrientation(false);
     this.attached = false;
     this.dismissMenu();
-  }
-
-  /** Best effort: the picker route works without this grant, so a denial is not fatal. */
-  private requestDocumentsAccess(): void {
-    try {
-      const manager = abilityAccessCtrl.createAtManager();
-      const ability = getContext(this) as common.UIAbilityContext;
-      manager.requestPermissionsFromUser(ability, [DOCUMENTS_PERMISSION])
-        .then(() => this.watcher.setPath(this.logPath))
-        .catch(() => {});
-    } catch (_) {
-      // Without an ability context the picker remains the only route.
-    }
-  }
-
-  /** Opens the Web view only after the announced address actually answers. */
-  private onLog(view: RunLogView): void {
-    this.logState = view.state;
-    if (view.url === '' || view.url === this.webUrl || this.checking === view.url) {
-      return;
-    }
-    const origin = loopbackOrigin(view.url);
-    if (origin === '') {
-      return;
-    }
-    this.checking = view.url;
-    serviceAnswers(origin).then((answers: boolean) => {
-      if (this.checking !== view.url) {
-        return;
+    const context = this.activityContext;
+    this.activityContext = undefined;
+    if (context) {
+      try {
+        context.eventHub.off(APP_FOREGROUND_EVENT, this.appForeground);
+      } catch (error) {
+        // A destroyed ability may already have removed its activity listeners.
       }
-      this.checking = '';
-      if (answers) {
-        this.dismissMenu();
-        if (this.searchVisible) {
-          this.hideSearch();
-        }
-        this.webUrl = view.url;
-        this.webOrigin = origin;
-        this.webGeneration = this.webGeneration + 1;
-        this.overlayPalette = undefined;
-        this.pageLoaded = false;
-        this.webPainted = false;
-        this.controller = new webview.WebviewController();
+      try {
+        context.eventHub.off(APP_BACKGROUND_EVENT, this.appBackground);
+      } catch (error) {
+        // Native cleanup must continue even when the context no longer accepts listener removal.
+      }
+    }
+    this.webConnection.background();
+    this.detachedWork = this.closeWork ?? Promise.resolve();
+  }
+
+  private async reattachWeb(): Promise<void> {
+    const generation = this.webGeneration;
+    await this.detachedWork;
+    if (!this.attached || this.closingWeb || generation !== this.webGeneration || !this.activeConnection) {
+      return;
+    }
+    await this.resumeWeb();
+  }
+
+  private startRemotePolling(): void {
+    clearInterval(this.remoteTimer);
+    if (this.attached && this.remote && this.webUrl !== '' && !this.closingWeb) {
+      this.remoteTimer = setInterval(() => this.checkRemote(), 2000);
+    }
+  }
+
+  private async resumeWeb(): Promise<void> {
+    if (!this.attached || this.closingWeb || this.webUrl === '') {
+      return;
+    }
+    this.startRemotePolling();
+    await this.webConnection.foregrounded();
+  }
+
+  private connectionChanged(state: WebConnectionState, recovered: boolean): void {
+    if (!this.attached || this.closingWeb || this.webUrl === '') {
+      return;
+    }
+    const previous = this.connectionState;
+    this.connectionState = state;
+    if (state === WebConnectionState.Disconnected && previous !== state) {
+      this.notify($r('app.string.web_connection_disconnected'));
+    }
+    if (!recovered) {
+      return;
+    }
+    if (!this.rendererAlive) {
+      this.controller = new webview.WebviewController();
+      this.webUrl = this.currentWebAddress;
+      this.webGeneration += 1;
+      this.pageLoaded = false;
+      this.webPainted = false;
+      this.rendererAlive = true;
+      return;
+    }
+    this.controller.runJavaScript('window.dispatchEvent(new Event("online"));').catch((error: Error) => {
+      // A renderer not ready for online notification keeps its own WebSocket reconnect behavior.
+    });
+  }
+
+  /** The connection flow has authenticated this address before transferring its mapping. */
+  private openWeb(address: string, remote: boolean, connection: ConnectionProfile): boolean {
+    const origin = loopbackOrigin(address);
+    if (origin === '' || this.closingWeb || this.webUrl !== '') {
+      return false;
+    }
+    const controller = new webview.WebviewController();
+    this.dismissMenu();
+    this.searchVisible = false;
+    this.remote = remote;
+    this.webUrl = address;
+    this.webOrigin = origin;
+    this.webGeneration += 1;
+    this.overlayPalette = undefined;
+    this.pageLoaded = false;
+    this.webPainted = false;
+    this.controller = controller;
+    this.rendererAlive = true;
+    this.currentWebAddress = address;
+    this.activeConnection = connection;
+    this.connectionState = WebConnectionState.Connected;
+    this.webConnection.activate(connection, origin);
+    this.startRemotePolling();
+    this.updateWebOrientation(true);
+    return true;
+  }
+
+  private async checkRemote(): Promise<void> {
+    if (this.attached && this.remote && !this.closingWeb) {
+      await this.webConnection.check();
+    }
+  }
+
+  private closeWeb(): Promise<void> {
+    if (this.closeWork) {
+      return this.closeWork;
+    }
+    this.closingWeb = true;
+    this.dismissMenu();
+    clearInterval(this.remoteTimer);
+    clearTimeout(this.searchTimer);
+    clearTimeout(this.paletteTimer);
+    this.searchVisible = false;
+    const work = this.finishWebClose();
+    this.closeWork = work;
+    work.then(() => {
+      if (this.closeWork === work) {
+        this.closeWork = undefined;
       }
     });
+    return work;
+  }
+
+  private async finishWebClose(): Promise<void> {
+    const cleanup: Promise<void> = this.webConnection.close();
+    this.remote = false;
+    this.activeConnection = undefined;
+    this.currentWebAddress = '';
+    this.webGeneration += 1;
+    this.webUrl = '';
+    this.updateWebOrientation(false);
+    this.webOrigin = '';
+    this.pageLoaded = false;
+    this.webPainted = false;
+    this.overlayPalette = undefined;
+    try {
+      await cleanup;
+    } finally {
+      this.closingWeb = false;
+    }
   }
 
   /**
@@ -294,14 +420,18 @@ struct Index {
 
   private webKey(event: KeyEvent, fromFind: boolean = false): boolean {
     const ctrl = event.getModifierKeyState ? event.getModifierKeyState(['Ctrl']) : false;
-    const find = ctrl && event.keyCode === KeyCode.KEYCODE_F;
+    const shift = event.getModifierKeyState ? event.getModifierKeyState(['Shift']) : false;
+    const leave = ctrl && shift && event.keyCode === KeyCode.KEYCODE_L && this.webUrl !== '';
+    const find = ctrl && event.keyCode === KeyCode.KEYCODE_F && this.webUrl !== '';
     const escape = event.keyCode === KeyCode.KEYCODE_ESCAPE && (this.menuVisible || this.searchVisible);
     const enter = fromFind && this.searchVisible && event.keyCode === KeyCode.KEYCODE_ENTER;
-    if (!find && !escape && !enter) {
+    if (!leave && !find && !escape && !enter) {
       return false;
     }
     if (event.type === KeyType.Down) {
-      if (find) {
+      if (leave) {
+        this.closeWeb();
+      } else if (find) {
         this.showSearch();
       } else if (escape) {
         if (this.menuVisible) {
@@ -343,7 +473,7 @@ struct Index {
     this.menuText = this.nativeSelection ? selection : '';
     const target = contextTarget(this.menuText || event.param.getLinkUrl() || '', RuntimeDefaults.homeDir);
     this.menuLink = target.link;
-    this.menuPath = target.path;
+    this.menuPath = this.remote ? '' : target.path;
     if (!this.menuText) {
       this.menuText = this.menuLink;
     }
@@ -375,7 +505,7 @@ struct Index {
       const parsed = contextTarget(value, RuntimeDefaults.homeDir);
       this.menuText = selected || parsed.link || parsed.path;
       this.menuLink = parsed.link;
-      this.menuPath = parsed.path;
+      this.menuPath = this.remote ? '' : parsed.path;
     } catch (_) {
       // Unsupported document surfaces keep only the native selection/link data.
     } finally {
@@ -439,32 +569,6 @@ struct Index {
     }
   }
 
-  private async pickRunLog(): Promise<void> {
-    try {
-      const options = new picker.DocumentSelectOptions();
-      options.maxSelectNumber = 1;
-      options.selectMode = picker.DocumentSelectMode.FILE;
-      const uris = await new picker.DocumentViewPicker().select(options);
-      if (uris.length === 0) {
-        return;
-      }
-      this.picked = true;
-      this.watcher.setUri(uris[0]);
-    } catch (_) {
-      this.picked = false;
-    }
-  }
-
-  private async copyCommand(): Promise<void> {
-    try {
-      const data = pasteboard.createData(pasteboard.MIMETYPE_TEXT_PLAIN, RUN_COMMAND);
-      await pasteboard.getSystemPasteboard().setData(data);
-      this.commandCopied = 1;
-    } catch (_) {
-      this.commandCopied = 2;
-    }
-  }
-
   onBackPress(): boolean {
     if (this.menuVisible) {
       this.dismissMenu();
@@ -474,57 +578,19 @@ struct Index {
       this.hideSearch();
       return true;
     }
-    if (this.webUrl === '' || !this.pageLoaded) {
-      return false;
+    if (this.webUrl === '') {
+      return this.homeController.back();
     }
     try {
-      if (this.controller.accessBackward()) {
+      if (this.pageLoaded && this.controller.accessBackward()) {
         this.controller.backward();
         return true;
       }
-    } catch (_) {
-      // A detached renderer has no history; the platform handles Back normally.
+    } catch (error) {
+      // A detached renderer has no history; Back still returns to saved connections.
     }
-    return false;
-  }
-
-  private statusText(): Resource {
-    if (this.logState === RunLogState.Unreadable) {
-      return $r('app.string.log_unreadable');
-    }
-    if (this.picked) {
-      return $r('app.string.log_waiting_picked');
-    }
-    if (this.logState === RunLogState.Missing) {
-      return $r('app.string.log_missing');
-    }
-    return $r('app.string.log_waiting');
-  }
-
-  @Builder
-  private waitingPage() {
-    Column({ space: 24 }) {
-      Column({ space: 12 }) {
-        Text($r('app.string.command_title')).fontSize(20).fontWeight(FontWeight.Bold)
-        Text(RUN_COMMAND).fontFamily('monospace').fontSize(13).copyOption(CopyOptions.LocalDevice)
-          .width('100%').padding(16).backgroundColor($r('app.color.canvas')).borderRadius(12)
-        Button(this.commandCopied === 1 ? $r('app.string.command_copied') : $r('app.string.copy_command'))
-          .onClick(() => this.copyCommand())
-      }.width('100%').alignItems(HorizontalAlign.Start)
-
-      Column({ space: 12 }) {
-        Row({ space: 12 }) {
-          LoadingProgress().width(24).height(24).color($r('app.color.accent'))
-          Text($r('app.string.waiting_title')).fontSize(20).fontWeight(FontWeight.Bold)
-        }
-        Text(this.statusText()).fontSize(15).fontColor($r('app.color.ink'))
-        Text(this.logPath).fontFamily('monospace').fontSize(12).fontColor($r('app.color.muted'))
-        if (this.logState === RunLogState.Unreadable) {
-          Button($r('app.string.pick_log')).onClick(() => this.pickRunLog())
-        }
-      }.width('100%').alignItems(HorizontalAlign.Start)
-    }.constraintSize({ maxWidth: 860 }).width('100%').padding(32).justifyContent(FlexAlign.Center)
-    .backgroundColor($r('app.color.panel'))
+    this.closeWeb();
+    return true;
   }
 
   private overlayAction(action: string): void {
@@ -631,6 +697,9 @@ struct Index {
 
   build() {
     Stack() {
+      Column() {}.width('100%').height('100%').backgroundColor($r('app.color.background'))
+        .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
+        .hitTestBehavior(HitTestMode.None)
       if (this.webUrl !== '') {
         ForEach([this.webGeneration], (generation: number) => {
           Web({ src: this.webUrl, controller: this.controller })
@@ -703,6 +772,7 @@ struct Index {
             .onPageEnd((event) => {
               if (event && generation === this.webGeneration &&
                 loopbackOrigin(event.url) === this.webOrigin) {
+                this.currentWebAddress = event.url;
                 this.pageLoaded = true;
                 this.webPainted = true;
                 this.refreshOverlayPalette();
@@ -710,20 +780,16 @@ struct Index {
             })
             .onRenderExited(() => {
               if (generation === this.webGeneration) {
-                this.dismissMenu();
-                clearTimeout(this.searchTimer);
-                clearTimeout(this.paletteTimer);
-                this.overlayPalette = undefined;
-                this.searchVisible = false;
-                this.webUrl = '';
-                this.webOrigin = '';
-                this.checking = '';
+                this.rendererAlive = false;
+                this.webConnection.disconnected();
               }
             })
             .width('100%').height('100%')
         }, (generation: number) => generation.toString())
       } else {
-        this.waitingPage()
+        ConnectionHome({ controller: this.homeController,
+          onOpen: (address: string, remote: boolean, connection: ConnectionProfile) =>
+            this.openWeb(address, remote, connection) })
       }
       if (this.webUrl !== '' && !this.webPainted && !this.pageLoaded) {
         Column({ space: 16 }) {

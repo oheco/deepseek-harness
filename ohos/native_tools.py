@@ -19,6 +19,8 @@ def prepare(root, output):
             raise ValueError(f'build input checksum mismatch: {archive}')
         if entry['lockfile_matched'] and entry['integrity'] not in lock:
             raise ValueError(f'build input no longer matches pnpm-lock.yaml: {entry["name"]}')
+        if entry['name'] == 'esbuild-wasm' and f'\n  esbuild@{entry["version"]}:\n' not in lock:
+            raise ValueError(f'esbuild WASM version has no matching locked consumer: {entry["version"]}')
         destination = output / (entry['name'].replace('@', '').replace('/', '__') + '-' + entry['version'])
         destination.mkdir(parents=True, exist_ok=False)
         with tarfile.open(archive) as tar:
@@ -67,3 +69,64 @@ def connect(root, packages):
     entry = css / 'node/index.js'
     entry.unlink()
     entry.write_text('module.exports = require(' + json.dumps(str(wasm / 'wasm-node.cjs')) + ');\n')
+    connect_esbuild_wasm(root, packages[('esbuild-wasm', '0.21.5')])
+
+
+def connect_esbuild_wasm(root, package):
+    """Select the unchanged WASM API only for VitePress's locked esbuild 0.21.5."""
+    metadata = json.loads((package / 'package.json').read_text())
+    if (metadata['name'], metadata['version']) != ('esbuild-wasm', '0.21.5'):
+        raise ValueError('esbuild WASM adapter requires esbuild-wasm 0.21.5')
+    inputs = root / 'tpr/ohos-build-tools'
+    source = next(entry for entry in json.loads((inputs / 'SOURCES.json').read_text())
+                  if (entry['name'], entry['version']) == ('esbuild-wasm', '0.21.5'))
+    archive = inputs / source['archive']
+    if hashlib.sha256(archive.read_bytes()).hexdigest() != source['sha256']:
+        raise ValueError('esbuild WASM archive checksum mismatch')
+    with tarfile.open(archive) as tar:
+        upstream_cli = tar.extractfile('package/bin/esbuild').read()
+    cli = package / 'bin/esbuild'
+    original_cli = cli.with_name('esbuild.upstream.cjs')
+    current_cli = original_cli if original_cli.exists() else cli
+    if current_cli.read_bytes() != upstream_cli:
+        raise ValueError('esbuild WASM upstream CLI differs from its pinned archive')
+    if not original_cli.exists():
+        cli.rename(original_cli)
+        cli.write_text("""// Keep esbuild's stdout workaround from recursing through OHOS SyncWriteStream.
+const nativeWriteSync = require('node:fs').writeSync;
+if (process.platform === 'openharmony') {
+  for (const stream of [process.stdout, process.stderr]) {
+    if (stream.constructor.name !== 'SyncWriteStream') continue;
+    stream._write = function(chunk, encoding, callback) {
+      try {
+        let offset = 0;
+        while (offset < chunk.length) {
+          const written = nativeWriteSync(this.fd, chunk, offset, chunk.length - offset);
+          if (written === 0) throw new Error('esbuild WASM output write made no progress');
+          offset += written;
+        }
+      } catch (error) {
+        callback(error);
+        return;
+      }
+      callback();
+    };
+  }
+}
+require('./esbuild.upstream.cjs');
+""")
+    modules = (root / 'node_modules').resolve()
+    parents = list((modules / '.pnpm').glob('esbuild@0.21.5'))
+    parents += list((modules / '.pnpm').glob('esbuild@0.21.5_*'))
+    if not parents:
+        raise ValueError('locked esbuild 0.21.5 consumer missing')
+    for parent in parents:
+        consumer = parent / 'node_modules/esbuild'
+        if json.loads((consumer / 'package.json').read_text())['version'] != '0.21.5':
+            raise ValueError('esbuild WASM consumer version mismatch')
+        entry = consumer / 'lib/main.js'
+        if not entry.resolve().is_relative_to(modules):
+            raise ValueError('esbuild WASM adapter requires a local dependency copy')
+        # Unlink before writing so even a linked installation cannot change its store bytes.
+        entry.unlink()
+        entry.write_text('module.exports = require(' + json.dumps(str(package.resolve() / 'lib/main.js')) + ');\n')

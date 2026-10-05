@@ -1,15 +1,15 @@
 # 0.2.0-rc.2 HarmonyOS local validation
 
-This record is for the new local port, not the 0.1.7 release. No push, release tag, upload, catalog update, installed-package replacement, or existing-service change was performed.
+This historical record covers the initial rc.2 local trial, before the connection manager, fixed Web token and SDK 0.4.0 integration. Its build and test results apply to the source snapshots named below. Current App build, signature and install evidence belongs to [App validation](app/VALIDATION.md); the formal distribution retains the rc.2 upstream baseline recorded in [release.json](release.json). No publishing or installed-package replacement occurred during this initial trial.
 
 ## Inputs and build
 
-- Upstream: `dsh-v0.2.0-rc.2`, `639ed015397290b3745d163aafe02ffee4aa3f84`.
+- Upstream: `dsh-v0.2.0-rc.2`; the exact source is recorded in [release.json](release.json).
 - Independent source branch: `ohos/0.2.0-rc.2` in `deepseek-harness-0.2.0`.
-- Read-only porting reference: 0.1.7 adaptation at `6ad7995665`, including the completed HarmonyOS App.
+- Read-only porting reference: `v0.1.7-rc.2-ohos.1`, including the completed HarmonyOS App.
 - Local runtime version: `0.2.0-rc.2-ohos.1`, not published.
 - Host: HarmonyOS ARM64; Node.js `v24.21.0`; Python `3.14.7`; pinned pnpm `11.7.0`; SDK Clang and PATH `binary-sign-tool`.
-- Fresh build snapshot: local implementation commit `409cc9382000ad3d9d26f7a166bd6145754f9a46`. Later changes are documentation, local installation/export helpers, metadata, and one source configuration asset: the Web `office-to-pdf` row is disabled on OpenHarmony. The final packaging copies that exact committed YAML into the private deployment, records its source commit and digest as `post_build_config_updates`, and verifies all other runtime payload bytes against the five-scenario tested candidate. Compiled JS/native product sources and reviewed dependency versions are unchanged; no unchanged TypeScript build is repeated merely for a documentation/config asset. A future fresh build of the final source includes the same gate directly. The comparison is recorded outside the archive in `harness-ohos-0.2.0-local/VERIFIED.json`.
+- Fresh build snapshot: the initial local implementation; its source identifier is retained in the archived build metadata and validation receipt. Later changes are documentation, local installation/export helpers, metadata, and one source configuration asset: the Web `office-to-pdf` row is disabled on OpenHarmony. The final packaging copies that exact committed YAML into the private deployment, records its source commit and digest as `post_build_config_updates`, and verifies all other runtime payload bytes against the five-scenario tested candidate. Compiled JS/native product sources and reviewed dependency versions are unchanged; no unchanged TypeScript build is repeated merely for a documentation/config asset. A future fresh build of the final source includes the same gate directly. The comparison is recorded outside the archive in `harness-ohos-0.2.0-local/VERIFIED.json`.
 - All upstream registry package entries/snapshots remain byte-identical. Only OHOS workspace importers and the fixed existing Koffi link were added. Tool archive digests and the reviewed lock digest were checked.
 - Proxy-only prefetch resolved 1373 packages, reused 1317, downloaded 51. Both source installation and the fresh build used frozen offline installation with copy semantics.
 - `ohos/build.py` ran from a fresh private clone without node_modules, built signed flock plus Host/Client/Web, retained the official brand, excluded Electron packaging, and deployed the 290-workspace CLI/Web closure. Build and clone temporary directories were cleaned. Cache outputs remain separate from the current installation.

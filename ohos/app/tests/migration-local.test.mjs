@@ -27,12 +27,14 @@ function load(relative) {
   return exports;
 }
 
-test('completed desktop business sources remain byte-for-byte migrated', () => {
+test('untouched desktop interaction helpers remain byte-for-byte migrated', () => {
   const manifest = JSON.parse(fs.readFileSync(path.join(root, 'ohos/app-migration.json'), 'utf8'));
   const migrated = Object.keys(manifest.source_file_sha256).filter(name =>
-    name.startsWith('ohos/app/entry/src/main/ets/') && !name.includes('/config/'));
-  assert.equal(migrated.length, 9, 'entry ability, page and all seven launcher modules');
-  for (const name of [...migrated, 'ohos/app/entry/src/main/module.json5']) {
+    name.startsWith('ohos/app/entry/src/main/ets/') && !name.includes('/config/') &&
+    !name.endsWith('/pages/Index.ets') && !name.endsWith('/launcher/RunLogUrl.ets') &&
+    !name.endsWith('/entryability/EntryAbility.ets'));
+  assert.equal(migrated.length, 6, 'unchanged desktop interaction helpers');
+  for (const name of migrated) {
     assert.equal(createHash('sha256').update(fs.readFileSync(path.join(root, name))).digest('hex'),
       manifest.source_file_sha256[name], name);
   }

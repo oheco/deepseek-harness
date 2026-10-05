@@ -151,7 +151,9 @@ it('applies the shipped Office platform gate while retaining document preview co
   const internal = ctx.loader.internal
   if (internal === undefined) throw new Error('Expected the Node Loader internals')
   const originalImport = internal.import.bind(internal)
-  const imports = vi.spyOn(internal, 'import').mockImplementation(async (specifier, parent, attributes) => {
+  const imports = vi.spyOn(internal, 'import').mockImplementation(async (
+    specifier: string, parent: string, attributes: ImportAttributes,
+  ) => {
     if (specifier === '@deepseek-ai/dsh-office-to-pdf') return OfficeToPdf
     if (specifier === '@deepseek-ai/dsh-client-ui-sidebar-documentpreview') return DocumentPreview
     return originalImport(specifier, parent, attributes)

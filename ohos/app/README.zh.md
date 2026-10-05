@@ -1,83 +1,67 @@
-# DSH 鸿蒙 App · 本地验证工程
+# DSH 鸿蒙 App · 连接管理
 
 [English](README.md) | 中文
 
-这是 oheco 的社区封装测试工程，不是官方客户端，也不是已发布版本。它是一个很薄的包装：服务在终端里运行，应用只负责读取服务输出的地址并用内置 WebView 打开。验收状态见 [VALIDATION.md](VALIDATION.md)。
+管理已保存的本地和远程 DSH 连接，并用全窗口 WebView 打开所选工作空间。这是用于本地验证的社区 App 工程，构建与设备验收证据见 [VALIDATION.md](VALIDATION.md)。
 
-应用显示名为 `Deepseek Harness`，bundle 名为 `org.oheco.deepseekharness`，第三级由软件包名 `deepseek-harness` 去掉横杠得到。图标按鸿蒙的**分层图标**规范生成（脚本见 `ohos/sync-app-logo.py`）：`AppScope/resources/base/media/` 下的 `background.png`（1024×1024 纯白背景层）、`foreground.png`（1024×1024 透明前景，只含标记）和 `layered_image.json`（`layered-image` 引用两层）。`app.json5` 与 `abilities[].icon` 都引用 `$media:layered_image`，**圆角方块由系统绘制**——规范明确要求在 PNG 里自行切圆角属于审核不通过项，所以图层里不带圆角。启动图另用透明的 `ability_icon.png`（模块资源），并在 `resources/dark/media/` 提供深色主题的白色标记版本。`app_icon.png` 保留为平面的圆角兜底图，仅在某个界面无法合成分层图标时改用它。
+## 在 DevEco 中打开
 
-启动器入口与窗口装饰在这台设备上读的是同一个 ability 图标，因此桌面图标和标题栏图标无法分别设置：显示的都是这个分层图标的合成结果。更换 bundle 名后，需在 DevEco 中重新生成或选择与新包名匹配的签名 profile；旧包名的应用数据不会自动迁移。
+1. 打开包含 [build-profile.json5](build-profile.json5) 的工程根目录。
+2. 使用支持工程声明的 `6.1.0(23)` 编译、目标和兼容 API 的 ARM64 鸿蒙 SDK。模块支持手机、平板和 2in1；表单可滚动，并随窗口宽度调整布局。
+3. 配置自己的 App 签名，然后 Build/Run `entry`。导出不包含个人签名身份或 profile。
 
-本工程复制 `deepseek-harness-0.1.7` 中已完成 App 的 tracked 源码，保留全部搜索、右键、外链、路径、主题和日志交互。本地 App 版本为 `0.2.0-rc.2-ohos.1 / 1000002`，bundle 名不变，因此以后手工安装会升级同名 App，不会与旧 App 并存。独立无签名导出为 `export/DSHApp-0.2.0`；旧工程及其签名配置保持只读。旧检查或已签名 HAP 不能作为本版本证据；实际执行的检查见 [VALIDATION.md](VALIDATION.md)。
+显示名为 `Deepseek Harness`，bundle 名为 `org.oheco.deepseekharness`。安装同 bundle 会升级已有 App。模块需要联网权限。工程包含 broker C SDK、完整固定版本的依赖源码和 ARM64 静态库；依赖与重建细节由 [原生说明](entry/src/main/cpp/README.zh.md)维护。
 
-## 1. 在 DevEco 中打开
+## 添加与编辑连接
 
-1. 打开本目录（包含 `build-profile.json5`），不要只打开 `entry`。
-2. 准备支持工程所声明 SDK 的 DevEco/HarmonyOS SDK 和 ArkTS 工具链。默认目标是 ARM64 鸿蒙 PC / 2in1，compileSdkVersion、targetSdkVersion、compatibleSdkVersion 均为 `6.1.0(23)`。
-3. 用你自己的开发账号配置 **App 签名**；工程不包含证书、私钥、profile 或个人 `local.properties`。普通开发签名不等于系统 App 身份。
-4. Sync 工程，然后 Build/Run `entry`。
+首页显示已保存连接的名称与模式。点击底部中央 `+`，再选择**本地模式**或**远程模式**。所选模式在设置页中保持固定。通过**编辑**修改名称、配置或删除连接。**保存**位于导航标题栏右侧；**测试连接**与编辑时才显示的**删除连接**并排固定在页面底部。
 
-工程只声明 `ohos.permission.INTERNET` 和 normal 级、弹窗授权的 `ohos.permission.READ_WRITE_DOCUMENTS_DIRECTORY`，不申请任何系统级权限，也不修改设备策略。
+App 在自己的私有偏好中保存最多 100 条连接，包含 DSH token，远程连接还保存服务 bearer 与 peer 密码。账号密码登录后清除，不写入持久化存储。保存成功后，列表显示及编辑、打开使用的配置立即更新，包括仅修改 token 的情况。保存失败时保留原列表；偏好无法读取或版本不支持时，需重试后再编辑，应用不会用空列表覆盖原数据。
 
-工程内仍保留 `entry/src/main/cpp`（早期“应用内直接启动”的进程监管器）。两步模式不使用它，但保留下来供具备共享目录访问权限的设备继续实验，`entry/build-profile.json5` 中的 CMake 引用因此保持不变。
+### 本地模式
 
-## 2. 为什么是两步模式
-
-真机验证表明普通签名应用**读不到共享目录里的运行时**（`open` 返回 `EPERM`）、**不能执行私有目录中的 ELF**（`errno=13`），系统里也没有 Node（`/system/bin/node` 等均不存在），所以既不能直接运行 oo 安装的 Node，也无法把自包含运行时塞进 HAP 再执行。两步模式把启动交给终端，应用只做展示。
-
-## 3. 使用流程
-
-首页只有两块内容：
-
-1. **一条命令**，复制后在鸿蒙终端执行：
-
-   ```sh
-   zsh /storage/Users/currentUser/dev/ohos/harness-ohos-0.2.0-local/run-web.zsh > /storage/Users/currentUser/Documents/dsh-0.2.0-run.log 2>&1 &
-   ```
-
-   命令明确选择独立的 0.2.0 本地运行包，不会启动 PATH 中的旧 `dsh`。默认端口由系统随机选择，状态与现有设置、会话和凭据隔离。日志写入共享用户目录下的 Documents，应用通过 normal 级 Documents 权限读取；如果直接路径被拒绝，等待区会出现**选择日志文件**按钮回退到系统文件选择器。首页命令与日志名来自 `RuntimeDefaults.ets`：`ohos/package-app-project.py` 默认生成同一独立本地入口。运行包移动后，用 `--web-launcher <路径>`，必要时加 `--home <共享用户目录>`，重新生成新导出。启动器支持 `DSH_020_HOME` 与 `DSH_020_PORT` 显式覆盖以便隔离测试；继承的通用 `DSH_HOME` 不会指向旧状态目录。同一实例已经运行时不要重复执行启动命令。
-
-2. **持续等待提示**。应用每秒读取该日志，取出其中的就绪地址；**并且在打开之前先实际连接一次**：只有该地址真的响应，才切到 WebView。这样上一次运行遗留的日志不会直接打开一个已经失效的页面。检测到新端口（服务重启）会重新连接并加载。
-
-打开 WebView 后它占据整个窗口，没有标题栏、返回按钮或设置入口；系统返回键优先处理网页历史。
-
-深浅色跟随系统，但需要一点额外处理：ArkUI 在系统切换深浅色时**不会自动重渲染页面**，所以标题栏（系统绘制）立刻变色而页面仍停留在旧配色。`EntryAbility` 因此在 `onConfigurationUpdate` 里把当前 colorMode 写入 AppStorage，页面用 `@StorageProp` 绑定它，系统切换时页面随之重新渲染并重新解析 `$r()` 颜色；启动时也会显式声明一次跟随系统。浅色与深色两套颜色见 `entry/src/main/resources/{base,dark}/element/color.json`。
-
-打开 WebView 的瞬间还有一次白屏：ArkWeb 在页面内容绘制前会先画一层默认的空白表面，这一层与深浅色主题无关。因此 Web 组件本身设为主题背景色，并在 `onFirstScreenPaint`（首次内容绘制）之前用一层同主题的加载遮罩盖住它，绘制完成后立即撤掉；`onPageEnd` 也会撤掉，避免个别情况下遮罩滞留。
-
-页面只与本机 `127.0.0.1` 通信，但 ArkWeb 在刚创建时会先把 `navigator.onLine` 报成 `false`，而 DSH 客户端在启动时读取该标记，一旦为假就停在“等待网络恢复”的断开状态，只能靠它自己的重连控件恢复。因此应用在文档开始前注入一小段脚本，让页面看到真实使用的本地连接可用，并阻止一次瞬时的系统 offline 事件把这条本地连接置为断开。
-
-日志放在 `~/Documents/dsh-0.2.0-run.log` 而不是 dsh 状态目录下：本应用属于独立沙箱，不能假定能读终端进程的 dsh 数据，而且该位置还取决于终端进程自己的环境。即使换到 Documents，其中文件的权限是 `-rw-rw----`（属主 + `file_manager` 组），应用不在该组，所以应用会申请 normal 级的 `ohos.permission.READ_WRITE_DOCUMENTS_DIRECTORY`；如果直接路径仍被拒绝，等待区会出现**选择日志文件**按钮，通过系统文件选择器取得读取授权——这条路径不需要任何特殊权限。
-
-地址解析规则：必须是**已换行结束**的完整一行、显式 `http://127.0.0.1:<port>` 或 `http://[::1]:<port>`、非零端口、非空 token；带上游 LAN 后缀的行可以接受，但只打开回环地址。地址只在内存中交给 WebView，不写入偏好或日志文件。
-
-### 桌面交互
-
-Ctrl+F 打开带匹配计数的页内搜索条；Enter / Shift+Enter 切换匹配，Esc 关闭。搜索覆盖已加载的页面内容，不包括尚未加载的会话历史。手势缩放已禁用，外部跳转交给系统处理。
-
-右键提供复制，以及 HTTP(S) 链接、`~/` 和 `/storage/Users/currentUser/` 路径的打开操作。优先使用选中文字；无选区时检查真实链接或鼠标落点附近的有限 DOM 文本，支持跨代码高亮节点及带引号的空格路径。空白位置、密码框、Canvas 和 iframe 中的文字不做推断。没有识别结果时不显示菜单或提示；带连续三个以上小数点或省略号的路径不提供打开操作。原生浮层采用页面的浅／深色 DSH 配色，菜单文字居左。搜索条默认位于右上角，拖拽背景可在窗口内移动。
-
-路径菜单仅提供复制和**在文件管理中查看**。目录直接打开；文件通过华为文件管理器的拉起接口打开其父目录，不保证选中文件。封装层不启动编辑器、不读取文件内容、不请求逐文件授权，也不创建副本。符号链接及用户目录之外的路径会被拒绝。错误使用三秒后自动消失的底部短提示，不显示常驻横幅。
-
-## 4. 已知限制
-
-- 需要用户手动在终端执行一次命令；应用无法自己启动服务，这是平台权限决定的。
-- 页面地址带有本地会话令牌；日志留在你自己的设备上，应用不会把它复制到别处，用过之后可以自行删除该日志。
-- Web 界面由独立本地运行包提供，不打进 HAP；使用首页命令或执行 Web 衔接测试前，必须先准备好该运行包。
-- 应用不常驻，也不负责停止终端服务。服务停止后，已加载页面可能显示网页自己的断开状态；新就绪地址加载前仍会实际检查。
-
-## 本地源码检查
-
-从 Harness 源码仓库根目录运行（不是在仅导出的工程里）：
+在同一设备上启动 DSH，指定固定端口和 token。独立本地启动器接受 Web 参数：
 
 ```sh
-python3 -B ohos/test-app-project.py
-node --test ohos/app/tests/*.test.mjs
-python3 -B ohos/sync-app-logo.py --check
-# Only after preparing the independent runtime:
-python3 -B ohos/test-app-web.py
+zsh /storage/Users/currentUser/dev/ohos/harness-ohos-0.2.0-connections-local/run-web.zsh --port 3080 --token '<your token>'
 ```
 
-逻辑测试需要 checkout 锁定 Node 依赖中的 TypeScript；新依赖尚未准备好时，可用 `NODE_PATH` 明确选择旧的只读编译器安装。Web 测试在 `$TMPDIR` 下创建新的 shared home/日志和 `DSH_020_HOME`，结束时停止自己的进程组并清理这些目录。`check-app-arkts.cjs --sdk <已安装的ets-sdk> --output <TMPDIR下的新目录>` 执行可用的独立语义检查，不是 DevEco 完整构建。保留的早期原生监管器未修改、两步页面不使用它；它以前的结果不是本版本证据。
+在 App 中填写名称、本地端口（默认 `3080`）和同一 token（初始为空）。**测试连接**使用新的 token 鉴权，再读取已认证的 DSH 首页，按钮文字保持居中，图标独立位于文字左侧，测试时旋转，成功显示绿色对勾，失败显示红色叉；测试与删除按钮的文字均为 14 字号；已输入内容保持不变。修改连接配置会清除上一次测试状态。失败详情区分 token 被拒绝、访问被拒绝、服务不可达及端口上的其他服务。标题栏的**保存**保存配置，不要求先测试成功。
 
-需要另一个无签名导出时，执行 `python3 -B ohos/package-app-project.py --output <TMPDIR下的新归档目录> --export-project <新导出目录>`，不会运行包管理器检查。脚本拒绝已有导出目录，也不会读取旧个人签名文件。收集结果后必须清理临时归档／检查目录。这些命令不会构建、签名或安装 HAP。
+App 连接 `127.0.0.1`，不负责启动 Node 或 DSH；终端或其他有权限的环境需要先运行服务。
+
+### 远程模式
+
+1. 填写自己的 broker 服务 HTTPS 地址、账号和账号密码。新建时服务地址为空。所有管理与信令连接均要求 HTTPS/WSS，证书必须受系统信任且域名匹配。
+2. 登录后从该账号的列表中选择在线 broker。离线 broker 仍可见，但不能选择。
+3. 填写连接名称、该 broker 的**连接密码**、远端 DSH 端口（默认 `3080`）和 DSH token；这些凭据与管理服务账号密码分开。
+4. 测试连接或点击标题栏的**保存**。远端 broker 必须正在运行，并允许 TCP 访问其 `127.0.0.1:<DSH 端口>` 目标。
+
+设置页在连接名称下显示已登录服务的地址与账号，再显示所选 broker，两项均有**修改**按钮。修改服务后登录并按需重新选择 broker，返回原设置页；取消时恢复原身份，选择其他 broker 时清除原连接密码。
+
+App 不提供自定义 CA 导入或信任覆盖。旧连接保留其配置，已停用的 CA 引用会被丢弃。
+
+原生 SDK 负责 WSS 信令、peer 认证、穿透与中继。它的本地 TCP 映射在恢复期间始终保持为 WebView 回环地址；HTTP、API 和 WebSocket 保留浏览器一侧的 Host、Origin 与 Cookie。明确关闭并重新打开连接时，App 建立新映射并重新进行 token 鉴权。
+
+测试结束会关闭临时映射。成功打开后由 WebView 接管映射，返回列表或 App 销毁时关闭。传输断线保留当前页面与 SDK 监听端，由 SDK 自动尝试恢复。App 观察恢复状态，控制器、页面状态与 origin 保持不变。回到前台时检查端点并唤醒已暂停的连接，重复事件共享未完成操作；恢复失败仍保留页面。渲染器已退出时，在恢复后重新加载其最后一个应用内地址。返回立即退出页面并取消未完成操作，清理完成前不接入新的 WebView。首次打开失败保留连接流程；已保存的管理 bearer 失效时进入该连接的登录页，DSH token 错误不会清除 broker 登录状态。
+
+[原生接入](entry/src/main/cpp/broker/README.zh.md)使用未经修改的 broker 0.4.0 SDK。0.3.0 服务端仍兼容，App 本地监听端保持不变；已有 TCP/WebSocket socket 的连续恢复要求两端 peer 与控制服务支持新版恢复协议。
+
+## WebView 与外观
+
+WebView 占据整个内容区域，在系统旋转锁关闭时允许自动纵向与横向旋转；连接列表和所有设置页固定纵向，从 WebView 返回时恢复纵向。系统返回先关闭原生菜单或搜索，再处理网页历史，最后返回连接列表。电脑用户可用 **Ctrl+Shift+L** 直接返回。Ctrl+F、匹配跳转、菜单操作、外链和本地路径操作继续可用；原生文件管理器操作不会从远端电脑下载 DSH 页面中显示的路径。
+
+连接列表和表单使用鸿蒙原生 Navigation 与 NavDestination 页面、默认切换动画和系统返回按钮，跟随系统浅深色主题。系统栏保持透明，App 背景（浅色 `#FFFFFF`、深色 `#151517`）扩展到状态栏和底部手势区域，系统栏文字与图标保持清晰；操作控件仍留在安全区内。设置页 Scroll 铺满页面宽度，滚动条位于屏幕边缘；左右留白和最大宽度只用于滚动内容，底部按钮与表单对齐。加载遮罩保留到首次绘制，原生浮层读取当前网页的主题颜色。
+
+## 本地验证与导出
+
+从源码 checkout 执行：
+
+```sh
+node --test ohos/app/tests/*.test.mjs
+python3 -B ohos/test-app-project.py
+node ohos/check-app-arkts.cjs --sdk <installed-ets-sdk> --output <new-private-directory>
+python3 -B ohos/package-app-project.py --output <new-archive-directory> --export-project <new-project-directory>
+```
+
+打包器包含离线原生依赖，并拒绝已有导出目录。ArkTS 检查属于语义检查，不是 DevEco 完整 HAP 构建。已签名的原生传输测试及运行包检查与 ArkWeb 人工交互验收分别记录，见 [VALIDATION.md](VALIDATION.md)。已有导出、个人签名配置和正在运行的服务会保留。

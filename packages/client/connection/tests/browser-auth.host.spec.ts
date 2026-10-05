@@ -55,8 +55,9 @@ function createAuth(
   store: RecordCredentials,
   maxAgeDays = 30,
   processOwner: object = {},
+  token?: string,
 ): Promise<BrowserAuth> {
-  return BrowserAuth.create(processOwner, credentials(store), maxAgeDays)
+  return BrowserAuth.create(processOwner, credentials(store), maxAgeDays, token)
 }
 
 function request(url: string, authority = '127.0.0.1:3080', init?: {
@@ -138,6 +139,41 @@ describe('BrowserAuth', () => {
         'referrer-policy': 'no-referrer',
       },
     })
+  })
+
+  it.each(['fixed-token', ' +/&?=%#令牌🔐 '])('uses the explicit token %j across starts and reloads', async (token) => {
+    const store = new RecordCredentials()
+    const processOwner = {}
+    const random = await createAuth(store, 30, processOwner)
+    const priorCookie = exchange(random).cookie
+    const persisted = store.record
+    const first = await createAuth(store, 30, processOwner, token)
+    const login = exchange(first)
+    expect(new URL(login.launchUrl).searchParams.get('token')).toBe(token)
+    expect(login.state.status).toBe(303)
+    expect(first.isAuthenticated(request('/', '127.0.0.1:3080', { cookie: priorCookie }))).toBe(true)
+    expect(store.record).toBe(persisted)
+
+    for (const owner of [processOwner, {}]) {
+      const reloaded = await createAuth(store, 30, owner, token)
+      expect(reloaded.authenticatedUrl('http://127.0.0.1:3080')).toBe(login.launchUrl)
+      expect(reloaded.isAuthenticated(request('/', '127.0.0.1:3080', { cookie: login.cookie }))).toBe(true)
+      const wrong = response()
+      expect(reloaded.authorizeIndex(request('/?token=wrong'), wrong.value)).toBe(false)
+      expect(wrong.state.status).toBe(401)
+    }
+    const changed = await createAuth(store, 30, {}, 'replacement')
+    expect(changed.isAuthenticated(request('/', '127.0.0.1:3080', { cookie: login.cookie }))).toBe(true)
+    expect(store.record).toBe(persisted)
+    const omitted = await createAuth(store, 30, processOwner)
+    expect(omitted.authenticatedUrl('http://127.0.0.1:3080'))
+      .toBe(random.authenticatedUrl('http://127.0.0.1:3080'))
+  })
+
+  it('rejects an explicit empty token before writing credentials', async () => {
+    const store = new RecordCredentials()
+    await expect(createAuth(store, 30, {}, '')).rejects.toThrow('token must not be empty')
+    expect(store.modifies).toBe(0)
   })
 
   it('preserves the caller authority and mount while adding only this process token', async () => {

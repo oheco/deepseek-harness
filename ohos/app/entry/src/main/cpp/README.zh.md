@@ -4,7 +4,7 @@
 
 此库仅供本地使用，通过 `import launcher from 'libdsh_launcher.so'` 提供约定的 `start(config): void`、`snapshot(): LaunchSnapshot` 和 `stop(): void` 方法，以及 `probe(config): void` 和 `probeSnapshot(): ProbeSnapshot`。完整字段列表以[类型声明](types/libdsh_launcher/index.d.ts)为准。应用入口包必须声明对 `file:./src/main/cpp/types/libdsh_launcher` 的依赖，并将外部原生构建指向本目录的 [CMakeLists.txt](CMakeLists.txt)。
 
-源码分为 `launcher_util.*`（描述符所有权、配置字段边界、fork 子进程失败记录、继承描述符关闭）、`launcher_config.h`（`LaunchConfig`）、`supervisor.*`、`probe.*` 和 `napi_bridge.cpp`。静态库目标 `dsh_supervisor` 包含监管器和能力检测，并链接 `dsh_launcher_core`；`dsh_launcher.so` 链接该目标以及 `libace_napi.z.so`；未新增任何第三方依赖。
+源码分为 `launcher_util.*`（描述符所有权和启动器移植支持）、`launcher_config.h`（`LaunchConfig`）、`supervisor.*`、`probe.*` 和 `napi_bridge.cpp`。静态库目标 `dsh_supervisor` 包含监管器和能力检测，并链接 `dsh_launcher_core`。共享桥接库还链接[原生 broker 客户端](broker/README.zh.md)、其固定版本静态依赖以及 `libace_napi.z.so`。broker 方法为新增接口，现有启动器和能力检测行为仍可使用。
 
 ## 输入和环境
 

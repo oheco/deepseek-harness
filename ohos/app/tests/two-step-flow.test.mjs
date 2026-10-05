@@ -95,6 +95,10 @@ test('readiness parsing accepts only a complete loopback announcement', () => {
   assert.equal(parse('booting\ndsh web: ' + FIRST + '\nready\n'), FIRST);
   assert.equal(parse('dsh web: ' + FIRST + ' (LAN: http://192.168.1.5:43210/?token=first-token_value)\n'), FIRST);
   assert.equal(parse(FIRST + '\n'), FIRST, 'a bare loopback URL line is accepted');
+  assert.equal(parse('dsh web: http://127.0.0.1:3080/?token=hello+%E4%B8%AD%E6%96%87%26%3D\n'),
+    'http://127.0.0.1:3080/?token=hello+%E4%B8%AD%E6%96%87%26%3D', 'encoded fixed token');
+  assert.equal(parse('dsh web: http://127.0.0.1:3080/?token=broken%2\n'), '', 'incomplete escape');
+  assert.equal(parse('dsh web: http://127.0.0.1:3080/?token=%0Asecret\n'), '', 'control characters');
   assert.equal(parse(''), '');
   assert.equal(parse('dsh web: http://127.0.0.1:43210/?token=\n'), '', 'empty token');
   assert.equal(parse('dsh web: http://127.0.0.1:0/?token=x\n'), '', 'port zero');

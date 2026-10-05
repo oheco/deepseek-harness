@@ -9,7 +9,7 @@
     "size": 3750380,
     "license": "MIT",
     "lockfile_matched": true,
-    "origin": "upstream prebuilt WASM",
+    "origin": "upstream OHOS binary",
     "modifications": "none; build preparation signs ELF copies and selects the same-version Lightning CSS WASM API",
     "license_file": "licenses/esbuild-0.28.1.txt",
     "license_sha256": "b40ec5baec7bb34fa5b1c09521fa3cd52d5fad7adafed74932a2010d3612a681"
@@ -24,7 +24,7 @@
     "size": 3274088,
     "license": "MIT",
     "lockfile_matched": true,
-    "origin": "upstream prebuilt WASM",
+    "origin": "upstream OHOS binary",
     "modifications": "none; build preparation signs ELF copies and selects the same-version Lightning CSS WASM API",
     "license_file": "licenses/esbuild-0.25.12.txt",
     "license_sha256": "b40ec5baec7bb34fa5b1c09521fa3cd52d5fad7adafed74932a2010d3612a681"
@@ -106,6 +106,21 @@
     "modifications": "none; build preparation signs ELF copies and selects the same-version Lightning CSS WASM API",
     "license_file": "licenses/lightningcss-1.32.0.txt",
     "license_sha256": "5eba353fe5076ac3432177f8ab1cf75e3afcd0584251e37c3bfead5f447d040e"
+  },
+  {
+    "name": "esbuild-wasm",
+    "version": "0.21.5",
+    "archive": "esbuild-wasm-0.21.5.tgz",
+    "url": "https://registry.npmjs.org/esbuild-wasm/-/esbuild-wasm-0.21.5.tgz",
+    "integrity": "sha512-L/FlOPMMFtw+6qPAbuPvJXdrOYOp9yx/PEwSrIZW0qghY4vgV003evdYDwqQ/9ENMQI0B6RMod9xT4FHtto6OQ==",
+    "sha256": "e6c7c3665f785f5375a78bdd0626e9cd5d10d3f71574da7fc78503801e5b5eed",
+    "size": 3281158,
+    "license": "MIT",
+    "lockfile_matched": false,
+    "origin": "upstream prebuilt WASM",
+    "modifications": "archive unchanged; private copies select the same-version Node WASM API for locked esbuild 0.21.5 and retain the upstream CLI behind an OHOS SyncWriteStream bootstrap",
+    "license_file": "licenses/esbuild-wasm-0.21.5.txt",
+    "license_sha256": "b40ec5baec7bb34fa5b1c09521fa3cd52d5fad7adafed74932a2010d3612a681"
   },
   {
     "name": "pnpm",

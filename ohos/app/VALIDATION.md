@@ -1,40 +1,33 @@
-# 0.2.0 鸿蒙 App 本地迁移验证
+# DSH App 正式 broker 0.4.0 SDK 接入验证
 
-本记录仅覆盖当前 App 源码与独立本地连接，不沿用 0.1.7 的通过结果。本 App 迁移操作没有构建、签名或安装 HAP，没有发布或推送，也不修改旧 App 工程、旧导出、个人签名文件、现有 dsh 安装或服务。
+本轮将 App 切换到已安装的正式 broker 0.4.0 C SDK，保持 SDK 源码不变，接入异步首连、持久 peer/map、自动恢复状态与同句柄手动重连。原有系统主题、透明系统栏、旋转锁与设置页滚动布局保留。仅运行与此次恢复接入相关的检查、SDK 构建内置探针和生成可安装 HAP 所需步骤，不运行仓库全量测试或额外 VM/SDK 编译夹具。
 
-## 迁移输入与只读比对
+## 正式 SDK 与离线构建
 
-新 checkout 基线为 `dsh-v0.2.0-rc.2`，分支 `ohos/0.2.0-rc.2`。复制旧 `deepseek-harness-0.1.7` 干净工作树的 tracked App 文件 62 个与相关脚本 7 个；原始输入摘要及基线记录在 [app-migration.json](../app-migration.json)。不带 build、.hvigor、依赖、签名和 local 配置。
+[SDK 导入记录](validation/broker-sdk-0.4.0/sdk-intake.json)确认版本 `0.4.0`，完整归档 13885 个 SDK 文件及软件包版本/许可文件，原样复制 24 个 remote 文件及原始 CMake。安装目录前后全文件摘要均为 `1dc40f50e8d6138591910c1be310d4e68d4a7a857b39e9dcbb7679a7b068826f`，`installed_sdk_unchanged = true`、`local_sdk_changes = NONE`。
 
-仅以安全白名单比较旧导出，不读取其根 build-profile、App 身份及生成的 RuntimeDefaults，更不读取或复制个人证书、私钥、签名 profile、local.properties 与构建产物。`export/DSHApp` 的 59 个可比文件全部与旧源码一致；`export/DSHApp-0.1.7` 为 55 个一致，只有 README 中英文、配对元数据及 VALIDATION 四个文档不同。两份导出的业务 ArkTS 源码均无缺失或差异，未发现业务修复未回源。
+[最终原样复核](validation/broker-sdk-0.4.0/final-sdk-immutability.json)逐文件核对安装包中的 13887 个输入（其中 SDK 文件 13885 个）及 App 的 24 个 SDK 副本，摘要均与原导入一致。
 
-## 适配与保留
+完整源码归档 SHA-256 为 `3b309480074c59ba5dd446721d2bd49bc2a1cb1a74054924cf2a38bb9dba0931`。原始 SDK 离线 `build.sh` 在新的私有目录退出 0，构建六个依赖静态库和包含 coordinator/recovery 的 11 个 SDK C 源文件；只执行构建器内置的签名目标探针。见 [SDK 构建日志](validation/broker-sdk-0.4.0/sdk-build.log)。App 依赖载荷只含六个依赖库、头文件与许可证，HAP 构建独立编译原样 SDK 源码，不复用预编译 remote SDK 库。
 
-- App 身份仍为 `org.oheco.deepseekharness`；本地版本 `0.2.0-rc.2-ohos.1`，versionCode 从 1000001 递增至 1000002。SDK 三项保持 `6.1.0(23)`。
-- 首页与打包默认入口明确使用 `zsh /storage/Users/currentUser/dev/ohos/harness-ohos-0.2.0-local/run-web.zsh`，不使用 PATH 里的旧 dsh；日志为独立 `~/Documents/dsh-0.2.0-run.log`，默认端口由系统选择。
-- 保留 Ctrl+F、匹配计数、前后跳转、Esc、可拖动搜索条、右键复制和鼠标落点取词、外链转系统浏览器、路径在文件管理器中查看、边界与符号链接拒绝及三秒 toast。
-- 保留深浅色与页面颜色同步、首屏遮罩、禁止缩放、全窗口 WebView、Back 历史处理及本地网络状态适配；9 个业务 ArkTS 文件和 Documents 权限清单原样复制，新增测试检查其摘要。
-- 保留大日志头部就绪读取、日志截断／重启、normal 级 Documents 权限及系统 Picker 回退。不实施撤销的 UserFile 权限、broker 按钮、编辑器、逐文件授权或副本功能。
-- 打包器新增直接生成新无签名 DevEco 目录的 `--export-project`；拒绝已有目录，不运行 oo 验证。更新导出脚本也不再为“保护签名”而读取签名配置摘要，保护路径在任何内容读取前排除。
+## App 恢复与清理
 
-## 本轮实际执行
+[原生客户端](entry/src/main/cpp/broker/README.zh.md)使用 `ob_remote_connect_async`，首次创建 SDK 监听端后持续持有 API、peer 与 map。可恢复故障、自动退避和暂停均保留本地端口；前台仅对已暂停 peer 请求 `ob_remote_peer_reconnect`。App 不再关闭后按旧端口重新绑定，也不增加自有 TCP 转发器。
 
-以下命令从新 checkout 根目录执行；结果只属于新 App。所有临时目录位于 `$TMPDIR`，由 trap 或 TemporaryDirectory 清理。原始检查日志位于被 Git 忽略的 [validation](validation/) 目录。
+[WebConnection.ets](entry/src/main/ets/launcher/WebConnection.ets)区分请求接受与连接完成。自动恢复通过状态轮询确认并检查 DSH 端点，然后通知原 WebView；正常恢复保留控制器、DOM、历史、搜索与 origin，仅已退出的渲染器在恢复后重建。[Index.ets](entry/src/main/ets/pages/Index.ets)在明确返回时立即退出页面并恢复纵向显示，继续持有未完成清理的 Promise，清理结束前不接入新 WebView。后台与临时组件脱离保留 SDK 映射；窗口/Ability 销毁及原生环境释放执行最终清理。
 
-| 检查 | 命令与当前结果 | 边界 |
-| --- | --- | --- |
-| App 逻辑 | `NODE_PATH=/storage/Users/currentUser/dev/ohos/deepseek-harness-0.1.7/node_modules node --test ohos/app/tests/*.test.mjs`：23/23 通过、exit 0 | 旧 TypeScript 仅为只读检查工具输入；测试读取新源码，含新增外链、主题与业务保留回归，不是 ArkWeb 人工验收。 |
-| 工程与生成 | `python3 -B ohos/test-app-project.py`：16/16 通过、exit 0，含签名配置不读取回归 | 覆盖身份版本、SDK、图标、路径引号、独立入口、Documents 权限、新无签名导出与拒绝已有工程。 |
-| ArkTS 语义 | `node ohos/check-app-arkts.cjs --sdk /storage/Users/currentUser/.oheco/packages/ohos-sdk-ets/26.0.0.35-Beta --output "$priv/check"`：errors 0、exit 0 | 按工程 SDK 字段检查新源码；10 个提示为 INTERNET、文件 API 异常处理、getContext 废弃。不是 assembleHap 或完整 DevEco 构建。 |
-| 图标 | `python3 -B ohos/sync-app-logo.py --check`：5 个 PNG 与分层描述通过、exit 0 | 不做无关图标重绘。 |
-| 主题兼容只读核对 | 新版 ui-theme 的 design-platform.css 仍定义浮层脚本读取的 7 个 `--dsw-*` 变量，并有深浅色定义 | 只是源码核对，不是新 ArkWeb 实际颜色验收，也不修改或测试该软件包。 |
-| Web 衔接 | `python3 -B ohos/test-app-web.py`：真实启动本次 fresh candidate 的独立运行包，实际新 `RunLogUrl.ets` 解析就绪日志，鉴权 Cookie、原版页面标题及随机非 9000 端口均通过、exit 0 | 首页同一本地启动器与日志文件名；shared home/日志及 `DSH_020_HOME` 隔离在含空格／引号的 `$TMPDIR`，设 `DSH_020_PORT=0`，结束时关闭自己的进程组并清理。不是 HAP、ArkWeb 或真机交互测试。 |
-| 无签名导出 | `python3 -B ohos/package-app-project.py --output "$priv/archive" --export-project /storage/Users/currentUser/dev/ohos/export/DSHApp-0.2.0`：创建时 71 文件逐文件与归档 stage 一致、exit 0；其后同步当前检查说明，并加入本轮 Web 衔接日志与输入摘要记录（现为 73 文件） | 只创建新的无签名 DevEco 目录；临时 ZIP 与 stage 已清理，不覆盖任何旧工程。 |
-| 双语说明 | `node scripts/verify-translation-pairing.ts ohos/app/README.md ohos/app/tests/native/README.md`：2 个指定文档对一致、exit 0 | 只检查 App 文档，不运行全仓 doc-sync。 |
-| 导出复核 | 60 个安全 tracked 文件（说明链接按导出路径投影）、6 个本轮日志及输入摘要记录与新源码逐字节一致；总计 73 文件、exit 0 | 复核不读取受保护的身份、默认器或 build-profile，不访问任何旧导出。打包回归也验证迁移记录随包及相对链接可打开。 |
+App 为 `org.oheco.deepseekharness`、`0.2.0-rc.2-ohos.1`、versionCode `1000002`。App 私有偏好、DSH Session 日志和 SQLite 类型不变；原始输入见[迁移记录](../app-migration.json)。
 
-## 使用与未验证部分
+## 相关检查
 
-独立运行包已通过上述本地连接测试。打开新的 `export/DSHApp-0.2.0`（根目录而非 entry）。该工程没有个人签名配置；如以后自行在 DevEco 配置签名并运行，同 bundle 身份会升级原 App，而非并存安装。复制首页命令到终端；需选择日志时只选 `dsh-0.2.0-run.log`。日志含认证 token，不要分享；服务已运行时不要重复启动。
+一次[聚焦执行](validation/broker-sdk-0.4.0/app-focused-tests.log)通过 52/52：恢复与 Index 生命周期 19 项、页面/Ability 接线 8 项、系统栏 15 项、方向 10 项。核对正式 SDK 的手动请求实现后，补充“接受请求时快照仍为 paused”的异步状态分支，仅[重跑恢复检查](validation/broker-sdk-0.4.0/web-connection-final.log)，19/19 通过、退出 0；其余三个已通过文件未变化。这些使用 SDK 状态替身检查实际 App 源码行为，不能代替普通 HAP 的网络和物理 WebView 验收。
 
-本轮不做 HAP 构建、签名、安装或真机人工操作；普通 HAP 权限、ArkWeb 搜索／右键／外链／路径／深浅色交互仍需用户验收。早期原生监管器源码未改动、两步模式不使用它，因此不重跑其编译或签名测试。不运行其他软件包验证或全仓回归；任何旧检查、旧 HAP 或旧真机验收都不能替代本版本证据。
+## 构建与设备范围
+
+[完整构建与安装回执](validation/broker-sdk-0.4.0/application-build-install-sdk4.json)记录最终 Hvigor 构建退出 0，34 项全部执行、0 项缓存，耗时约 87 秒。11 个正式 SDK C 编译单元与 App 接入均在本次构建生成；HAP 原生库为 ELF64/aarch64，包含 `brokerReconnect` 绑定。前期环境、库搜索路径和签名配套文件问题与最终成功分开记录；库路径修正在 App 自有构建包装中完成，正式 SDK CMake 保持原样。
+
+签名使用用户指定的 fix2 原签名配置及配套文件。[签名验证](validation/broker-sdk-0.4.0/hap-verification.json)退出 0，HAP 证书链公钥摘要与 fix2 一致；[清理记录](validation/broker-sdk-0.4.0/cleanup.json)确认原配置、三个签名文件与五个配套解密文件未修改，临时副本已删除。签名 HAP 大小为 5232378 字节，SHA-256 为 `c67655692839db123557a00ce537cd95c8bb31cd4152fb1b3bbffca9ef94e43b`。
+
+[双设备安装回执](validation/broker-sdk-0.4.0/installed-app.json)确认电脑 `192.168.1.160:34835` 与手机 `192.168.1.191:41339` 的 HDC `install -r` 均退出 0，安装版本与代码正确。便携工程保持 SDK `6.1.0(23)`、phone/tablet/2in1；实际设备构建使用已安装 SDK26/compatible23 与有效的 default/2in1 配置，不修改 SDK 字典。交付工程不包含个人签名配置，编译输入与 HAP 的一致性另按文件摘要记录。
+
+沿用用户“只需完成安装，无需启动验证”的要求，不解锁、启动或操作电脑和手机 App。0.3.0 控制服务或 peer 仍兼容映射服务恢复；已有 TCP/WebSocket 连续恢复需要两端 peer、目标 socket 与新版控制恢复关系在保留期限内存活。本轮不将 SDK 原生探针或 App 状态替身检查扩大为真实网络中断、设备挂起或旧 TCP 续传的真机证明。之前 fix5 的导出、HAP 与安装记录保留。

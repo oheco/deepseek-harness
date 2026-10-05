@@ -4,7 +4,7 @@
  * an explicit loopback authority, a nonzero port, and a nonempty token.
  */
 
-const LOOPBACK_URL = /^http:\/\/127\.0\.0\.1:([1-9][0-9]{0,4})\/\?token=([A-Za-z0-9_-]+)$/;
+const LOOPBACK_URL = /^http:\/\/127\.0\.0\.1:([1-9][0-9]{0,4})\/\?token=([A-Za-z0-9_.~%+-]+)$/;
 const ANNOUNCEMENT_PREFIX = 'dsh web: ';
 const LAN_SUFFIX = ' (LAN: ';
 
@@ -45,7 +45,16 @@ function announcedUrl(line: string): string {
     }
   }
   const match = LOOPBACK_URL.exec(rest);
-  if (match === null || Number(match[1]) > 65535) {
+  if (match === null || Number(match[1]) > 65535 || rest.length > 16384) {
+    return '';
+  }
+  try {
+    const token = decodeURIComponent(match[2].replace(/\+/g, ' '));
+    if (token.trim() === '' || /[\x00\r\n]/.test(token)) {
+      return '';
+    }
+  } catch (error) {
+    // Invalid percent escapes cannot be imported as a different token.
     return '';
   }
   return rest;

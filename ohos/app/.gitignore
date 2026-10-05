@@ -14,3 +14,6 @@ local.properties
 *.crt
 __pycache__/
 validation/
+# Pinned dependency archives are offline App build inputs, not generated lib output.
+!entry/src/main/cpp/tpr/broker-native-arm64/lib/
+!entry/src/main/cpp/tpr/broker-native-arm64/lib/*.a

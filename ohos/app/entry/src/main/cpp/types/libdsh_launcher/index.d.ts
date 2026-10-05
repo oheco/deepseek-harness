@@ -43,8 +43,78 @@ export interface ProbeSnapshot {
   report: string;
 }
 
+/** HTTPS broker control service verified with HarmonyOS system roots and hostname. */
+export interface BrokerServiceOptions {
+  /** HTTPS origin without credentials, path or query; supplied by the user. */
+  serviceUrl: string;
+  /** context.tempDir + '/dsh-broker'; verified private 0700, fixed for all requests in this process. */
+  tempDir: string;
+}
+export interface BrokerLoginOptions extends BrokerServiceOptions {
+  account: string;
+  password: string;
+}
+/** Persist accessToken only in application-private storage; never persist passwords. */
+export interface BrokerLoginResult {
+  accessToken: string;
+  tokenType: 'Bearer';
+}
+export interface BrokerListOptions extends BrokerServiceOptions {
+  accessToken: string;
+}
+/** Approved/connectable status is determined during peer setup, not listing. */
+export interface BrokerInfo {
+  id: string;
+  name: string;
+  online: boolean;
+}
+export interface BrokerConnectOptions extends BrokerListOptions {
+  brokerId: string;
+  /** Required broker peer password, independent of account password and DSH token. */
+  peerPassword: string;
+  /** Integer 1..65535; the target is fixed to remote 127.0.0.1. */
+  remotePort: number;
+}
+/** URL is unauthenticated; callers append the separate DSH token for WebView login. */
+export interface BrokerStatus {
+  state: 'idle' | 'connecting' | 'connected' | 'reconnecting' | 'retry_wait' | 'paused' | 'failed' | 'closed';
+  /** SDK-owned http://127.0.0.1:<local-port>/ retained through outages and paused retries until explicit close. */
+  localUrl: string;
+  localPort: number;
+  brokerId: string;
+  remotePort: number;
+  /** Fixed redacted diagnostic; never includes credentials or wire responses. */
+  error: string;
+  /** DSH_BROKER_AUTH for account authorization failures (HTTP 401/403); otherwise empty. */
+  errorCode: string;
+}
+export interface DshProbeOptions {
+  /** Exact numeric http://127.0.0.1:<port> origin; no path or query. */
+  origin: string;
+  /** Independent DSH authentication token. Never persisted by native code. */
+  token: string;
+}
+export interface DshProbeResult {
+  state: 'ok' | 'unauthorized' | 'forbidden' | 'unreachable' | 'not-dsh';
+  httpStatus: number;
+}
+
 /** Asynchronous process supervisor. Methods perform no filesystem or child waits. */
 interface DshLauncher {
+  /** Login using account credentials. No disk persistence or credential logging. */
+  brokerLogin(options: BrokerLoginOptions): Promise<BrokerLoginResult>;
+  /** List the account's brokers; requires a current persisted bearer token. */
+  brokerList(options: BrokerListOptions): Promise<BrokerInfo[]>;
+  /** Create a persistent SDK peer and OS-assigned TCP map; wait for its first authenticated connection. */
+  brokerConnect(options: BrokerConnectOptions): Promise<BrokerStatus>;
+  /** Wake a paused SDK peer without replacing its map; acceptance returns current state, completion is observed through brokerStatus. */
+  brokerReconnect(): Promise<BrokerStatus>;
+  /** Cancel initial connection waiting and queued work; settle after map/peer/API quiescence. Management REST waits on its deadline. */
+  brokerClose(): Promise<void>;
+  /** Read the SDK's recovery state on the owner worker; outages retain handles and the numeric loopback URL. */
+  brokerStatus(): Promise<BrokerStatus>;
+  /** Fresh cookie jar; token303 exchange and same-origin homepage __DSH_BOOT__ check. */
+  dshProbe(options: DshProbeOptions): Promise<DshProbeResult>;
   /** Enqueue startup; throws on invalid fields or an active/terminating run. */
   start(config: LaunchConfig): void;
   /**

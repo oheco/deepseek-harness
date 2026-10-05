@@ -2,18 +2,18 @@
 # section, a hash of its English and Chinese blocks outside code blocks and generated regions.
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write ohos/README.md
-/harmonyos-web-and-app-local-port-0-2-0-rc-2:
-  en: c42552e9ac848968
-  zh: 82bd035011b4cf5e
-/harmonyos-web-and-app-local-port-0-2-0-rc-2/scope:
-  en: 63069590bd42caa5
-  zh: dda26335bbb61fc7
-/harmonyos-web-and-app-local-port-0-2-0-rc-2/build:
-  en: ea2e170f75df3eb6
-  zh: 087c6fce29eb0c8b
-/harmonyos-web-and-app-local-port-0-2-0-rc-2/local-operation-and-validation:
-  en: e9de5cf4d33e4708
-  zh: 638bac002ac19045
-/harmonyos-web-and-app-local-port-0-2-0-rc-2/platform-limitations:
-  en: be1360ce79ed3ced
-  zh: 07600d8d9118c843
+/harmonyos-cli-web-and-app-0-2-0-rc-2-ohos-1:
+  en: 6e81e14699d699f7
+  zh: 75ca2ce04fc77175
+/harmonyos-cli-web-and-app-0-2-0-rc-2-ohos-1/scope:
+  en: 68246ee15d9b168b
+  zh: 216865bc533b8021
+/harmonyos-cli-web-and-app-0-2-0-rc-2-ohos-1/install-and-run:
+  en: 71ab27468206f947
+  zh: 395cde3133bb50d7
+/harmonyos-cli-web-and-app-0-2-0-rc-2-ohos-1/reproduce-the-build:
+  en: 5c7fe158facd67fb
+  zh: 8cb72f15eb27270d
+/harmonyos-cli-web-and-app-0-2-0-rc-2-ohos-1/platform-limitations:
+  en: 55a09030c7b1eca3
+  zh: 56f0e3110ad559dc

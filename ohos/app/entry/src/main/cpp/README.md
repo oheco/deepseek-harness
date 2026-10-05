@@ -4,7 +4,7 @@ English | [中文](README.zh.md)
 
 This local-only library exposes `import launcher from 'libdsh_launcher.so'` with the required `start(config): void`, `snapshot(): LaunchSnapshot`, and `stop(): void` methods, plus `probe(config): void` and `probeSnapshot(): ProbeSnapshot`. [The declarations](types/libdsh_launcher/index.d.ts) own the complete field list. The application entry package must depend on `file:./src/main/cpp/types/libdsh_launcher` and point its external native build to this directory's [CMakeLists.txt](CMakeLists.txt).
 
-The sources are split into `launcher_util.*` (descriptor ownership, config field bounds, the fork-child failure record, inherited-descriptor closure), `launcher_config.h` (`LaunchConfig`), `supervisor.*`, `probe.*`, and `napi_bridge.cpp`. The static `dsh_supervisor` target carries the supervisor and the probe, links `dsh_launcher_core`, and `dsh_launcher.so` links that target plus `libace_napi.z.so`; no third-party dependency is added.
+The sources are split into `launcher_util.*` (descriptor ownership and launcher portability), `launcher_config.h` (`LaunchConfig`), `supervisor.*`, `probe.*`, and `napi_bridge.cpp`. The static `dsh_supervisor` target carries the supervisor and the probe and links `dsh_launcher_core`. The shared bridge also links [the native broker client](broker/README.md), its pinned static dependencies, and `libace_napi.z.so`. Broker methods are additive; the launcher and capability-probe behavior remains available.
 
 ## Inputs and environment
 

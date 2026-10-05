@@ -1,11 +1,48 @@
 {
   "color": [
-    { "name": "start_window_background", "value": "#F5F7FF" },
-    { "name": "canvas", "value": "#F5F7FF" },
-    { "name": "panel", "value": "#FFFFFF" },
-    { "name": "ink", "value": "#182644" },
-    { "name": "muted", "value": "#52617D" },
-    { "name": "accent", "value": "#536DFE" },
-    { "name": "warning", "value": "#995100" }
+    {
+      "name": "start_window_background",
+      "value": "#FFFFFF"
+    },
+    {
+      "name": "background",
+      "value": "#FFFFFF"
+    },
+    {
+      "name": "canvas",
+      "value": "#F5F6F7"
+    },
+    {
+      "name": "panel",
+      "value": "#FFFFFF"
+    },
+    {
+      "name": "card",
+      "value": "#F5F6F7"
+    },
+    {
+      "name": "border",
+      "value": "#E1E5EB"
+    },
+    {
+      "name": "ink",
+      "value": "#1B1B1D"
+    },
+    {
+      "name": "muted",
+      "value": "#616369"
+    },
+    {
+      "name": "accent",
+      "value": "#4176E6"
+    },
+    {
+      "name": "on_accent",
+      "value": "#FFFFFF"
+    },
+    {
+      "name": "warning",
+      "value": "#995100"
+    }
   ]
 }

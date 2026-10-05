@@ -1,6 +1,6 @@
 /**
  * The web app's command-line provider: it parses the `dsh --profile web` flag
- * family (`--host`, `--port`, `--trusted-host`, `--no-open`) and its `--help`
+ * family (`--host`, `--port`, `--token`, `--trusted-host`, `--no-open`) and its `--help`
  * text, then provides the immutable values as {@link WEB_STARTUP_SERVICE}.
  * Ordinary rows inject that service before reading it from lazy config.
  * @module @deepseek-ai/dsh-web-app/startup
@@ -27,6 +27,8 @@ export interface WebStartupValues {
   host?: string
   /** `--port`, absent when the invocation did not name one. */
   port?: number
+  /** `--token`, absent when this invocation uses the random launch token. */
+  token?: string
   /** Explicit `--trusted-host` authorities, in argument order. */
   trustedHosts: string[]
 }
@@ -36,6 +38,7 @@ interface WebOptions {
   host?: string
   open: boolean
   port?: string
+  token?: string
   trustedHost?: string[]
 }
 
@@ -51,6 +54,7 @@ function webCommand(): Command {
     .option('--host <host>', 'bind host')
     .option('--no-open', 'do not open the Web UI in the default browser')
     .option('--port <port>', 'listen port; pass 0 to let the OS pick a free one')
+    .option('--token <token>', 'fixed browser launch token; omitted generates a random token')
     .option('--trusted-host <authority...>', 'extra authority the /api browser-trust fence accepts (host or host:port; repeatable)')
     .addHelpText('after', `
 Examples:
@@ -62,9 +66,9 @@ Examples:
 
 /**
  * Parse and provide the Web invocation as an ordinary Cordis service. The
- * command's action publishes the flags this invocation named; `--host 0.0.0.0`
- * or a non-numeric `--port` is a usage error, so on rejection (and on `--help`)
- * nothing is provided.
+ * command's action publishes the flags this invocation named; `--host 0.0.0.0`,
+ * a non-numeric `--port`, or an empty `--token` is a usage error. Rejection
+ * and `--help` provide no service.
  * @param ctx - plugin context carrying the command line.
  */
 export function apply(ctx: Context): void {
@@ -77,8 +81,10 @@ export function apply(ctx: Context): void {
     if (options.port !== undefined && !/^\d+$/.test(options.port)) {
       program.error(`error: --port must be a number, got ${JSON.stringify(options.port)}`)
     }
+    if (options.token === '') program.error('error: --token must not be empty')
     ctx.provide(WEB_STARTUP_SERVICE, {
       openBrowser: options.open,
+      ...options.token !== undefined && { token: options.token },
       ...options.host !== undefined && { host: options.host },
       ...options.port !== undefined && { port: Number(options.port) },
       trustedHosts: options.trustedHost ?? [],

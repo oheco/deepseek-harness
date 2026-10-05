@@ -69,6 +69,41 @@ describe('maintained repository reference policy', () => {
     expect(scanRepositoryReferences(fixture.root)).toHaveLength(4)
   })
 
+  it('permits immutable source commits in exactly the two OHOS machine records', (test) => {
+    const fixture = repository(test)
+    const records = {
+      'ohos/release.json': { upstream_commit: fixture.commit },
+      'ohos/app-migration.json': { source_head: fixture.commit, destination_upstream_head: fixture.commit },
+    }
+    for (const [file, record] of Object.entries(records)) {
+      const source = JSON.stringify(record, null, 2)
+      fixture.write(file, source)
+      expect(findRepositoryReferences(file, source, new Set([fixture.commit]))).toEqual([])
+    }
+    fixture.git(['add', ...Object.keys(records)])
+    expect(scanRepositoryReferences(fixture.root)).toEqual([])
+
+    const neighbors = [
+      'release.json',
+      'ohos/release.json5',
+      'ohos/release.json.bak',
+      'ohos/app-migration.json.md',
+      'ohos/app/release.json',
+      'ohos/app/app-migration.json',
+      'ohos/other.json',
+      'ohos/README.md',
+    ]
+    const prohibited = JSON.stringify({ source_commit: fixture.commit, source_url: organizationUrl }, null, 2)
+    for (const file of neighbors) fixture.write(file, prohibited)
+    const references = scanRepositoryReferences(fixture.root)
+    const expected = neighbors.flatMap(file => [
+      { file, line: 2, kind: 'commit-hash' },
+      { file, line: 3, kind: 'organization-url' },
+    ])
+    expect(references).toEqual(expect.arrayContaining(expected))
+    expect(references).toHaveLength(expected.length)
+  })
+
   it('checks available unreachable commits without requiring a branch or network', (test) => {
     const fixture = repository(test)
     const unreachable = fixture.git(['commit-tree', fixture.tree, '-m', 'unreachable fixture'])

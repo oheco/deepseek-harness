@@ -11,6 +11,7 @@ import type { IndexInjection, WebServer, WebRoute, WebUpgradeRoute } from '@deep
 import {
   API_PATH,
   RpcId,
+  Config,
   apply,
   inject,
   type ClientRequest,
@@ -127,6 +128,25 @@ function browserCookie(connection: HostConnectionHandle, authority: string): str
 }
 
 describe('connection node half', () => {
+  it('validates the optional launch token through Cordis configuration', async () => {
+    expect(new Config({}).token).toBeUndefined()
+    expect(new Config({ token: ' +/&?=%令牌 ' }).token).toBe(' +/&?=%令牌 ')
+    expect(() => new Config({ token: '' })).toThrow()
+    const { connection, dispose } = await mounted({ token: 'configured +/&?=%令牌' })
+    try {
+      expect(new URL(connection.authenticatedUrl('http://127.0.0.1:45678')).searchParams.get('token'))
+        .toBe('configured +/&?=%令牌')
+      const cookie = browserCookie(connection, '127.0.0.1:45678')
+      expect(connection.requestRejection({ headers: {
+        host: '127.0.0.1:45678', origin: 'http://127.0.0.1:45678', cookie,
+      } })).toBeUndefined()
+      expect(connection.requestRejection({ headers: {
+        host: '127.0.0.1:3080', origin: 'http://127.0.0.1:45678', cookie,
+      } })).toBe(403)
+      expect(connection.requestRejection({ headers: { host: '127.0.0.1:3080', cookie } })).toBe(401)
+    } finally { await dispose() }
+  })
+
   it('runs request admission after authentication and removes it with its owning fiber', async () => {
     const { ctx, routes, connection, dispose } = await mounted()
     let admitted = 0

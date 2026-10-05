@@ -1,0 +1,1401 @@
+Previous App inputs saved: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-import-backup
+Imported released SDK 0.4.0: 13885 files, 24 remote files; local SDK changes: NONE
+SDK source archive SHA256: 3b309480074c59ba5dd446721d2bd49bc2a1cb1a74054924cf2a38bb9dba0931
+Building the original SDK offline: sh /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/source/sdk/c/build.sh --build-dir /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/official-build
+PASS xquic: 468 upstream paths, 0 declared modified files
+PASS boringssl: 8669 upstream paths, 0 declared modified files
+PASS cjson: 216 upstream paths, 0 declared modified files
+PASS libjuice: 81 upstream paths, 2 declared modified files
+PASS curl: 4406 exact upstream paths, zero modifications
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- The C compiler identification is Clang 15.0.4
+-- Detecting C compiler ABI info
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /storage/Users/currentUser/.oheco/bin/clang - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- The CXX compiler identification is Clang 15.0.4
+-- Detecting CXX compiler ABI info
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /storage/Users/currentUser/.oheco/bin/clang++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+-- Found Threads: TRUE  
+-- Configuring done (7.0s)
+-- Generating done (0.2s)
+-- Build files have been written to: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/native/boringssl
+[1/284] Building CXX object CMakeFiles/crypto.dir/crypto/aes/aes.cc.obj
+[2/284] Building CXX object CMakeFiles/crypto.dir/crypto/asn1/a_bool.cc.obj
+[3/284] Building CXX object CMakeFiles/crypto.dir/crypto/asn1/a_bitstr.cc.obj
+[4/284] Building CXX object CMakeFiles/crypto.dir/crypto/asn1/a_d2i_fp.cc.obj
+[5/284] Building CXX object CMakeFiles/crypto.dir/crypto/asn1/a_dup.cc.obj
+[6/284] Building CXX object CMakeFiles/crypto.dir/crypto/asn1/a_i2d_fp.cc.obj
+[7/284] Building CXX object CMakeFiles/crypto.dir/crypto/asn1/a_gentm.cc.obj
+[8/284] Building CXX object CMakeFiles/crypto.dir/crypto/asn1/a_int.cc.obj
+[9/284] Building CXX object CMakeFiles/crypto.dir/crypto/asn1/a_mbstr.cc.obj
+[10/284] Building CXX object CMakeFiles/crypto.dir/crypto/asn1/a_object.cc.obj
+[11/284] Building CXX object CMakeFiles/crypto.dir/crypto/asn1/a_octet.cc.obj
+[12/284] Building CXX object CMakeFiles/crypto.dir/crypto/asn1/a_strex.cc.obj
+[13/284] Building CXX object CMakeFiles/crypto.dir/crypto/asn1/a_strnid.cc.obj
+[14/284] Building CXX object CMakeFiles/crypto.dir/crypto/asn1/a_time.cc.obj
+[15/284] Building CXX object CMakeFiles/crypto.dir/crypto/asn1/a_type.cc.obj
+[16/284] Building CXX object CMakeFiles/crypto.dir/crypto/asn1/a_utctm.cc.obj
+[17/284] Building CXX object CMakeFiles/crypto.dir/crypto/asn1/asn1_lib.cc.obj
+[18/284] Building CXX object CMakeFiles/crypto.dir/crypto/asn1/asn1_par.cc.obj
+[19/284] Building CXX object CMakeFiles/crypto.dir/crypto/asn1/asn_pack.cc.obj
+[20/284] Building CXX object CMakeFiles/crypto.dir/crypto/asn1/f_int.cc.obj
+[21/284] Building CXX object CMakeFiles/crypto.dir/crypto/asn1/f_string.cc.obj
+[22/284] Building CXX object CMakeFiles/crypto.dir/crypto/asn1/posix_time.cc.obj
+[23/284] Building CXX object CMakeFiles/crypto.dir/crypto/asn1/tasn_enc.cc.obj
+[24/284] Building CXX object CMakeFiles/crypto.dir/crypto/asn1/tasn_dec.cc.obj
+[25/284] Building CXX object CMakeFiles/crypto.dir/crypto/asn1/tasn_fre.cc.obj
+[26/284] Building CXX object CMakeFiles/crypto.dir/crypto/asn1/tasn_new.cc.obj
+[27/284] Building CXX object CMakeFiles/crypto.dir/crypto/asn1/tasn_typ.cc.obj
+[28/284] Building CXX object CMakeFiles/crypto.dir/crypto/asn1/tasn_utl.cc.obj
+[29/284] Building CXX object CMakeFiles/crypto.dir/crypto/base64/base64.cc.obj
+[30/284] Building CXX object CMakeFiles/crypto.dir/crypto/bio/bio.cc.obj
+[31/284] Building CXX object CMakeFiles/crypto.dir/crypto/bio/bio_mem.cc.obj
+[32/284] Building CXX object CMakeFiles/crypto.dir/crypto/bio/connect.cc.obj
+[33/284] Building CXX object CMakeFiles/crypto.dir/crypto/bio/errno.cc.obj
+[34/284] Building CXX object CMakeFiles/crypto.dir/crypto/bio/fd.cc.obj
+[35/284] Building CXX object CMakeFiles/crypto.dir/crypto/bio/hexdump.cc.obj
+[36/284] Building CXX object CMakeFiles/crypto.dir/crypto/bio/file.cc.obj
+[37/284] Building CXX object CMakeFiles/crypto.dir/crypto/bio/pair.cc.obj
+[38/284] Building CXX object CMakeFiles/crypto.dir/crypto/bio/printf.cc.obj
+[39/284] Building CXX object CMakeFiles/crypto.dir/crypto/bio/socket.cc.obj
+[40/284] Building CXX object CMakeFiles/crypto.dir/crypto/bio/socket_helper.cc.obj
+[41/284] Building CXX object CMakeFiles/crypto.dir/crypto/blake2/blake2.cc.obj
+[42/284] Building CXX object CMakeFiles/crypto.dir/crypto/bn/bn_asn1.cc.obj
+[43/284] Building CXX object CMakeFiles/crypto.dir/crypto/bn/div.cc.obj
+[44/284] Building CXX object CMakeFiles/crypto.dir/crypto/bn/convert.cc.obj
+[45/284] Building CXX object CMakeFiles/crypto.dir/crypto/bn/exponentiation.cc.obj
+[46/284] Building CXX object CMakeFiles/crypto.dir/crypto/bn/sqrt.cc.obj
+[47/284] Building CXX object CMakeFiles/crypto.dir/crypto/buf/buf.cc.obj
+[48/284] Building CXX object CMakeFiles/crypto.dir/crypto/bytestring/asn1_compat.cc.obj
+[49/284] Building CXX object CMakeFiles/crypto.dir/crypto/bytestring/ber.cc.obj
+[50/284] Building CXX object CMakeFiles/crypto.dir/crypto/bytestring/unicode.cc.obj
+[51/284] Building CXX object CMakeFiles/crypto.dir/crypto/bytestring/cbb.cc.obj
+[52/284] Building CXX object CMakeFiles/crypto.dir/crypto/bytestring/cbs.cc.obj
+[53/284] Building CXX object CMakeFiles/crypto.dir/crypto/cipher/derive_key.cc.obj
+[54/284] Building CXX object CMakeFiles/crypto.dir/crypto/chacha/chacha.cc.obj
+[55/284] Building CXX object CMakeFiles/crypto.dir/crypto/cipher/e_aesctrhmac.cc.obj
+[56/284] Building CXX object CMakeFiles/crypto.dir/crypto/cipher/e_aeseax.cc.obj
+[57/284] Building CXX object CMakeFiles/crypto.dir/crypto/cipher/e_chacha20poly1305.cc.obj
+[58/284] Building CXX object CMakeFiles/crypto.dir/crypto/cipher/e_aesgcmsiv.cc.obj
+[59/284] Building CXX object CMakeFiles/crypto.dir/crypto/cipher/e_des.cc.obj
+[60/284] Building CXX object CMakeFiles/crypto.dir/crypto/cipher/e_null.cc.obj
+[61/284] Building CXX object CMakeFiles/crypto.dir/crypto/cipher/e_rc2.cc.obj
+[62/284] Building CXX object CMakeFiles/crypto.dir/crypto/cipher/e_rc4.cc.obj
+[63/284] Building CXX object CMakeFiles/crypto.dir/crypto/cipher/get_cipher.cc.obj
+[64/284] Building CXX object CMakeFiles/crypto.dir/crypto/cipher/e_tls.cc.obj
+[65/284] Building CXX object CMakeFiles/crypto.dir/crypto/cipher/tls_cbc.cc.obj
+[66/284] Building CXX object CMakeFiles/crypto.dir/crypto/cms/cms.cc.obj
+[67/284] Building CXX object CMakeFiles/crypto.dir/crypto/cpu_aarch64_apple.cc.obj
+[68/284] Building CXX object CMakeFiles/crypto.dir/crypto/conf/conf.cc.obj
+[69/284] Building CXX object CMakeFiles/crypto.dir/crypto/cpu_aarch64_fuchsia.cc.obj
+[70/284] Building CXX object CMakeFiles/crypto.dir/crypto/cpu_aarch64_openbsd.cc.obj
+[71/284] Building CXX object CMakeFiles/crypto.dir/crypto/cpu_aarch64_linux.cc.obj
+[72/284] Building CXX object CMakeFiles/crypto.dir/crypto/cpu_aarch64_sysreg.cc.obj
+[73/284] Building CXX object CMakeFiles/crypto.dir/crypto/cpu_aarch64_win.cc.obj
+[74/284] Building CXX object CMakeFiles/crypto.dir/crypto/cpu_arm_freebsd.cc.obj
+[75/284] Building CXX object CMakeFiles/crypto.dir/crypto/cpu_intel.cc.obj
+[76/284] Building CXX object CMakeFiles/crypto.dir/crypto/cpu_arm_linux.cc.obj
+[77/284] Building CXX object CMakeFiles/crypto.dir/crypto/crypto.cc.obj
+[78/284] Building CXX object CMakeFiles/crypto.dir/crypto/curve25519/curve25519_64_adx.cc.obj
+[79/284] Building CXX object CMakeFiles/crypto.dir/crypto/curve25519/spake25519.cc.obj
+[80/284] Building CXX object CMakeFiles/crypto.dir/crypto/dh/dh_asn1.cc.obj
+[81/284] Building CXX object CMakeFiles/crypto.dir/crypto/des/des.cc.obj
+[82/284] Building CXX object CMakeFiles/crypto.dir/crypto/dh/params.cc.obj
+[83/284] Building CXX object CMakeFiles/crypto.dir/crypto/digest/digest_extra.cc.obj
+[84/284] Building CXX object CMakeFiles/crypto.dir/crypto/dsa/dsa.cc.obj
+[85/284] Building CXX object CMakeFiles/crypto.dir/crypto/dsa/dsa_asn1.cc.obj
+[86/284] Building CXX object CMakeFiles/crypto.dir/crypto/ec/ec_derive.cc.obj
+[87/284] Building CXX object CMakeFiles/crypto.dir/crypto/ec/ec_asn1.cc.obj
+[88/284] Building CXX object CMakeFiles/crypto.dir/crypto/curve25519/curve25519.cc.obj
+[89/284] Building CXX object CMakeFiles/crypto.dir/crypto/ecdh/ecdh.cc.obj
+[90/284] Building CXX object CMakeFiles/crypto.dir/crypto/ec/hash_to_curve.cc.obj
+[91/284] Building CXX object CMakeFiles/crypto.dir/crypto/ecdsa/ecdsa_asn1.cc.obj
+[92/284] Building CXX object CMakeFiles/crypto.dir/crypto/ecdsa/ecdsa_p1363.cc.obj
+[93/284] Building CXX object CMakeFiles/crypto.dir/crypto/engine/engine.cc.obj
+[94/284] Building CXX object CMakeFiles/crypto.dir/crypto/err/err.cc.obj
+[95/284] Building CXX object CMakeFiles/crypto.dir/crypto/evp/evp.cc.obj
+[96/284] Building CXX object CMakeFiles/crypto.dir/crypto/evp/evp_asn1.cc.obj
+[97/284] Building CXX object CMakeFiles/crypto.dir/crypto/evp/evp_ctx.cc.obj
+[98/284] Building CXX object CMakeFiles/crypto.dir/crypto/evp/evp_kem.cc.obj
+[99/284] Building CXX object CMakeFiles/crypto.dir/crypto/evp/p_dh.cc.obj
+[100/284] Building CXX object CMakeFiles/crypto.dir/crypto/evp/p_dsa.cc.obj
+[101/284] Building CXX object CMakeFiles/crypto.dir/crypto/evp/p_ec.cc.obj
+[102/284] Building CXX object CMakeFiles/crypto.dir/crypto/evp/p_ed25519.cc.obj
+[103/284] Building CXX object CMakeFiles/crypto.dir/crypto/evp/p_hkdf.cc.obj
+[104/284] Building CXX object CMakeFiles/crypto.dir/crypto/evp/p_mlkem.cc.obj
+[105/284] Building CXX object CMakeFiles/crypto.dir/crypto/evp/p_mldsa.cc.obj
+[106/284] Building CXX object CMakeFiles/crypto.dir/crypto/evp/p_rsa.cc.obj
+[107/284] Building CXX object CMakeFiles/crypto.dir/crypto/evp/p_x25519.cc.obj
+[108/284] Building CXX object CMakeFiles/crypto.dir/crypto/evp/p_xwing.cc.obj
+[109/284] Building CXX object CMakeFiles/crypto.dir/crypto/evp/pbkdf.cc.obj
+[110/284] Building CXX object CMakeFiles/crypto.dir/crypto/evp/print.cc.obj
+[111/284] Building CXX object CMakeFiles/crypto.dir/crypto/evp/scrypt.cc.obj
+[112/284] Building CXX object CMakeFiles/crypto.dir/crypto/fipsmodule/fips_shared_support.cc.obj
+[113/284] Building CXX object CMakeFiles/crypto.dir/crypto/evp/sign.cc.obj
+[114/284] Building CXX object CMakeFiles/crypto.dir/crypto/ex_data.cc.obj
+[115/284] Building CXX object CMakeFiles/crypto.dir/crypto/fuzzer_mode.cc.obj
+[116/284] Building CXX object CMakeFiles/fipsmodule.dir/crypto/fipsmodule/bcm.cc.obj
+[117/284] Building CXX object CMakeFiles/crypto.dir/crypto/hpke/hpke.cc.obj
+[118/284] Building CXX object CMakeFiles/crypto.dir/crypto/lhash/lhash.cc.obj
+[119/284] Building CXX object CMakeFiles/crypto.dir/crypto/md4/md4.cc.obj
+[120/284] Building CXX object CMakeFiles/crypto.dir/crypto/mldsa/mldsa.cc.obj
+[121/284] Building CXX object CMakeFiles/crypto.dir/crypto/md5/md5.cc.obj
+[122/284] Building CXX object CMakeFiles/crypto.dir/crypto/mem.cc.obj
+[123/284] Building CXX object CMakeFiles/crypto.dir/crypto/hrss/hrss.cc.obj
+[124/284] Building CXX object CMakeFiles/crypto.dir/crypto/mlkem/mlkem.cc.obj
+[125/284] Building CXX object CMakeFiles/crypto.dir/crypto/obj/obj_xref.cc.obj
+[126/284] Building CXX object CMakeFiles/crypto.dir/crypto/obj/obj.cc.obj
+[127/284] Building CXX object CMakeFiles/crypto.dir/crypto/pem/pem_all.cc.obj
+[128/284] Building CXX object CMakeFiles/crypto.dir/crypto/pem/pem_info.cc.obj
+[129/284] Building CXX object CMakeFiles/crypto.dir/crypto/pem/pem_oth.cc.obj
+[130/284] Building CXX object CMakeFiles/crypto.dir/crypto/pem/pem_lib.cc.obj
+[131/284] Building CXX object CMakeFiles/crypto.dir/crypto/pem/pem_pkey.cc.obj
+[132/284] Building CXX object CMakeFiles/crypto.dir/crypto/pem/pem_pk8.cc.obj
+[133/284] Building CXX object CMakeFiles/crypto.dir/crypto/pem/pem_x509.cc.obj
+[134/284] Building CXX object CMakeFiles/crypto.dir/crypto/pem/pem_xaux.cc.obj
+[135/284] Building CXX object CMakeFiles/crypto.dir/crypto/pkcs7/pkcs7.cc.obj
+[136/284] Building CXX object CMakeFiles/crypto.dir/crypto/pkcs7/pkcs7_x509.cc.obj
+[137/284] Building CXX object CMakeFiles/crypto.dir/crypto/pkcs8/p5_pbev2.cc.obj
+[138/284] Building CXX object CMakeFiles/crypto.dir/crypto/pkcs8/pkcs8.cc.obj
+[139/284] Building CXX object CMakeFiles/crypto.dir/crypto/poly1305/poly1305.cc.obj
+[140/284] Building CXX object CMakeFiles/crypto.dir/crypto/pkcs8/pkcs8_x509.cc.obj
+[141/284] Building CXX object CMakeFiles/crypto.dir/crypto/poly1305/poly1305_arm.cc.obj
+[142/284] Building CXX object CMakeFiles/crypto.dir/crypto/rand/deterministic.cc.obj
+[143/284] Building CXX object CMakeFiles/crypto.dir/crypto/poly1305/poly1305_vec.cc.obj
+[144/284] Building CXX object CMakeFiles/crypto.dir/crypto/pool/pool.cc.obj
+[145/284] Building CXX object CMakeFiles/crypto.dir/crypto/rand/getentropy.cc.obj
+[146/284] Building CXX object CMakeFiles/crypto.dir/crypto/rand/fork_detect.cc.obj
+[147/284] Building CXX object CMakeFiles/crypto.dir/crypto/rand/forkunsafe.cc.obj
+[148/284] Building CXX object CMakeFiles/crypto.dir/crypto/rand/ios.cc.obj
+[149/284] Building CXX object CMakeFiles/crypto.dir/crypto/rand/rand.cc.obj
+[150/284] Building CXX object CMakeFiles/crypto.dir/crypto/rand/trusty.cc.obj
+[151/284] Building CXX object CMakeFiles/crypto.dir/crypto/rc4/rc4.cc.obj
+[152/284] Building CXX object CMakeFiles/crypto.dir/crypto/rand/urandom.cc.obj
+[153/284] Building CXX object CMakeFiles/crypto.dir/crypto/rand/windows.cc.obj
+[154/284] Building CXX object CMakeFiles/crypto.dir/crypto/refcount.cc.obj
+[155/284] Building CXX object CMakeFiles/crypto.dir/crypto/rsa/rsa_extra.cc.obj
+[156/284] Building CXX object CMakeFiles/crypto.dir/crypto/rsa/rsa_print.cc.obj
+[157/284] Building CXX object CMakeFiles/crypto.dir/crypto/rsa/rsa_asn1.cc.obj
+[158/284] Building CXX object CMakeFiles/crypto.dir/crypto/rsa/rsa_crypt.cc.obj
+[159/284] Building CXX object CMakeFiles/crypto.dir/crypto/sha/sha1.cc.obj
+[160/284] Building CXX object CMakeFiles/crypto.dir/crypto/sha/sha256.cc.obj
+[161/284] Building CXX object CMakeFiles/crypto.dir/crypto/sha/sha512.cc.obj
+[162/284] Building CXX object CMakeFiles/crypto.dir/crypto/siphash/siphash.cc.obj
+[163/284] Building CXX object CMakeFiles/crypto.dir/crypto/slhdsa/slhdsa.cc.obj
+[164/284] Building CXX object CMakeFiles/crypto.dir/crypto/spake2plus/spake2plus.cc.obj
+[165/284] Building CXX object CMakeFiles/crypto.dir/crypto/thread.cc.obj
+[166/284] Building CXX object CMakeFiles/crypto.dir/crypto/thread_none.cc.obj
+[167/284] Building CXX object CMakeFiles/crypto.dir/crypto/stack/stack.cc.obj
+[168/284] Building CXX object CMakeFiles/crypto.dir/crypto/thread_pthread.cc.obj
+[169/284] Building CXX object CMakeFiles/crypto.dir/crypto/thread_win.cc.obj
+[170/284] Building CXX object CMakeFiles/crypto.dir/crypto/trust_token/trust_token.cc.obj
+[171/284] Building CXX object CMakeFiles/crypto.dir/crypto/x509/a_digest.cc.obj
+[172/284] Building CXX object CMakeFiles/crypto.dir/crypto/trust_token/pmbtoken.cc.obj
+[173/284] Building CXX object CMakeFiles/crypto.dir/crypto/trust_token/voprf.cc.obj
+[174/284] Building CXX object CMakeFiles/crypto.dir/crypto/x509/a_sign.cc.obj
+[175/284] Building CXX object CMakeFiles/crypto.dir/crypto/x509/a_verify.cc.obj
+[176/284] Building CXX object CMakeFiles/crypto.dir/crypto/x509/algorithm.cc.obj
+[177/284] Building CXX object CMakeFiles/crypto.dir/crypto/x509/asn1_gen.cc.obj
+[178/284] Building CXX object CMakeFiles/crypto.dir/crypto/x509/i2d_pr.cc.obj
+[179/284] Building CXX object CMakeFiles/crypto.dir/crypto/x509/by_file.cc.obj
+[180/284] Building CXX object CMakeFiles/crypto.dir/crypto/x509/by_dir.cc.obj
+[181/284] Building CXX object CMakeFiles/crypto.dir/crypto/x509/name_print.cc.obj
+[182/284] Building CXX object CMakeFiles/crypto.dir/crypto/x509/rsa_pss.cc.obj
+[183/284] Building CXX object CMakeFiles/crypto.dir/crypto/x509/t_crl.cc.obj
+[184/284] Building CXX object CMakeFiles/crypto.dir/crypto/x509/t_req.cc.obj
+[185/284] Building CXX object CMakeFiles/crypto.dir/crypto/x509/policy.cc.obj
+[186/284] Building CXX object CMakeFiles/crypto.dir/crypto/x509/t_x509a.cc.obj
+[187/284] Building CXX object CMakeFiles/crypto.dir/crypto/x509/t_x509.cc.obj
+[188/284] Building CXX object CMakeFiles/crypto.dir/crypto/x509/v3_akey.cc.obj
+[189/284] Building CXX object CMakeFiles/crypto.dir/crypto/x509/v3_akeya.cc.obj
+[190/284] Building CXX object CMakeFiles/crypto.dir/crypto/x509/v3_bcons.cc.obj
+[191/284] Building CXX object CMakeFiles/crypto.dir/crypto/x509/v3_alt.cc.obj
+[192/284] Building CXX object CMakeFiles/crypto.dir/crypto/x509/v3_bitst.cc.obj
+[193/284] Building CXX object CMakeFiles/crypto.dir/crypto/x509/v3_conf.cc.obj
+[194/284] Building CXX object CMakeFiles/crypto.dir/crypto/x509/v3_cpols.cc.obj
+[195/284] Building CXX object CMakeFiles/crypto.dir/crypto/x509/v3_crld.cc.obj
+[196/284] Building CXX object CMakeFiles/crypto.dir/crypto/x509/v3_enum.cc.obj
+[197/284] Building CXX object CMakeFiles/crypto.dir/crypto/x509/v3_extku.cc.obj
+[198/284] Building CXX object CMakeFiles/crypto.dir/crypto/x509/v3_genn.cc.obj
+[199/284] Building CXX object CMakeFiles/crypto.dir/crypto/x509/v3_ia5.cc.obj
+[200/284] Building CXX object CMakeFiles/crypto.dir/crypto/x509/v3_info.cc.obj
+[201/284] Building CXX object CMakeFiles/crypto.dir/crypto/x509/v3_int.cc.obj
+[202/284] Building CXX object CMakeFiles/crypto.dir/crypto/x509/v3_lib.cc.obj
+[203/284] Building CXX object CMakeFiles/crypto.dir/crypto/x509/v3_ocsp.cc.obj
+[204/284] Building CXX object CMakeFiles/crypto.dir/crypto/x509/v3_ncons.cc.obj
+[205/284] Building CXX object CMakeFiles/crypto.dir/crypto/x509/v3_pcons.cc.obj
+[206/284] Building CXX object CMakeFiles/crypto.dir/crypto/x509/v3_pmaps.cc.obj
+[207/284] Building CXX object CMakeFiles/crypto.dir/crypto/x509/v3_prn.cc.obj
+[208/284] Building CXX object CMakeFiles/crypto.dir/crypto/x509/v3_purp.cc.obj
+[209/284] Building CXX object CMakeFiles/crypto.dir/crypto/x509/v3_skey.cc.obj
+[210/284] Building CXX object CMakeFiles/crypto.dir/crypto/x509/x509.cc.obj
+[211/284] Building CXX object CMakeFiles/crypto.dir/crypto/x509/v3_utl.cc.obj
+[212/284] Building CXX object CMakeFiles/crypto.dir/crypto/x509/x509_att.cc.obj
+[213/284] Building CXX object CMakeFiles/crypto.dir/crypto/x509/x509_cmp.cc.obj
+[214/284] Building CXX object CMakeFiles/crypto.dir/crypto/x509/x509_d2.cc.obj
+[215/284] Building CXX object CMakeFiles/crypto.dir/crypto/x509/x509_def.cc.obj
+[216/284] Building CXX object CMakeFiles/crypto.dir/crypto/x509/x509_ext.cc.obj
+[217/284] Building CXX object CMakeFiles/crypto.dir/crypto/x509/x509_lu.cc.obj
+[218/284] Building CXX object CMakeFiles/crypto.dir/crypto/x509/x509_mtc.cc.obj
+[219/284] Building CXX object CMakeFiles/crypto.dir/crypto/x509/x509_obj.cc.obj
+[220/284] Building CXX object CMakeFiles/crypto.dir/crypto/x509/x509_req.cc.obj
+[221/284] Building CXX object CMakeFiles/crypto.dir/crypto/x509/x509_set.cc.obj
+[222/284] Building CXX object CMakeFiles/crypto.dir/crypto/x509/x509_trs.cc.obj
+[223/284] Building CXX object CMakeFiles/crypto.dir/crypto/x509/x509_txt.cc.obj
+[224/284] Building CXX object CMakeFiles/crypto.dir/crypto/x509/x509_v3.cc.obj
+[225/284] Building CXX object CMakeFiles/crypto.dir/crypto/x509/x509_vpm.cc.obj
+[226/284] Building CXX object CMakeFiles/crypto.dir/crypto/x509/x509cset.cc.obj
+[227/284] Building CXX object CMakeFiles/crypto.dir/crypto/x509/x509_vfy.cc.obj
+[228/284] Building CXX object CMakeFiles/crypto.dir/crypto/x509/x509name.cc.obj
+[229/284] Building CXX object CMakeFiles/crypto.dir/crypto/x509/x509spki.cc.obj
+[230/284] Building CXX object CMakeFiles/crypto.dir/crypto/x509/x509rset.cc.obj
+[231/284] Building CXX object CMakeFiles/crypto.dir/crypto/x509/x_algor.cc.obj
+[232/284] Building CXX object CMakeFiles/crypto.dir/crypto/x509/x_all.cc.obj
+[233/284] Building CXX object CMakeFiles/crypto.dir/crypto/x509/x_attrib.cc.obj
+[234/284] Building CXX object CMakeFiles/crypto.dir/crypto/x509/x_crl.cc.obj
+[235/284] Building CXX object CMakeFiles/crypto.dir/crypto/x509/x_exten.cc.obj
+[236/284] Building CXX object CMakeFiles/crypto.dir/crypto/x509/x_name.cc.obj
+[237/284] Building CXX object CMakeFiles/crypto.dir/crypto/x509/x_req.cc.obj
+[238/284] Building CXX object CMakeFiles/crypto.dir/crypto/x509/x_pubkey.cc.obj
+[239/284] Building CXX object CMakeFiles/crypto.dir/crypto/x509/x_sig.cc.obj
+[240/284] Building CXX object CMakeFiles/crypto.dir/crypto/x509/x_spki.cc.obj
+[241/284] Building CXX object CMakeFiles/crypto.dir/crypto/x509/x_x509a.cc.obj
+[242/284] Building CXX object CMakeFiles/crypto.dir/crypto/xwing/xwing.cc.obj
+[243/284] Building CXX object CMakeFiles/crypto.dir/crypto/x509/x_x509.cc.obj
+[244/284] Building CXX object CMakeFiles/crypto.dir/gen/crypto/err_data.cc.obj
+[245/284] Linking CXX static library libcrypto.a
+[246/284] Building CXX object CMakeFiles/ssl.dir/ssl/bio_ssl.cc.obj
+[247/284] Building CXX object CMakeFiles/ssl.dir/ssl/d1_lib.cc.obj
+[248/284] Building CXX object CMakeFiles/ssl.dir/ssl/d1_pkt.cc.obj
+[249/284] Building CXX object CMakeFiles/ssl.dir/ssl/d1_srtp.cc.obj
+[250/284] Building CXX object CMakeFiles/ssl.dir/ssl/d1_both.cc.obj
+[251/284] Building CXX object CMakeFiles/ssl.dir/ssl/dtls_method.cc.obj
+[252/284] Building CXX object CMakeFiles/ssl.dir/ssl/dtls_record.cc.obj
+[253/284] Building CXX object CMakeFiles/ssl.dir/ssl/encrypted_client_hello.cc.obj
+[254/284] Building CXX object CMakeFiles/ssl.dir/ssl/handoff.cc.obj
+[255/284] Building CXX object CMakeFiles/ssl.dir/ssl/handshake.cc.obj
+[256/284] Building CXX object CMakeFiles/ssl.dir/ssl/extensions.cc.obj
+[257/284] Building CXX object CMakeFiles/ssl.dir/ssl/handshake_client.cc.obj
+[258/284] Building CXX object CMakeFiles/ssl.dir/ssl/s3_both.cc.obj
+[259/284] Building CXX object CMakeFiles/ssl.dir/ssl/s3_lib.cc.obj
+[260/284] Building CXX object CMakeFiles/ssl.dir/ssl/handshake_server.cc.obj
+[261/284] Building CXX object CMakeFiles/ssl.dir/ssl/s3_pkt.cc.obj
+[262/284] Building CXX object CMakeFiles/ssl.dir/ssl/ssl_aead_ctx.cc.obj
+[263/284] Building CXX object CMakeFiles/ssl.dir/ssl/ssl_buffer.cc.obj
+[264/284] Building CXX object CMakeFiles/ssl.dir/ssl/ssl_asn1.cc.obj
+[265/284] Building CXX object CMakeFiles/ssl.dir/ssl/ssl_cert.cc.obj
+[266/284] Building CXX object CMakeFiles/ssl.dir/ssl/ssl_cipher.cc.obj
+[267/284] Building CXX object CMakeFiles/ssl.dir/ssl/ssl_file.cc.obj
+[268/284] Building CXX object CMakeFiles/ssl.dir/ssl/ssl_credential.cc.obj
+[269/284] Building CXX object CMakeFiles/ssl.dir/ssl/ssl_key_share.cc.obj
+[270/284] Building CXX object CMakeFiles/ssl.dir/ssl/ssl_privkey.cc.obj
+[271/284] Building CXX object CMakeFiles/ssl.dir/ssl/ssl_stat.cc.obj
+[272/284] Building CXX object CMakeFiles/ssl.dir/ssl/ssl_session.cc.obj
+[273/284] Building CXX object CMakeFiles/ssl.dir/ssl/ssl_lib.cc.obj
+[274/284] Building CXX object CMakeFiles/ssl.dir/ssl/ssl_transcript.cc.obj
+[275/284] Building CXX object CMakeFiles/ssl.dir/ssl/ssl_versions.cc.obj
+[276/284] Building CXX object CMakeFiles/ssl.dir/ssl/t1_enc.cc.obj
+[277/284] Building CXX object CMakeFiles/ssl.dir/ssl/ssl_x509.cc.obj
+[278/284] Building CXX object CMakeFiles/ssl.dir/ssl/tls13_both.cc.obj
+[279/284] Building CXX object CMakeFiles/ssl.dir/ssl/tls13_client.cc.obj
+[280/284] Building CXX object CMakeFiles/ssl.dir/ssl/tls_method.cc.obj
+[281/284] Building CXX object CMakeFiles/ssl.dir/ssl/tls13_enc.cc.obj
+[282/284] Building CXX object CMakeFiles/ssl.dir/ssl/tls_record.cc.obj
+[283/284] Building CXX object CMakeFiles/ssl.dir/ssl/tls13_server.cc.obj
+[284/284] Linking CXX static library libssl.a
+-- The C compiler identification is Clang 15.0.4
+-- The CXX compiler identification is Clang 15.0.4
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Detecting C compiler ABI info
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /storage/Users/currentUser/.oheco/bin/clang - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Detecting CXX compiler ABI info
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /storage/Users/currentUser/.oheco/bin/clang++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- SSL_TYPE: boringssl
+-- SSL_PATH: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/source/sdk/c/tpr/boringssl
+-- SSL_LIB_PATH: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/native/prefix/lib/libssl.a;/data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/native/prefix/lib/libcrypto.a
+-- SSL_INC_PATH: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/native/prefix/include
+-- Configuring done (5.4s)
+-- Generating done (0.1s)
+CMake Warning:
+  Manually-specified variables were not used by the project:
+
+    CMAKE_INSTALL_LIBDIR
+
+
+-- Build files have been written to: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/native/xquic-pristine
+[1/76] Building C object CMakeFiles/xquic-static.dir/src/http3/frame/xqc_h3_frame.c.obj
+[2/76] Building C object CMakeFiles/xquic-static.dir/src/http3/xqc_h3_conn.c.obj
+[3/76] Building C object CMakeFiles/xquic-static.dir/src/http3/xqc_h3_request.c.obj
+[4/76] Building C object CMakeFiles/xquic-static.dir/src/http3/xqc_h3_header.c.obj
+[5/76] Building C object CMakeFiles/xquic-static.dir/src/http3/xqc_h3_stream.c.obj
+[6/76] Building C object CMakeFiles/xquic-static.dir/src/http3/xqc_h3_ctx.c.obj
+[7/76] Building C object CMakeFiles/xquic-static.dir/src/http3/xqc_h3_defs.c.obj
+[8/76] Building C object CMakeFiles/xquic-static.dir/src/http3/qpack/xqc_prefixed_int.c.obj
+[9/76] Building C object CMakeFiles/xquic-static.dir/src/http3/qpack/xqc_prefixed_str.c.obj
+[10/76] Building C object CMakeFiles/xquic-static.dir/src/http3/qpack/xqc_qpack.c.obj
+[11/76] Building C object CMakeFiles/xquic-static.dir/src/http3/qpack/xqc_decoder.c.obj
+[12/76] Building C object CMakeFiles/xquic-static.dir/src/http3/qpack/xqc_rep.c.obj
+[13/76] Building C object CMakeFiles/xquic-static.dir/src/http3/qpack/xqc_ins.c.obj
+[14/76] Building C object CMakeFiles/xquic-static.dir/src/http3/qpack/stable/xqc_stable.c.obj
+[15/76] Building C object CMakeFiles/xquic-static.dir/src/http3/qpack/xqc_encoder.c.obj
+[16/76] Building C object CMakeFiles/xquic-static.dir/src/http3/qpack/dtable/xqc_dtable.c.obj
+[17/76] Building C object CMakeFiles/xquic-static.dir/src/http3/xqc_h3_ext_dgram.c.obj
+[18/76] Building C object CMakeFiles/xquic-static.dir/src/http3/xqc_h3_ext_bytestream.c.obj
+[19/76] Building C object CMakeFiles/xquic-static.dir/src/transport/xqc_client.c.obj
+[20/76] Building C object CMakeFiles/xquic-static.dir/src/transport/xqc_engine.c.obj
+[21/76] Building C object CMakeFiles/xquic-static.dir/src/transport/xqc_cid.c.obj
+[22/76] Building C object CMakeFiles/xquic-static.dir/src/transport/xqc_packet_parser.c.obj
+[23/76] Building C object CMakeFiles/xquic-static.dir/src/transport/xqc_datagram.c.obj
+[24/76] Building C object CMakeFiles/xquic-static.dir/src/transport/xqc_frame_parser.c.obj
+[25/76] Building C object CMakeFiles/xquic-static.dir/src/transport/xqc_stream.c.obj
+[26/76] Building C object CMakeFiles/xquic-static.dir/src/transport/xqc_packet_in.c.obj
+[27/76] Building C object CMakeFiles/xquic-static.dir/src/transport/xqc_conn.c.obj
+[28/76] Building C object CMakeFiles/xquic-static.dir/src/transport/xqc_packet_out.c.obj
+[29/76] Building C object CMakeFiles/xquic-static.dir/src/transport/xqc_send_ctl.c.obj
+[30/76] Building C object CMakeFiles/xquic-static.dir/src/transport/xqc_packet.c.obj
+[31/76] Building C object CMakeFiles/xquic-static.dir/src/transport/xqc_send_queue.c.obj
+[32/76] Building C object CMakeFiles/xquic-static.dir/src/transport/xqc_pacing.c.obj
+[33/76] Building C object CMakeFiles/xquic-static.dir/src/transport/xqc_recv_record.c.obj
+[34/76] Building C object CMakeFiles/xquic-static.dir/src/transport/xqc_utils.c.obj
+[35/76] Building C object CMakeFiles/xquic-static.dir/src/transport/xqc_frame.c.obj
+[36/76] Building C object CMakeFiles/xquic-static.dir/src/transport/xqc_defs.c.obj
+[37/76] Building C object CMakeFiles/xquic-static.dir/src/transport/xqc_transport_params.c.obj
+[38/76] Building C object CMakeFiles/xquic-static.dir/src/transport/xqc_quic_lb.c.obj
+[39/76] Building C object CMakeFiles/xquic-static.dir/src/transport/xqc_timer.c.obj
+[40/76] Building C object CMakeFiles/xquic-static.dir/src/transport/xqc_recv_timestamps_info.c.obj
+[41/76] Building C object CMakeFiles/xquic-static.dir/src/transport/xqc_multipath.c.obj
+[42/76] Building C object CMakeFiles/xquic-static.dir/src/transport/xqc_reinjection.c.obj
+[43/76] Building C object CMakeFiles/xquic-static.dir/src/transport/reinjection_control/xqc_reinj_default.c.obj
+[44/76] Building C object CMakeFiles/xquic-static.dir/src/transport/reinjection_control/xqc_reinj_dgram.c.obj
+[45/76] Building C object CMakeFiles/xquic-static.dir/src/transport/reinjection_control/xqc_reinj_deadline.c.obj
+[46/76] Building C object CMakeFiles/xquic-static.dir/src/transport/scheduler/xqc_scheduler_minrtt.c.obj
+[47/76] Building C object CMakeFiles/xquic-static.dir/src/transport/scheduler/xqc_scheduler_common.c.obj
+[48/76] Building C object CMakeFiles/xquic-static.dir/src/transport/scheduler/xqc_scheduler_backup.c.obj
+[49/76] Building C object CMakeFiles/xquic-static.dir/src/transport/scheduler/xqc_scheduler_backup_fec.c.obj
+[50/76] Building C object CMakeFiles/xquic-static.dir/src/tls/xqc_hkdf.c.obj
+[51/76] Building C object CMakeFiles/xquic-static.dir/src/transport/scheduler/xqc_scheduler_rap.c.obj
+[52/76] Building C object CMakeFiles/xquic-static.dir/src/tls/xqc_null_crypto.c.obj
+[53/76] Building C object CMakeFiles/xquic-static.dir/src/tls/xqc_crypto.c.obj
+[54/76] Building C object CMakeFiles/xquic-static.dir/src/tls/xqc_tls_ctx.c.obj
+[55/76] Building C object CMakeFiles/xquic-static.dir/src/tls/boringssl/xqc_hkdf_impl.c.obj
+[56/76] Building C object CMakeFiles/xquic-static.dir/src/tls/xqc_tls.c.obj
+[57/76] Building C object CMakeFiles/xquic-static.dir/src/tls/boringssl/xqc_crypto_impl.c.obj
+[58/76] Building C object CMakeFiles/xquic-static.dir/src/common/xqc_random.c.obj
+[59/76] Building C object CMakeFiles/xquic-static.dir/src/tls/boringssl/xqc_ssl_if_impl.c.obj
+[60/76] Building C object CMakeFiles/xquic-static.dir/src/common/xqc_str.c.obj
+[61/76] Building C object CMakeFiles/xquic-static.dir/src/common/utils/huffman/xqc_huffman_code.c.obj
+[62/76] Building C object CMakeFiles/xquic-static.dir/src/common/xqc_log.c.obj
+[63/76] Building C object CMakeFiles/xquic-static.dir/src/common/xqc_time.c.obj
+[64/76] Building C object CMakeFiles/xquic-static.dir/src/common/utils/huffman/xqc_huffman.c.obj
+[65/76] Building C object CMakeFiles/xquic-static.dir/src/common/utils/vint/xqc_discrete_int_parser.c.obj
+[66/76] Building C object CMakeFiles/xquic-static.dir/src/common/utils/vint/xqc_variable_len_int.c.obj
+[67/76] Building C object CMakeFiles/xquic-static.dir/src/common/utils/ringarray/xqc_ring_array.c.obj
+[68/76] Building C object CMakeFiles/xquic-static.dir/src/common/xqc_log_event_callback.c.obj
+[69/76] Building C object CMakeFiles/xquic-static.dir/src/common/utils/ringmem/xqc_ring_mem.c.obj
+[70/76] Building C object CMakeFiles/xquic-static.dir/src/common/utils/2d_hash/xqc_2d_hash_table.c.obj
+[71/76] Building C object CMakeFiles/xquic-static.dir/src/common/utils/var_buf/xqc_var_buf.c.obj
+[72/76] Building C object CMakeFiles/xquic-static.dir/src/congestion_control/xqc_window_filter.c.obj
+[73/76] Building C object CMakeFiles/xquic-static.dir/src/congestion_control/xqc_cubic.c.obj
+[74/76] Building C object CMakeFiles/xquic-static.dir/src/congestion_control/xqc_bbr.c.obj
+[75/76] Building C object CMakeFiles/xquic-static.dir/src/congestion_control/xqc_sample.c.obj
+[76/76] Linking C static library libxquic-static.a
+-- The C compiler identification is Clang 15.0.4
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Detecting C compiler ABI info
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /storage/Users/currentUser/.oheco/bin/clang - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+-- Found Threads: TRUE  
+-- Configuring done (4.1s)
+-- Generating done (0.0s)
+CMake Warning:
+  Manually-specified variables were not used by the project:
+
+    CMAKE_CXX_COMPILER
+    CMAKE_CXX_FLAGS
+
+
+-- Build files have been written to: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/native/libjuice
+[1/22] Building C object CMakeFiles/juice.dir/src/const_time.c.obj
+[2/22] Building C object CMakeFiles/juice.dir/src/crc32.c.obj
+[3/22] Building C object CMakeFiles/juice.dir/src/addr.c.obj
+[4/22] Building C object CMakeFiles/juice.dir/src/conn.c.obj
+[5/22] Building C object CMakeFiles/juice.dir/src/conn_thread.c.obj
+[6/22] Building C object CMakeFiles/juice.dir/src/conn_poll.c.obj
+[7/22] Building C object CMakeFiles/juice.dir/src/base64.c.obj
+[8/22] Building C object CMakeFiles/juice.dir/src/conn_mux.c.obj
+[9/22] Building C object CMakeFiles/juice.dir/src/agent.c.obj
+[10/22] Building C object CMakeFiles/juice.dir/src/hmac.c.obj
+[11/22] Building C object CMakeFiles/juice.dir/src/hash.c.obj
+[12/22] Building C object CMakeFiles/juice.dir/src/ice.c.obj
+[13/22] Building C object CMakeFiles/juice.dir/src/server.c.obj
+[14/22] Building C object CMakeFiles/juice.dir/src/log.c.obj
+[15/22] Building C object CMakeFiles/juice.dir/src/random.c.obj
+[16/22] Building C object CMakeFiles/juice.dir/src/juice.c.obj
+[17/22] Building C object CMakeFiles/juice.dir/src/timestamp.c.obj
+[18/22] Building C object CMakeFiles/juice.dir/src/tcp.c.obj
+[19/22] Building C object CMakeFiles/juice.dir/src/udp.c.obj
+[20/22] Building C object CMakeFiles/juice.dir/src/turn.c.obj
+[21/22] Building C object CMakeFiles/juice.dir/src/stun.c.obj
+[22/22] Linking C static library libjuice.a
+-- Install configuration: "Release"
+-- Installing: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/native/prefix/lib/libjuice.a
+-- Installing: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/native/prefix/include/juice/juice.h
+-- Installing: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/native/prefix/lib/cmake/LibJuice/LibJuiceTargets.cmake
+-- Installing: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/native/prefix/lib/cmake/LibJuice/LibJuiceTargets-release.cmake
+-- Installing: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/native/prefix/lib/cmake/LibJuice/LibJuiceConfig.cmake
+-- Installing: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/native/prefix/lib/cmake/LibJuice/LibJuiceConfigVersion.cmake
+CMake Deprecation Warning at CMakeLists.txt:2 (cmake_minimum_required):
+  Compatibility with CMake < 3.5 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value or use a ...<max> suffix to tell
+  CMake that the project does not need compatibility with older versions.
+
+
+-- The C compiler identification is Clang 15.0.4
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Detecting C compiler ABI info
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /storage/Users/currentUser/.oheco/bin/clang - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Performing Test FLAG_SUPPORTED_fvisibilityhidden
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Performing Test FLAG_SUPPORTED_fvisibilityhidden - Success
+-- Configuring done (4.4s)
+-- Generating done (0.0s)
+CMake Warning:
+  Manually-specified variables were not used by the project:
+
+    CMAKE_CXX_COMPILER
+    CMAKE_CXX_FLAGS
+
+
+-- Build files have been written to: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/native/cjson
+[1/2] Building C object CMakeFiles/cjson.dir/cJSON.c.obj
+[2/2] Linking C static library libcjson.a
+-- Install configuration: "Release"
+-- Installing: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/native/prefix/include/cjson/cJSON.h
+-- Installing: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/native/prefix/lib/pkgconfig/libcjson.pc
+-- Installing: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/native/prefix/lib/libcjson.a
+-- Installing: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/native/prefix/lib/cmake/cJSON/cjson.cmake
+-- Installing: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/native/prefix/lib/cmake/cJSON/cjson-release.cmake
+-- Installing: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/native/prefix/lib/cmake/cJSON/cJSONConfig.cmake
+-- Installing: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/native/prefix/lib/cmake/cJSON/cJSONConfigVersion.cmake
+10-05 10:18:56.686 INFO  - add codesign section success
+[Warn] [compare_elf.cpp] [ValidateSegmentsBeforeShstrtab] [205] [CompareElf] Segment 7 properties changed (before .shstrtab)
+[Warn] [compare_elf.cpp] [ValidateSegmentsBeforeShstrtab] [206] [CompareElf] Original Segment[type=0x6474e552, flags=0x4, vaddr=0x22b2f0, paddr=0x22b2f0, offset=0x2292f0, filesz=0x11408, memsz=0x11d10, align=0x1]
+[Warn] [compare_elf.cpp] [ValidateSegmentsBeforeShstrtab] [207] [CompareElf] Saved Segment[type=0x6474e552, flags=0x4, vaddr=0x22b2f0, paddr=0x22b2f0, offset=0x2292f0, filesz=0x11408, memsz=0x11d10, align=0x8]
+10-05 10:18:56.875 INFO  - write code sign data success
+10:18:57 ERROR   Missing ICE user fragment in remote description
+PASS pristine xquic/BoringSSL API and SPAKE2; libjuice ICE; SDK-serialized pristine cJSON concurrency
+10-05 10:18:57.710 INFO  - add codesign section success
+[Warn] [compare_elf.cpp] [ValidateSegmentsBeforeShstrtab] [205] [CompareElf] Segment 7 properties changed (before .shstrtab)
+[Warn] [compare_elf.cpp] [ValidateSegmentsBeforeShstrtab] [206] [CompareElf] Original Segment[type=0x6474e552, flags=0x4, vaddr=0x21130, paddr=0x21130, offset=0x1f130, filesz=0x488, memsz=0xed0, align=0x1]
+[Warn] [compare_elf.cpp] [ValidateSegmentsBeforeShstrtab] [207] [CompareElf] Saved Segment[type=0x6474e552, flags=0x4, vaddr=0x21130, paddr=0x21130, offset=0x1f130, filesz=0x488, memsz=0xed0, align=0x8]
+10-05 10:18:57.723 INFO  - write code sign data success
+10:18:57 WARN    Received a datagram from unknown address, ignoring
+10:18:57 ERROR   Relay-only policy forbids direct application sending
+PASS libjuice relay-only pair policy/default/peer-reflexive/inbound/outbound guards
+Native prefix: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/native/prefix
+Shell exports: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/native/native-deps.env
+CMake imports: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/native/NativeDependencies.cmake
+PASS curl: 4406 exact upstream paths, zero modifications
+10-05 10:19:00.687 INFO  - add codesign section success
+[Warn] [compare_elf.cpp] [ValidateSegmentsBeforeShstrtab] [205] [CompareElf] Segment 7 properties changed (before .shstrtab)
+[Warn] [compare_elf.cpp] [ValidateSegmentsBeforeShstrtab] [206] [CompareElf] Original Segment[type=0x6474e552, flags=0x4, vaddr=0x2a50, paddr=0x2a50, offset=0xa50, filesz=0x228, memsz=0x5b0, align=0x1]
+[Warn] [compare_elf.cpp] [ValidateSegmentsBeforeShstrtab] [207] [CompareElf] Saved Segment[type=0x6474e552, flags=0x4, vaddr=0x2a50, paddr=0x2a50, offset=0xa50, filesz=0x228, memsz=0x5b0, align=0x8]
+10-05 10:19:00.697 INFO  - write code sign data success
+-- The C compiler identification is Clang 15.0.4
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Detecting C compiler ABI info
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /storage/Users/currentUser/.oheco/bin/clang - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Found OpenSSL: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/native/prefix/lib/libcrypto.a (found version "")  
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Failed
+-- Looking for pthread_create in pthreads
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for pthread_create in pthreads - not found
+-- Looking for pthread_create in pthread
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for pthread_create in pthread - found
+-- Found Threads: TRUE  
+-- Performing Test OHECO_CURL_LINUX_TCP_COMPATIBLE
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Performing Test OHECO_CURL_LINUX_TCP_COMPATIBLE - Failed
+-- Using CMake version 3.28.2
+-- curl version=[8.22.0]
+-- CMake platform flags: LLVM-CLANG
+-- Picky compiler options: -Werror-implicit-function-declaration -Wextra -Wall -Wpedantic -Wbad-function-cast -Wconversion -Wmissing-declarations -Wmissing-prototypes -Wnested-externs -Wno-long-long -Wno-multichar -Wpointer-arith -Wshadow -Wsign-compare -Wundef -Wunused -Wwrite-strings -Waddress -Wattributes -Wcast-align -Wcast-qual -Wdeclaration-after-statement -Wdiv-by-zero -Wempty-body -Wendif-labels -Wfloat-equal -Wformat-security -Wignored-qualifiers -Wmissing-field-initializers -Wmissing-noreturn -Wno-padded -Wno-sign-conversion -Wno-switch-default -Wno-switch-enum -Wno-system-headers -Wold-style-definition -Wredundant-decls -Wstrict-prototypes -Wtype-limits -Wunreachable-code -Wunused-parameter -Wvla -Wconditional-uninitialized -Wno-used-but-marked-unused -Wshift-sign-overflow -Wshorten-64-to-32 -Wformat=2 -Wlanguage-extension-token -Wno-covered-switch-default -Wno-disabled-macro-expansion -Wformat-non-iso -Wenum-conversion -Wmissing-variable-declarations -Wno-documentation-unknown-command -Wsometimes-uninitialized -Wdouble-promotion -Wheader-guard -Wpragmas -Wunused-const-variable -Wcomma -Wassign-enum -Wextra-semi-stmt -Wimplicit-fallthrough -Wxor-used-as-pow -Wcast-function-type -Wreserved-identifier -Wno-reserved-macro-identifier
+-- Could NOT find Perl (missing: PERL_EXECUTABLE) 
+-- Looking for connect in socket
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for connect in socket - not found
+-- Performing Test HAVE_SOCKADDR_IN6_SIN6_SCOPE_ID
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Performing Test HAVE_SOCKADDR_IN6_SIN6_SCOPE_ID - Success
+-- Performing Test HAVE_SOCKADDR_IN6_SIN6_ADDR
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Performing Test HAVE_SOCKADDR_IN6_SIN6_ADDR - Success
+-- Looking for OPENSSL_IS_AWSLC
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for OPENSSL_IS_AWSLC - not found
+-- Looking for OPENSSL_IS_BORINGSSL
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for OPENSSL_IS_BORINGSSL - found
+-- Looking for DES_ecb_encrypt
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for DES_ecb_encrypt - found
+-- Looking for SSL_set0_wbio
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for SSL_set0_wbio - found
+-- Performing Test USE_UNIX_SOCKETS
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Performing Test USE_UNIX_SOCKETS - Success
+-- Looking for sys/eventfd.h
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for sys/eventfd.h - found
+-- Looking for sys/filio.h
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for sys/filio.h - not found
+-- Looking for sys/ioctl.h
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for sys/ioctl.h - found
+-- Looking for sys/param.h
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for sys/param.h - found
+-- Looking for sys/poll.h
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for sys/poll.h - found
+-- Looking for sys/resource.h
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for sys/resource.h - found
+-- Looking for 3 include files sys/socket.h, ..., sys/select.h
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for 3 include files sys/socket.h, ..., sys/select.h - found
+-- Looking for sys/sockio.h
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for sys/sockio.h - not found
+-- Looking for 4 include files sys/socket.h, ..., sys/types.h
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for 4 include files sys/socket.h, ..., sys/types.h - found
+-- Looking for sys/un.h
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for sys/un.h - found
+-- Looking for 5 include files sys/socket.h, ..., sys/utime.h
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for 5 include files sys/socket.h, ..., sys/utime.h - not found
+-- Looking for 5 include files sys/socket.h, ..., arpa/inet.h
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for 5 include files sys/socket.h, ..., arpa/inet.h - found
+-- Looking for fcntl.h
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for fcntl.h - found
+-- Looking for 6 include files sys/socket.h, ..., ifaddrs.h
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for 6 include files sys/socket.h, ..., ifaddrs.h - found
+-- Looking for io.h
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for io.h - not found
+-- Looking for 7 include files sys/socket.h, ..., libgen.h
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for 7 include files sys/socket.h, ..., libgen.h - found
+-- Looking for locale.h
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for locale.h - found
+-- Looking for 8 include files sys/socket.h, ..., net/if.h
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for 8 include files sys/socket.h, ..., net/if.h - found
+-- Looking for 9 include files sys/socket.h, ..., netdb.h
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for 9 include files sys/socket.h, ..., netdb.h - found
+-- Looking for 10 include files sys/socket.h, ..., netinet/in.h
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for 10 include files sys/socket.h, ..., netinet/in.h - found
+-- Looking for netinet/in6.h
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for netinet/in6.h - not found
+-- Looking for netinet/ip.h
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for netinet/ip.h - found
+-- Looking for 11 include files sys/socket.h, ..., netinet/tcp.h
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for 11 include files sys/socket.h, ..., netinet/tcp.h - found
+-- Looking for 12 include files sys/socket.h, ..., netinet/udp.h
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for 12 include files sys/socket.h, ..., netinet/udp.h - found
+-- Looking for poll.h
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for poll.h - found
+-- Looking for pwd.h
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for pwd.h - found
+-- Looking for stdatomic.h
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for stdatomic.h - found
+-- Looking for stdbool.h
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for stdbool.h - found
+-- Looking for strings.h
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for strings.h - found
+-- Looking for stropts.h
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for stropts.h - found
+-- Looking for termio.h
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for termio.h - not found
+-- Looking for termios.h
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for termios.h - found
+-- Looking for 13 include files sys/socket.h, ..., unistd.h
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for 13 include files sys/socket.h, ..., unistd.h - found
+-- Looking for utime.h
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for utime.h - found
+-- Looking for stdint.h
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for stdint.h - found
+-- Looking for stddef.h
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for stddef.h - found
+-- Check size of size_t
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Check size of size_t - done
+-- Check size of ssize_t
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Check size of ssize_t - done
+-- Check size of long
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Check size of long - done
+-- Check size of int
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Check size of int - done
+-- Check size of __int64
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Check size of __int64 - failed
+-- Check size of time_t
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Check size of time_t - done
+-- Check size of suseconds_t
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Check size of suseconds_t - done
+-- Looking for accept4
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for accept4 - found
+-- Looking for fnmatch
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for fnmatch - found
+-- Looking for basename
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for basename - found
+-- Looking for poll
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for poll - found
+-- Looking for socket
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for socket - found
+-- Looking for socketpair
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for socketpair - found
+-- Looking for recv
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for recv - found
+-- Looking for send
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for send - found
+-- Looking for sendmsg
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for sendmsg - found
+-- Looking for sendmmsg
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for sendmmsg - found
+-- Looking for memrchr
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for memrchr - not found
+-- Looking for alarm
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for alarm - found
+-- Looking for fcntl
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for fcntl - found
+-- Looking for getppid
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for getppid - found
+-- Looking for utimes
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for utimes - found
+-- Looking for closesocket
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for closesocket - not found
+-- Looking for sigsetjmp
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for sigsetjmp - found
+-- Looking for getpass_r
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for getpass_r - not found
+-- Looking for getpwuid
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for getpwuid - found
+-- Looking for getpwuid_r
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for getpwuid_r - found
+-- Looking for geteuid
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for geteuid - found
+-- Looking for utime
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for utime - found
+-- Looking for gmtime_r
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for gmtime_r - found
+-- Looking for localtime_r
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for localtime_r - found
+-- Looking for gethostbyname_r
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for gethostbyname_r - found
+-- Looking for gethostname
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for gethostname - found
+-- Looking for signal
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for signal - found
+-- Looking for strerror_r
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for strerror_r - found
+-- Looking for sigaction
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for sigaction - found
+-- Looking for siginterrupt
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for siginterrupt - found
+-- Looking for getaddrinfo
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for getaddrinfo - found
+-- Looking for getifaddrs
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for getifaddrs - found
+-- Looking for freeaddrinfo
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for freeaddrinfo - found
+-- Looking for pipe
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for pipe - found
+-- Looking for eventfd
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for eventfd - found
+-- Looking for getpeername
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for getpeername - found
+-- Looking for getsockname
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for getsockname - found
+-- Looking for getrlimit
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for getrlimit - found
+-- Looking for setlocale
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for setlocale - found
+-- Looking for setrlimit
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for setrlimit - found
+-- Looking for pipe2
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for pipe2 - found
+-- Looking for dirent.h
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for dirent.h - found
+-- Looking for gettimeofday
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for gettimeofday - found
+-- Looking for if_nametoindex
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for if_nametoindex - found
+-- Looking for realpath
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for realpath - found
+-- Looking for sched_yield
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for sched_yield - found
+-- Looking for opendir
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for opendir - found
+-- Looking for strcasecmp
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for strcasecmp - found
+-- Looking for stricmp
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for stricmp - not found
+-- Looking for strcmpi
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for strcmpi - not found
+-- Looking for memset_s
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for memset_s - not found
+-- Looking for memset_explicit
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for memset_explicit - not found
+-- Looking for fsetxattr
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for fsetxattr - found
+-- Performing Test HAVE_FSETXATTR_5
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Performing Test HAVE_FSETXATTR_5 - Success
+-- Performing Test HAVE_FSETXATTR_6
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Performing Test HAVE_FSETXATTR_6 - Failed
+-- Check size of sa_family_t
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Check size of sa_family_t - done
+-- Performing Test HAVE_FCNTL_O_NONBLOCK
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Performing Test HAVE_FCNTL_O_NONBLOCK - Success
+-- Performing Test HAVE_IOCTLSOCKET
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Performing Test HAVE_IOCTLSOCKET - Failed
+-- Performing Test HAVE_IOCTLSOCKET_CAMEL
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Performing Test HAVE_IOCTLSOCKET_CAMEL - Failed
+-- Performing Test HAVE_IOCTLSOCKET_CAMEL_FIONBIO
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Performing Test HAVE_IOCTLSOCKET_CAMEL_FIONBIO - Failed
+-- Performing Test HAVE_IOCTLSOCKET_FIONBIO
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Performing Test HAVE_IOCTLSOCKET_FIONBIO - Failed
+-- Performing Test HAVE_IOCTL_FIONBIO
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Performing Test HAVE_IOCTL_FIONBIO - Success
+-- Performing Test HAVE_IOCTL_SIOCGIFADDR
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Performing Test HAVE_IOCTL_SIOCGIFADDR - Success
+-- Performing Test HAVE_SETSOCKOPT_SO_NONBLOCK
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Performing Test HAVE_SETSOCKOPT_SO_NONBLOCK - Failed
+-- Performing Test HAVE_GETHOSTBYNAME_R_3
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Performing Test HAVE_GETHOSTBYNAME_R_3 - Failed
+-- Performing Test HAVE_GETHOSTBYNAME_R_5
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Performing Test HAVE_GETHOSTBYNAME_R_5 - Failed
+-- Performing Test HAVE_GETHOSTBYNAME_R_6
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Performing Test HAVE_GETHOSTBYNAME_R_6 - Success
+-- Performing Test HAVE_BOOL_T
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Performing Test HAVE_BOOL_T - Success
+-- Performing Test HAVE_ATOMIC
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Performing Test HAVE_ATOMIC - Success
+-- Performing Test HAVE_GETHOSTBYNAME_R_3_REENTRANT
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Performing Test HAVE_GETHOSTBYNAME_R_3_REENTRANT - Failed
+-- Performing Test HAVE_GETHOSTBYNAME_R_5_REENTRANT
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Performing Test HAVE_GETHOSTBYNAME_R_5_REENTRANT - Failed
+-- Performing Test HAVE_GETHOSTBYNAME_R_6_REENTRANT
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Performing Test HAVE_GETHOSTBYNAME_R_6_REENTRANT - Success
+-- Performing Test HAVE_FILE_OFFSET_BITS
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Performing Test HAVE_FILE_OFFSET_BITS - Success
+-- Check size of off_t
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Check size of off_t - done
+-- Looking for fseeko
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Looking for fseeko - found
+-- Check size of curl_off_t
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Check size of curl_off_t - done
+-- Check size of curl_socket_t
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Check size of curl_socket_t - done
+-- Performing Test HAVE_GLIBC_STRERROR_R
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Performing Test HAVE_GLIBC_STRERROR_R - Failed
+-- Performing Test HAVE_POSIX_STRERROR_R
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Performing Test HAVE_POSIX_STRERROR_R - Success
+-- Performing Test HAVE_CLOCK_GETTIME_MONOTONIC
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Performing Test HAVE_CLOCK_GETTIME_MONOTONIC - Success
+-- Check size of struct sockaddr_storage
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Check size of struct sockaddr_storage - done
+-- Performing Test HAVE_STRUCT_TIMEVAL
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Performing Test HAVE_STRUCT_TIMEVAL - Success
+-- Performing Test HAVE_H_ERRNO
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Performing Test HAVE_H_ERRNO - Success
+-- Performing Test HAVE_CLOCK_GETTIME_MONOTONIC_RAW
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Performing Test HAVE_CLOCK_GETTIME_MONOTONIC_RAW - Success
+-- Protocols: http https ws wss
+-- Features: AsynchDNS HTTPS-proxy IPv6 Largefile SSL threadsafe UnixSockets
+-- Enabled SSL backends: BoringSSL
+-- Configuring done (169.6s)
+-- Generating done (0.1s)
+-- Build files have been written to: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/curl/curl
+[1/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/altsvc.c.obj
+[2/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/amigaos.c.obj
+[3/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/api.c.obj
+[4/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/bufref.c.obj
+[5/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/bufq.c.obj
+[6/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/cf-h2-proxy.c.obj
+[7/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/cf-haproxy.c.obj
+[8/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/cf-h1-proxy.c.obj
+[9/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/cf-https-connect.c.obj
+[10/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/cf-recvbuf.c.obj
+[11/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/cf-setup.c.obj
+[12/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/cf-ip-happy.c.obj
+[13/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/connect.c.obj
+[14/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/cf-socket.c.obj
+[15/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/conncache.c.obj
+[16/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/cfilters.c.obj
+[17/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/cookie.c.obj
+[18/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/content_encoding.c.obj
+[19/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/creds.c.obj
+[20/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/curl_endian.c.obj
+[21/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/cshutdn.c.obj
+[22/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/curl_addrinfo.c.obj
+[23/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/curl_fnmatch.c.obj
+[24/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/curl_fopen.c.obj
+[25/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/curl_get_line.c.obj
+[26/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/curl_gethostname.c.obj
+[27/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/curl_gssapi.c.obj
+[28/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/curl_memrchr.c.obj
+[29/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/curl_ntlm_core.c.obj
+[30/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/curl_sasl.c.obj
+[31/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/curl_range.c.obj
+[32/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/curl_sha512_256.c.obj
+[33/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/curl_sspi.c.obj
+[34/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/curl_threads.c.obj
+[35/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/curl_share.c.obj
+[36/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/curl_trc.c.obj
+[37/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/cw-out.c.obj
+[38/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/cw-pause.c.obj
+[39/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/dict.c.obj
+[40/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/easygetopt.c.obj
+[41/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/easyoptions.c.obj
+[42/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/dynhds.c.obj
+[43/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/easy.c.obj
+[44/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/fake_addrinfo.c.obj
+[45/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/escape.c.obj
+[46/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/fileinfo.c.obj
+[47/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/file.c.obj
+[48/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/ftplistparser.c.obj
+[49/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/ftp.c.obj
+[50/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/getenv.c.obj
+[51/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/formdata.c.obj
+[52/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/gopher.c.obj
+[53/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/getinfo.c.obj
+[54/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/hash.c.obj
+[55/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/headers.c.obj
+[56/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/hmac.c.obj
+[57/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/hsts.c.obj
+[58/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/http2.c.obj
+[59/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/http_aws_sigv4.c.obj
+[60/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/http1.c.obj
+[61/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/http_httpsig.c.obj
+[62/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/curl_ed25519.c.obj
+[63/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/http_negotiate.c.obj
+[64/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/http_digest.c.obj
+[65/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/http_chunks.c.obj
+[66/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/http_ntlm.c.obj
+[67/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/http_proxy.c.obj
+[68/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/idn.c.obj
+[69/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/if2ip.c.obj
+[70/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/http.c.obj
+[71/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/imap.c.obj
+[72/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/ldap.c.obj
+[73/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/llist.c.obj
+[74/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/macos.c.obj
+[75/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/md4.c.obj
+[76/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/md5.c.obj
+[77/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/memdebug.c.obj
+[78/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/mqtt.c.obj
+[79/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/mime.c.obj
+[80/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/mprintf.c.obj
+[81/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/multi_ev.c.obj
+[82/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/netrc.c.obj
+[83/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/multi_ntfy.c.obj
+[84/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/openldap.c.obj
+[85/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/pingpong.c.obj
+[86/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/parsedate.c.obj
+[87/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/peer.c.obj
+[88/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/pop3.c.obj
+[89/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/multi.c.obj
+[90/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/protocol.c.obj
+[91/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/psl.c.obj
+[92/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/progress.c.obj
+[93/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/proxy.c.obj
+[94/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/rand.c.obj
+[95/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/ratelimit.c.obj
+[96/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/rtsp.c.obj
+[97/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/request.c.obj
+[98/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/sha256.c.obj
+[99/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/select.c.obj
+[100/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/slist.c.obj
+[101/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/sendf.c.obj
+[102/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/setopt.c.obj
+[103/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/smb.c.obj
+[104/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/smtp.c.obj
+[105/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/socks_gssapi.c.obj
+[106/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/socketpair.c.obj
+[107/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/socks_sspi.c.obj
+[108/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/strcase.c.obj
+[109/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/splay.c.obj
+[110/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/socks.c.obj
+[111/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/strequal.c.obj
+[112/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/strerror.c.obj
+[113/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/system_win32.c.obj
+[114/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/telnet.c.obj
+[115/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/tftp.c.obj
+[116/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/thrdqueue.c.obj
+[117/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/thrdpool.c.obj
+[118/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/uint-bset.c.obj
+[119/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/uint-hash.c.obj
+[120/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/transfer.c.obj
+[121/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/uint-hashset.c.obj
+[122/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/uint-spbset.c.obj
+[123/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/uint-table.c.obj
+[124/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/version.c.obj
+[125/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/vauth/cleartext.c.obj
+[126/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/url.c.obj
+[127/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/vauth/cram.c.obj
+[128/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/ws.c.obj
+[129/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/vauth/digest_sspi.c.obj
+[130/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/urlapi.c.obj
+[131/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/vauth/digest.c.obj
+[132/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/vauth/gsasl.c.obj
+[133/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/vauth/krb5_gssapi.c.obj
+[134/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/vauth/krb5_sspi.c.obj
+[135/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/vauth/ntlm.c.obj
+[136/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/vauth/ntlm_sspi.c.obj
+[137/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/vauth/oauth2.c.obj
+[138/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/vauth/spnego_gssapi.c.obj
+[139/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/vauth/spnego_sspi.c.obj
+[140/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/vdns/asyn-ares.c.obj
+[141/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/vauth/vauth.c.obj
+[142/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/vdns/asyn-base.c.obj
+[143/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/vdns/doh.c.obj
+[144/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/vdns/cf-dns.c.obj
+[145/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/vdns/asyn-thrdd.c.obj
+[146/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/vdns/dnscache.c.obj
+[147/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/vdns/hostip6.c.obj
+[148/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/vdns/hostip4.c.obj
+[149/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/vdns/httpsrr.c.obj
+[150/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/vdns/hostip.c.obj
+[151/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/vtls/apple.c.obj
+[152/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/vtls/cipher_suite.c.obj
+[153/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/vtls/gtls.c.obj
+[154/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/vtls/hostcheck.c.obj
+[155/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/vtls/keylog.c.obj
+[156/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/vtls/mbedtls.c.obj
+[157/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/vtls/rustls.c.obj
+[158/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/vtls/schannel_verify.c.obj
+[159/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/vtls/schannel.c.obj
+[160/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/vtls/vtls_config.c.obj
+[161/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/vtls/vtls_spack.c.obj
+[162/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/vtls/vtls_scache.c.obj
+[163/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/vtls/wolfssl.c.obj
+[164/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/vtls/vtls.c.obj
+[165/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/vtls/openssl.c.obj
+[166/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/vtls/x509asn1.c.obj
+[167/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/vquic/capsule.c.obj
+[168/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/vquic/cf-ngtcp2.c.obj
+[169/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/vquic/cf-capsule.c.obj
+[170/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/vquic/cf-ngtcp2-cmn.c.obj
+[171/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/vquic/cf-ngtcp2-proxy.c.obj
+[172/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/vquic/cf-quiche.c.obj
+[173/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/vquic/vquic.c.obj
+[174/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/vquic/vquic-tls.c.obj
+[175/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/vssh/libssh.c.obj
+[176/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/vssh/libssh2.c.obj
+[177/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/vssh/vssh.c.obj
+[178/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/curlx/base64.c.obj
+[179/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/curlx/basename.c.obj
+[180/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/curlx/dynbuf.c.obj
+[181/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/curlx/fopen.c.obj
+[182/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/curlx/inet_ntop.c.obj
+[183/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/curlx/multibyte.c.obj
+[184/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/curlx/inet_pton.c.obj
+[185/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/curlx/nonblock.c.obj
+[186/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/curlx/snprintf.c.obj
+[187/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/curlx/strcopy.c.obj
+[188/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/curlx/strdup.c.obj
+[189/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/curlx/strerr.c.obj
+[190/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/curlx/timediff.c.obj
+[191/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/curlx/strparse.c.obj
+[192/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/curlx/version_win32.c.obj
+[193/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/curlx/timeval.c.obj
+[194/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/curlx/wait.c.obj
+[195/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/curlx/warnless.c.obj
+[196/197] Building C object curl/lib/CMakeFiles/libcurl_static.dir/curlx/winapi.c.obj
+[197/197] Linking C static library curl/lib/libcurl.a
+-- Install configuration: "Release"
+-- Installing: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/curl/prefix/lib/libcurl.a
+-- Installing: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/curl/prefix/bin/curl-config
+-- Installing: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/curl/prefix/lib/pkgconfig/libcurl.pc
+-- Installing: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/curl/prefix/include/curl
+-- Installing: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/curl/prefix/include/curl/curl.h
+-- Installing: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/curl/prefix/include/curl/curlver.h
+-- Installing: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/curl/prefix/include/curl/easy.h
+-- Installing: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/curl/prefix/include/curl/header.h
+-- Installing: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/curl/prefix/include/curl/mprintf.h
+-- Installing: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/curl/prefix/include/curl/multi.h
+-- Installing: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/curl/prefix/include/curl/options.h
+-- Installing: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/curl/prefix/include/curl/stdcheaders.h
+-- Installing: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/curl/prefix/include/curl/system.h
+-- Installing: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/curl/prefix/include/curl/typecheck-gcc.h
+-- Installing: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/curl/prefix/include/curl/urlapi.h
+-- Installing: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/curl/prefix/include/curl/websockets.h
+-- Installing: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/curl/prefix/lib/cmake/CURL/CURLTargets.cmake
+-- Installing: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/curl/prefix/lib/cmake/CURL/CURLTargets-release.cmake
+-- Installing: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/curl/prefix/lib/cmake/CURL/CURLConfigVersion.cmake
+-- Installing: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/curl/prefix/lib/cmake/CURL/CURLConfig.cmake
+-- Installing: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/curl/prefix/lib/cmake/CURL/FindBrotli.cmake
+-- Installing: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/curl/prefix/lib/cmake/CURL/FindCares.cmake
+-- Installing: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/curl/prefix/lib/cmake/CURL/FindGSS.cmake
+-- Installing: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/curl/prefix/lib/cmake/CURL/FindGnuTLS.cmake
+-- Installing: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/curl/prefix/lib/cmake/CURL/FindLDAP.cmake
+-- Installing: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/curl/prefix/lib/cmake/CURL/FindLibbacktrace.cmake
+-- Installing: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/curl/prefix/lib/cmake/CURL/FindLibgsasl.cmake
+-- Installing: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/curl/prefix/lib/cmake/CURL/FindLibidn2.cmake
+-- Installing: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/curl/prefix/lib/cmake/CURL/FindLibpsl.cmake
+-- Installing: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/curl/prefix/lib/cmake/CURL/FindLibssh.cmake
+-- Installing: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/curl/prefix/lib/cmake/CURL/FindLibssh2.cmake
+-- Installing: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/curl/prefix/lib/cmake/CURL/FindLibuv.cmake
+-- Installing: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/curl/prefix/lib/cmake/CURL/FindMbedTLS.cmake
+-- Installing: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/curl/prefix/lib/cmake/CURL/FindNGHTTP2.cmake
+-- Installing: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/curl/prefix/lib/cmake/CURL/FindNGHTTP3.cmake
+-- Installing: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/curl/prefix/lib/cmake/CURL/FindNGTCP2.cmake
+-- Installing: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/curl/prefix/lib/cmake/CURL/FindNettle.cmake
+-- Installing: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/curl/prefix/lib/cmake/CURL/FindQuiche.cmake
+-- Installing: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/curl/prefix/lib/cmake/CURL/FindRustls.cmake
+-- Installing: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/curl/prefix/lib/cmake/CURL/FindWolfSSL.cmake
+-- Installing: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/curl/prefix/lib/cmake/CURL/FindZstd.cmake
+Curl prefix: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/curl/prefix
+Shell exports: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/curl/curl-deps.env
+CMake imports: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/curl/CurlDependencies.cmake
+-- The C compiler identification is Clang 15.0.4
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Detecting C compiler ABI info
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /storage/Users/currentUser/.oheco/bin/clang - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+-- Found Threads: TRUE  
+-- Configuring done (1.9s)
+-- Generating done (0.0s)
+-- Build files have been written to: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/remote
+[1/12] Building C object CMakeFiles/ob_remote.dir/ob_json.c.obj
+[2/12] Building C object CMakeFiles/ob_remote.dir/ob_remote.c.obj
+[3/12] Building C object CMakeFiles/ob_remote.dir/ob_ws.c.obj
+[4/12] Building C object CMakeFiles/ob_remote.dir/peer/crypto.c.obj
+[5/12] Building C object CMakeFiles/ob_remote.dir/ob_api.c.obj
+[6/12] Building C object CMakeFiles/ob_remote.dir/peer/recovery.c.obj
+[7/12] Building C object CMakeFiles/ob_remote.dir/peer/coordinator.c.obj
+[8/12] Building C object CMakeFiles/ob_remote.dir/peer/control.c.obj
+[9/12] Building C object CMakeFiles/ob_remote.dir/peer/target.c.obj
+[10/12] Building C object CMakeFiles/ob_remote.dir/peer/engine.c.obj
+[11/12] Building C object CMakeFiles/ob_remote.dir/peer/mapping.c.obj
+[12/12] Linking C static library libob_remote.a
+Built source SDK: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/remote/libob_remote.a
+Local consumer environment: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build/remote/remote.env
+Prepared relocatable formal SDK dependency payload: /storage/Users/currentUser/dev/ohos/deepseek-harness-0.2.0/ohos/app/entry/src/main/cpp/tpr/broker-native-arm64
+Official SDK build records retained: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.4.0-zun7lf_q/sdk-build

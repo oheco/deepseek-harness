@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(dsh_launcher LANGUAGES CXX)
+project(dsh_launcher LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -24,10 +24,42 @@ foreach(target dsh_launcher_core dsh_supervisor)
 endforeach()
 target_link_libraries(dsh_supervisor PUBLIC dsh_launcher_core)
 
+# Supervisor-only fixtures can omit broker dependencies explicitly.
+option(DSH_BUILD_BROKER "Build native broker SDK integration" ON)
+if(DSH_BUILD_BROKER)
+    include(broker_dependencies.cmake)
+    add_subdirectory(broker_sdk)
+    add_library(dsh_broker STATIC broker_client.cpp broker_trust.cpp)
+    set_target_properties(dsh_broker PROPERTIES POSITION_INDEPENDENT_CODE ON)
+    target_include_directories(dsh_broker PRIVATE "${DSH_BROKER_DEPENDENCY_ROOT}/include")
+    target_compile_options(dsh_broker PRIVATE -Wall -Wextra -Wpedantic)
+    target_link_libraries(dsh_broker PUBLIC ob_remote dsh_launcher_core)
+endif()
+
 # Native fixture builds explicitly disable the ArkTS-only bridge.
 option(DSH_BUILD_NAPI "Build the HarmonyOS ArkTS NAPI bridge" ON)
 if(DSH_BUILD_NAPI)
-    add_library(dsh_launcher SHARED napi_bridge.cpp)
+    if(NOT DSH_BUILD_BROKER)
+        message(FATAL_ERROR "The App NAPI bridge requires DSH_BUILD_BROKER")
+    endif()
+    add_library(dsh_launcher SHARED napi_bridge.cpp broker_napi.cpp)
     target_compile_options(dsh_launcher PRIVATE -Wall -Wextra -Wpedantic)
-    target_link_libraries(dsh_launcher PRIVATE dsh_supervisor libace_napi.z.so)
+    # Keep this pinned BoringSSL/curl implementation private to the module;
+    # ArkWeb and platform libraries may load different TLS implementations.
+    target_link_options(dsh_launcher PRIVATE "-Wl,--exclude-libs,ALL")
+    target_link_libraries(dsh_launcher PRIVATE dsh_supervisor dsh_broker libace_napi.z.so)
+endif()
+
+option(DSH_BUILD_BROKER_TESTS "Build standalone native broker probes" OFF)
+if(DSH_BUILD_BROKER_TESTS)
+    enable_testing()
+    # Fixture CA input is absent from the production library and App bridge.
+    add_library(dsh_broker_fixture STATIC broker_client.cpp broker_trust.cpp)
+    target_include_directories(dsh_broker_fixture PRIVATE "${DSH_BROKER_DEPENDENCY_ROOT}/include")
+    target_compile_options(dsh_broker_fixture PRIVATE -Wall -Wextra -Wpedantic)
+    target_compile_definitions(dsh_broker_fixture PUBLIC DSH_BROKER_FIXTURE_TRUST=1)
+    target_link_libraries(dsh_broker_fixture PUBLIC ob_remote dsh_launcher_core)
+    add_executable(dsh_broker_test broker_test.cpp)
+    target_link_libraries(dsh_broker_test PRIVATE dsh_broker_fixture)
+    add_test(NAME broker-client COMMAND dsh_broker_test)
 endif()

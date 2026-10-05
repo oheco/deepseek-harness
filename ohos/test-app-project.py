@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-"""Keyless tests for the independent local App project, not other packages."""
+"""Keyless tests for formal App project exports and explicit local launcher overrides."""
 import importlib.util
 import json
 import os
 from pathlib import Path
+import re
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -30,8 +32,13 @@ class ProjectTests(unittest.TestCase):
         self.assertEqual(metadata['bundleName'], 'org.oheco.' + 'deepseek-harness'.replace('-', ''))
         release = json.loads((ROOT / 'ohos/release.json').read_text())
         self.assertEqual(metadata['versionName'], release['version'])
-        self.assertEqual(metadata['versionName'], '0.2.0-rc.2-ohos.1')
-        self.assertGreater(metadata['versionCode'], 1000001)
+        self.assertRegex(release['version'], r'^\d+\.\d+\.\d+-rc\.[1-9]\d*-ohos\.[1-9]\d*$')
+        self.assertEqual(release['version'], release['upstream_version'] + '-ohos.1')
+        self.assertEqual(release['upstream_version'], '0.2.0-rc.2')
+        upstream = subprocess.check_output(['git', 'rev-parse',
+            'dsh-v' + release['upstream_version'] + '^{commit}'], cwd=ROOT, text=True).strip()
+        self.assertEqual(release['upstream_commit'], upstream)
+        self.assertGreater(metadata['versionCode'], 1000002)
         names = json.loads((app / 'AppScope/resources/base/element/string.json').read_text())['string']
         self.assertEqual(next(item['value'] for item in names if item['name'] == 'app_name'), 'Deepseek Harness')
         product = json.loads((app / 'build-profile.json5').read_text())['app']['products'][0]
@@ -126,10 +133,8 @@ class ProjectTests(unittest.TestCase):
         self.assertNotIn('$not-a-shell\nnext', content)
 
     def test_generated_command_quotes_paths_and_uses_the_new_log(self):
-        import re
-        import shlex
-        home = self.root / "home with spaces '$characters"
-        launcher = self.root / "launcher 'quoted' $literal.zsh"
+        home = self.root / "home with spaces '$(literal)`command`"
+        launcher = self.root / "launcher 'quoted' $(literal)`command`.zsh"
         content = packaging.runtime_defaults(home, launcher)
         literal = re.search(r'static runCommand: string = (.+);', content)[1]
         command = json.loads(literal)
@@ -139,37 +144,150 @@ class ProjectTests(unittest.TestCase):
         self.assertNotIn('--port 9000', command)
 
     def test_page_uses_the_exported_connection_settings(self):
-        page = (ROOT / 'ohos/app/entry/src/main/ets/pages/Index.ets').read_text()
-        self.assertIn('const RUN_COMMAND = RuntimeDefaults.runCommand;', page)
-        self.assertIn('const RUN_LOG_NAME = RuntimeDefaults.runLogName;', page)
+        page = (ROOT / 'ohos/app/entry/src/main/ets/pages/ConnectionHome.ets').read_text()
+        self.assertNotIn('importLog', page)
+        self.assertNotIn('RuntimeDefaults.runCommand', page)
+        self.assertNotIn('broker.oheco.org', page)
+        self.assertIn("private serviceUrl: string = '';", page)
+        self.assertIn('Navigation(this.paths)', page)
+        self.assertIn('NavDestination()', page)
         self.assertNotIn('dsh web --host', page)
         defaults = (ROOT / 'ohos/app/entry/src/main/ets/config/RuntimeDefaults.ets').read_text()
         self.assertIn('dsh-0.2.0-run.log', defaults)
-        self.assertIn('zsh ' + str(packaging.DEFAULT_WEB_LAUNCHER), defaults)
-        self.assertNotIn('dsh web', defaults)
+        home = json.loads(re.search(r'static homeDir: string = (.+);', defaults)[1])
+        self.assertEqual(defaults, packaging.runtime_defaults(home))
+        self.assertIn('dsh web --host 127.0.0.1 --port 0 --no-open', defaults)
+        self.assertNotIn('run-web.zsh', defaults)
         self.assertNotIn('0.1.7', defaults)
 
-    def test_default_command_uses_the_independent_local_package(self):
-        import re
-        import shlex
-        home = self.root / 'home with spaces'
+    def test_default_command_uses_installed_dsh_with_private_command_state(self):
+        home = self.root / "home with spaces '$(literal)`command`"
         content = packaging.runtime_defaults(home)
         command = json.loads(re.search(r'static runCommand: string = (.+);', content)[1])
-        self.assertEqual(shlex.split(command), ['zsh', str(packaging.DEFAULT_WEB_LAUNCHER),
+        self.assertEqual(shlex.split(command), ['DSH_HOME=${XDG_CONFIG_HOME:?}/deepseek-harness',
+            'dsh', 'web', '--host', '127.0.0.1', '--port', '0', '--no-open',
             '>', str(home / 'Documents/dsh-0.2.0-run.log'), '2>&1', '&'])
-        self.assertNotIn('dsh web', command)
+        self.assertTrue(command.startswith('DSH_HOME="${XDG_CONFIG_HOME:?}/deepseek-harness" dsh web '))
+        self.assertNotIn('export ', command)
+        self.assertNotIn('chmod', command)
+        self.assertNotIn('run-web.zsh', command)
         self.assertNotIn('0.1.7', command)
 
-    def test_documents_permission_and_no_reverted_features(self):
+    def test_default_command_resolves_relocated_entry_without_changing_parent_environment(self):
+        home = self.root / "home '$(literal)`command`"
+        (home / 'Documents').mkdir(parents=True)
+        entry = self.root / 'relocated package/bin/dsh'
+        entry.parent.mkdir(parents=True)
+        entry.write_text('#!/usr/bin/zsh -f\nprint -r -- "$DSH_HOME"\n'
+                         'printf "%s\\n" "$@"\n')
+        entry.chmod(0o700)
+        config = self.root / "private config '$(literal)`command`"
+        env = {'PATH': str(entry.parent) + ':' + os.environ['PATH'],
+               'DSH_HOME': 'inherited-profile-state', 'XDG_CONFIG_HOME': str(config)}
+        command = json.loads(re.search(r'static runCommand: string = (.+);', packaging.runtime_defaults(home))[1])
+        result = subprocess.run(['zsh', '-f', '-c', command + '\nwait\nprint -r -- "$DSH_HOME"'],
+                                env=env, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        self.assertEqual(result.returncode, 0, result.stdout)
+        self.assertEqual(result.stdout.strip(), 'inherited-profile-state')
+        self.assertEqual((home / 'Documents' / packaging.RUN_LOG_NAME).read_text().splitlines(),
+                         [str(config / 'deepseek-harness'), 'web', '--host', '127.0.0.1', '--port', '0', '--no-open'])
+
+    def test_default_command_requires_a_private_config_directory(self):
+        home = self.root / 'home'
+        (home / 'Documents').mkdir(parents=True)
+        command = json.loads(re.search(r'static runCommand: string = (.+);', packaging.runtime_defaults(home))[1])
+        result = subprocess.run(['zsh', '-f', '-c', command.removesuffix(' &')],
+                                env={'PATH': os.environ['PATH']}, text=True,
+                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        self.assertNotEqual(result.returncode, 0)
+        diagnostic = result.stdout + (home / 'Documents' / packaging.RUN_LOG_NAME).read_text()
+        self.assertIn('XDG_CONFIG_HOME', diagnostic)
+        self.assertIn('parameter', diagnostic)
+
+    def test_artifact_urls_use_the_matching_immutable_release(self):
+        version = json.loads((ROOT / 'ohos/release.json').read_text())['version']
+        name = 'deepseek-harness-app-' + version + '.zip'
+        base = 'https://github.com/oheco/deepseek-harness/releases/download/v' + version
+        self.assertEqual(packaging.artifact_url(version, name), base + '/' + name)
+        self.assertEqual(packaging.artifact_url(version, name, base + '/'), base + '/' + name)
+        for invalid in ['http://127.0.0.1:0', base.replace('https:', 'http:'),
+                        'https://github.com/oheco/deepseek-harness/releases/latest/download',
+                        base.replace('/v' + version, '/v' + version + '-mismatch'),
+                        base + '?token=fixture', base + '#fragment']:
+            with self.subTest(url=invalid), self.assertRaisesRegex(ValueError, 'release download directory'):
+                packaging.artifact_url(version, name, invalid)
+
+    def test_broker_input_validation_rejects_changed_sdk_archive_native_and_license_bytes(self):
+        app = self.root / 'app'
+        cpp = app / 'entry/src/main/cpp'
+        sdk_file = cpp / 'broker_sdk/remote.c'
+        sdk_file.parent.mkdir(parents=True)
+        sdk_file.write_bytes(b'released SDK source')
+        native_file = cpp / 'tpr/broker-native-arm64/lib/fixture.a'
+        native_file.parent.mkdir(parents=True)
+        native_file.write_bytes(b'pinned native bytes; never executed')
+        archive = cpp / 'tpr/broker-sources.tar.gz'
+        archive.write_bytes(b'pinned source archive bytes')
+        license_file = cpp / 'tpr/broker-LICENSE'
+        license_file.write_bytes(b'released license')
+        dependency = cpp / 'tpr/native-dependencies.json'
+        dependency.write_text('{}\n')
+        sources = {'schema_version': 2, 'archive': archive.name, 'sha256': packaging.digest(archive),
+                   'sdk_version': '0.4.0', 'sdk_snapshot': 'released 0.4.0',
+                   'sdk_release': {'version': '0.4.0', 'license_sha256': packaging.digest(license_file)},
+                   'source_commit': 'a' * 40, 'sdk_all_files_sha256': 'b' * 64,
+                   'local_sdk_changes': 'NONE',
+                   'remote_files_sha256': {'remote.c': packaging.digest(sdk_file)},
+                   'native_dependency_manifest': {'file': dependency.name, 'sha256': packaging.digest(dependency)}}
+        payload = {'source_archive_sha256': sources['sha256'], 'sdk_snapshot': sources['sdk_snapshot'],
+                   'source_commit': sources['source_commit'], 'local_sdk_changes': 'NONE',
+                   'sdk_all_files_sha256': sources['sdk_all_files_sha256'],
+                   'files_sha256': {'lib/fixture.a': packaging.digest(native_file)}}
+        manifest = cpp / 'tpr/broker-sources.json'
+        manifest.write_text(json.dumps(sources))
+        payload_file = cpp / 'tpr/broker-native-arm64/PAYLOAD.json'
+        payload_file.write_text(json.dumps(payload))
+        verified = packaging.verify_broker_inputs(app)
+        self.assertEqual(verified['sdk_version'], '0.4.0')
+        self.assertEqual(verified['local_sdk_changes'], 'NONE')
+        for path, error in [(archive, 'source archive'), (sdk_file, 'SDK source'),
+                            (license_file, 'license checksum'), (native_file, 'payload checksum'),
+                            (dependency, 'dependency manifest checksum')]:
+            with self.subTest(input=path.name):
+                original = path.read_bytes()
+                path.write_bytes(original + b'changed')
+                with self.assertRaisesRegex(ValueError, error):
+                    packaging.verify_broker_inputs(app)
+                path.write_bytes(original)
+        for record, path, key, value in [(sources, manifest, 'local_sdk_changes', 'changed'),
+                                         (payload, payload_file, 'source_commit', 'c' * 40)]:
+            with self.subTest(metadata=key):
+                original = record[key]
+                record[key] = value
+                path.write_text(json.dumps(record))
+                with self.assertRaisesRegex(ValueError, 'SDK metadata'):
+                    packaging.verify_broker_inputs(app)
+                record[key] = original
+                path.write_text(json.dumps(record))
+        payload['files_sha256']['../outside'] = 'd' * 64
+        payload_file.write_text(json.dumps(payload))
+        with self.assertRaisesRegex(ValueError, 'payload checksum'):
+            packaging.verify_broker_inputs(app)
+
+    def test_manual_connections_use_only_internet_permission(self):
         app = ROOT / 'ohos/app'
         module = json.loads((app / 'entry/src/main/module.json5').read_text())['module']
         self.assertEqual({item['name'] for item in module['requestPermissions']},
-                         {'ohos.permission.INTERNET', 'ohos.permission.READ_WRITE_DOCUMENTS_DIRECTORY'})
-        page = (app / 'entry/src/main/ets/pages/Index.ets').read_text()
-        self.assertIn('requestDocumentsAccess()', page)
-        self.assertIn('picker.DocumentViewPicker', page)
+                         {'ohos.permission.INTERNET'})
+        self.assertEqual(module['deviceTypes'], ['phone', 'tablet', '2in1'])
+        page = (app / 'entry/src/main/ets/pages/ConnectionHome.ets').read_text()
+        self.assertNotIn('requestPermissionsFromUser', page)
+        self.assertNotIn('picker.DocumentViewPicker', page)
+        self.assertNotIn('pickCertificate', page)
         self.assertNotIn('READ_WRITE_USER_FILE', page)
-        self.assertNotIn('broker', page.lower())
+        self.assertIn('native.brokerLogin', page)
+        self.assertIn('native.brokerConnect', page)
+        self.assertIn('native.dshProbe', page)
         actions = (app / 'entry/src/main/ets/launcher/PathActions.ets').read_text()
         self.assertNotIn('fs.open', actions)
         self.assertNotIn('fs.copy', actions)
@@ -191,16 +309,44 @@ class ProjectTests(unittest.TestCase):
                                 text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         self.assertEqual(result.returncode, 0, result.stdout)
         info = json.loads((export / 'BUILD-INFO.json').read_text())
-        self.assertEqual(info['release_version'], '0.2.0-rc.2-ohos.1')
-        self.assertTrue(info['local_only'])
-        self.assertEqual(info['web_launcher'], str(packaging.DEFAULT_WEB_LAUNCHER))
+        release = json.loads((ROOT / 'ohos/release.json').read_text())
+        self.assertEqual(info['release_version'], release['version'])
+        self.assertEqual(info['upstream_version'], release['upstream_version'])
+        self.assertEqual(info['upstream_commit'], release['upstream_commit'])
+        self.assertRegex(info['source_commit'], r'^[0-9a-f]{40}$')
+        self.assertIsInstance(info['source_dirty'], bool)
+        self.assertFalse(info['local_only'])
+        self.assertFalse(info['launcher_override'])
+        self.assertEqual(info['web_launcher'], 'dsh')
+        self.assertIn('system-trusted HTTPS/WSS', info['launch_mode'])
+        self.assertEqual(info['broker_inputs']['sdk_version'], '0.4.0')
+        self.assertEqual(info['broker_inputs']['local_sdk_changes'], 'NONE')
+        self.assertEqual(info['broker_inputs']['sdk_source_files'], 24)
+        self.assertEqual((export / 'entry/src/main/ets/config/RuntimeDefaults.ets').read_text(),
+                         packaging.runtime_defaults(Path.home()))
+        self.assertEqual((export / 'LICENSE').read_bytes(), (ROOT / 'LICENSE').read_bytes())
+        self.assertEqual((export / 'entry/src/main/cpp/tpr/broker-LICENSE').read_bytes(),
+                         (ROOT / 'ohos/app/entry/src/main/cpp/tpr/broker-LICENSE').read_bytes())
         self.assertEqual(json.loads((export / 'build-profile.json5').read_text())['app']['signingConfigs'], [])
         self.assertEqual((export / 'validation/app-migration.json').read_bytes(),
                          (ROOT / 'ohos/app-migration.json').read_bytes())
         documentation = (export / 'VALIDATION.md').read_text()
         self.assertIn('](validation/app-migration.json)', documentation)
         self.assertNotIn('](../app-migration.json)', documentation)
+        checks = json.loads((export / 'LOCAL-CHECKS.json').read_text())
+        self.assertEqual(checks['version'], release['version'])
+        self.assertIn('by this tool', checks['packager_scope'])
+        self.assertIn('separate HAP build and signature receipts', checks['hap_build'])
+        self.assertIn('separate installation and device receipts', checks['device_acceptance'])
+        self.assertNotIn('awaits user verification', checks['device_acceptance'])
         archive = output / ('deepseek-harness-app-' + info['release_version'] + '.zip')
+        artifact = json.loads((output / 'project-artifact.json').read_text())
+        self.assertEqual(artifact['url'], 'https://github.com/oheco/deepseek-harness/releases/download/v' +
+                         release['version'] + '/' + archive.name)
+        self.assertEqual(artifact['sha256'], packaging.digest(archive))
+        self.assertEqual(artifact['size'], archive.stat().st_size)
+        self.assertEqual((output / (archive.name + '.sha256')).read_text(),
+                         artifact['sha256'] + '  ' + archive.name + '\n')
         with zipfile.ZipFile(archive) as bundle:
             for item in bundle.infolist():
                 self.assertEqual(bundle.read(item), (export / Path(item.filename).relative_to('DSHApp')).read_bytes())
@@ -212,6 +358,44 @@ class ProjectTests(unittest.TestCase):
         self.assertNotEqual(refused.returncode, 0)
         self.assertIn('existing projects are read-only', refused.stdout)
         self.assertEqual(marker.read_text(), 'preserved')
+
+    def test_explicit_launcher_export_keeps_local_override_metadata_and_quoted_paths(self):
+        launcher = self.root / "local launcher '$(literal)`command`.zsh"
+        launcher.write_text('#!/usr/bin/zsh\n# existing isolated local launcher\n')
+        home = self.root / "home '$(literal)`command`"
+        profile = home / '.dsh/saved-profile.json'
+        profile.parent.mkdir(parents=True)
+        profile.write_text('existing user profile')
+        original_launcher = launcher.read_bytes()
+        output = self.root / 'local-archive'
+        release = json.loads((ROOT / 'ohos/release.json').read_text())
+        base = 'https://github.com/oheco/deepseek-harness/releases/download/v' + release['version']
+        result = subprocess.run(['python3', '-B', str(ROOT / 'ohos/package-app-project.py'),
+                                 '--output', str(output), '--web-launcher', str(launcher),
+                                 '--home', str(home), '--release-url', base + '/'],
+                                text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        self.assertEqual(result.returncode, 0, result.stdout)
+        stage = output / 'project'
+        info = json.loads((stage / 'BUILD-INFO.json').read_text())
+        self.assertTrue(info['local_only'])
+        self.assertTrue(info['launcher_override'])
+        self.assertEqual(info['web_launcher'], str(launcher.resolve()))
+        self.assertEqual((stage / 'entry/src/main/ets/config/RuntimeDefaults.ets').read_text(),
+                         packaging.runtime_defaults(home, launcher.resolve()))
+        artifact = json.loads((output / 'project-artifact.json').read_text())
+        self.assertEqual(artifact['url'], base + '/deepseek-harness-app-' + release['version'] + '.zip')
+        self.assertEqual(launcher.read_bytes(), original_launcher)
+        self.assertEqual(profile.read_text(), 'existing user profile')
+
+    def test_invalid_release_url_and_missing_explicit_launcher_create_no_output(self):
+        for option in [['--release-url', 'http://127.0.0.1:0'],
+                       ['--web-launcher', str(self.root / 'missing.zsh')]]:
+            output = self.root / 'rejected-archive'
+            result = subprocess.run(['python3', '-B', str(ROOT / 'ohos/package-app-project.py'),
+                                     '--output', str(output), *option],
+                                    text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertFalse(output.exists())
 
     def test_export_sync_never_opens_signing_identity_or_runtime_defaults(self):
         destination = self.root / 'export'

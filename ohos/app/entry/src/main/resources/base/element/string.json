@@ -2,74 +2,351 @@
   "string": [
     {
       "name": "ability_description",
-      "value": "Open the DeepSeek Harness web interface you started in a terminal."
-    },
-    {
-      "name": "documents_reason",
-      "value": "Read the service log file you keep in Documents so the app can open the address it contains."
+      "value": "Manage local and remote DeepSeek Harness connections."
     },
     {
       "name": "opening",
       "value": "Opening your workspace…"
     },
     {
-      "name": "command_title",
-      "value": "1 · Run this command in a HarmonyOS terminal"
-    },
-    {
-      "name": "copy_command",
-      "value": "Copy command"
-    },
-    {
-      "name": "command_copied",
-      "value": "Copied"
-    },
-    {
-      "name": "waiting_title",
-      "value": "2 · Waiting for DSH to start"
-    },
-    {
-      "name": "log_waiting",
-      "value": "Reading the log. The address appears here as soon as the service prints it."
-    },
-    {
-      "name": "log_waiting_picked",
-      "value": "Using the file you selected. Waiting for the address."
-    },
-    {
-      "name": "log_missing",
-      "value": "No log yet. Run the command above in a terminal."
-    },
-    {
-      "name": "log_unreadable",
-      "value": "The log cannot be read. Select it with the button below."
-    },
-    {
-      "name": "pick_log",
-      "value": "Select the log file"
-    },
-    {
       "name": "external_failed",
       "value": "No application on this device can open that link."
     },
-    { "name": "find_placeholder", "value": "Find in page" },
-    { "name": "find_previous", "value": "Previous match (Shift+Enter)" },
-    { "name": "find_next", "value": "Next match (Enter)" },
-    { "name": "find_close", "value": "Close search (Esc)" },
-    { "name": "context_copy", "value": "Copy" },
-    { "name": "context_browser", "value": "Open in browser" },
-    { "name": "context_files", "value": "Show in file manager" },
-    { "name": "find_drag", "value": "Drag the background to move search" },
-    { "name": "path_access_denied", "value": "The system denied access to this path or the file manager." },
-    { "name": "path_no_handler", "value": "The system file manager is unavailable." },
-    { "name": "path_not_found", "value": "The file or folder does not exist." },
-    { "name": "path_invalid", "value": "This is not a complete user-home path. Abbreviated paths cannot be opened." },
-    { "name": "path_unsupported", "value": "This path is a symbolic link or is not a regular file suitable for this action." },
-    { "name": "web_action_failed", "value": "This action failed. Please try again after the page is ready." },
-    { "name": "path_open_failed", "value": "Unable to show this location in the file manager. You can still copy the path." },
+    {
+      "name": "find_placeholder",
+      "value": "Find in page"
+    },
+    {
+      "name": "find_previous",
+      "value": "Previous match (Shift+Enter)"
+    },
+    {
+      "name": "find_next",
+      "value": "Next match (Enter)"
+    },
+    {
+      "name": "find_close",
+      "value": "Close search (Esc)"
+    },
+    {
+      "name": "context_copy",
+      "value": "Copy"
+    },
+    {
+      "name": "context_browser",
+      "value": "Open in browser"
+    },
+    {
+      "name": "context_files",
+      "value": "Show in file manager"
+    },
+    {
+      "name": "find_drag",
+      "value": "Drag the background to move search"
+    },
+    {
+      "name": "path_access_denied",
+      "value": "The system denied access to this path or the file manager."
+    },
+    {
+      "name": "path_no_handler",
+      "value": "The system file manager is unavailable."
+    },
+    {
+      "name": "path_not_found",
+      "value": "The file or folder does not exist."
+    },
+    {
+      "name": "path_invalid",
+      "value": "This is not a complete user-home path. Abbreviated paths cannot be opened."
+    },
+    {
+      "name": "path_unsupported",
+      "value": "This path is a symbolic link or is not a regular file suitable for this action."
+    },
+    {
+      "name": "web_action_failed",
+      "value": "This action failed. Please try again after the page is ready."
+    },
+    {
+      "name": "path_open_failed",
+      "value": "Unable to show this location in the file manager. You can still copy the path."
+    },
     {
       "name": "dismiss",
       "value": "Dismiss"
+    },
+    {
+      "name": "connections_title",
+      "value": "Connections"
+    },
+    {
+      "name": "connections_loading",
+      "value": "Loading saved connections…"
+    },
+    {
+      "name": "connections_hint",
+      "value": "Select a connection. Return with system Back or Ctrl+Shift+L."
+    },
+    {
+      "name": "connections_load_failed",
+      "value": "Saved connections could not be read. Retry before making changes."
+    },
+    {
+      "name": "connections_empty",
+      "value": "No connections yet"
+    },
+    {
+      "name": "connections_empty_hint",
+      "value": "Tap + below to add a local or remote connection."
+    },
+    {
+      "name": "add_connection",
+      "value": "Add connection"
+    },
+    {
+      "name": "edit_connection",
+      "value": "Edit"
+    },
+    {
+      "name": "configure_connection",
+      "value": "Configure connection"
+    },
+    {
+      "name": "choose_mode_hint",
+      "value": "Choose where DSH is running."
+    },
+    {
+      "name": "mode_local",
+      "value": "Local mode"
+    },
+    {
+      "name": "mode_remote",
+      "value": "Remote mode"
+    },
+    {
+      "name": "local_hint",
+      "value": "Connect to DSH running on this device. Use the same port and token as dsh web."
+    },
+    {
+      "name": "remote_login",
+      "value": "Sign in to broker service"
+    },
+    {
+      "name": "remote_login_hint",
+      "value": "Sign in, choose an online broker, then configure DSH."
+    },
+    {
+      "name": "edit_connection_hint",
+      "value": "Change the name or connection settings."
+    },
+    {
+      "name": "connection_name",
+      "value": "Connection name"
+    },
+    {
+      "name": "name_required",
+      "value": "Enter a connection name."
+    },
+    {
+      "name": "port_invalid",
+      "value": "Enter a port from 1 to 65535."
+    },
+    {
+      "name": "local_port",
+      "value": "Local DSH port"
+    },
+    {
+      "name": "remote_port",
+      "value": "Remote DSH port"
+    },
+    {
+      "name": "dsh_token",
+      "value": "DSH token"
+    },
+    {
+      "name": "token_required",
+      "value": "Enter the DSH token."
+    },
+    {
+      "name": "remote_config_required",
+      "value": "Sign in, select a broker and enter its connection password."
+    },
+    {
+      "name": "connection_invalid",
+      "value": "Check the connection name, credentials and settings."
+    },
+    {
+      "name": "connection_saved",
+      "value": "Connection saved."
+    },
+    {
+      "name": "connection_deleted",
+      "value": "Connection deleted."
+    },
+    {
+      "name": "connection_save_failed",
+      "value": "The connection could not be saved. Your previous list is retained."
+    },
+    {
+      "name": "service_address",
+      "value": "Service address"
+    },
+    {
+      "name": "service_address_hint",
+      "value": "Enter your broker service HTTPS address."
+    },
+    {
+      "name": "broker_account",
+      "value": "Account"
+    },
+    {
+      "name": "broker_password",
+      "value": "Account password"
+    },
+    {
+      "name": "broker_login",
+      "value": "Sign in"
+    },
+    {
+      "name": "login_required",
+      "value": "Enter a valid service address, account and password."
+    },
+    {
+      "name": "broker_logging_in",
+      "value": "Signing in and loading brokers…"
+    },
+    {
+      "name": "broker_login_failed",
+      "value": "Sign-in failed. Check the address, certificate, account and password."
+    },
+    {
+      "name": "broker_login_expired",
+      "value": "Your broker login has expired. Sign in again to continue."
+    },
+    {
+      "name": "ca_system_trust",
+      "value": "The server certificate must be trusted by the system with a valid chain and hostname."
+    },
+    {
+      "name": "choose_broker",
+      "value": "Choose a broker"
+    },
+    {
+      "name": "brokers_hint",
+      "value": "Select an online broker to continue."
+    },
+    {
+      "name": "brokers_empty",
+      "value": "No online brokers are available for this account."
+    },
+    {
+      "name": "broker_online",
+      "value": "Online"
+    },
+    {
+      "name": "broker_offline",
+      "value": "Offline"
+    },
+    {
+      "name": "refresh_brokers",
+      "value": "Refresh brokers"
+    },
+    {
+      "name": "change_broker",
+      "value": "Change broker"
+    },
+    {
+      "name": "remote_config_hint",
+      "value": "Enter the broker connection password, remote DSH port and token."
+    },
+    {
+      "name": "peer_password",
+      "value": "Broker connection password"
+    },
+    {
+      "name": "peer_password_hint",
+      "value": "Use the password configured on this broker. It is separate from the account password and DSH token."
+    },
+    {
+      "name": "test_connection",
+      "value": "Test connection"
+    },
+    {
+      "name": "save_connection",
+      "value": "Save"
+    },
+    {
+      "name": "delete_connection",
+      "value": "Delete connection"
+    },
+    {
+      "name": "connection_test_ok",
+      "value": "Connected. DSH authentication and home page verified."
+    },
+    {
+      "name": "connection_token_failed",
+      "value": "DSH rejected this token."
+    },
+    {
+      "name": "connection_forbidden",
+      "value": "DSH refused this request. Check its access configuration."
+    },
+    {
+      "name": "connection_not_dsh",
+      "value": "This port did not return the DSH home page."
+    },
+    {
+      "name": "connection_unreachable",
+      "value": "Unable to reach DSH. Check the port and running service."
+    },
+    {
+      "name": "broker_connection_failed",
+      "value": "Connection failed. Check the broker, connection password and DSH settings."
+    },
+    {
+      "name": "web_connection_disconnected",
+      "value": "Connection unavailable. This page stays open."
+    },
+    {
+      "name": "back_connections",
+      "value": "Back"
+    },
+    {
+      "name": "retry",
+      "value": "Retry"
+    },
+    {
+      "name": "test_in_progress",
+      "value": "Testing connection"
+    },
+    {
+      "name": "test_success",
+      "value": "Connection test succeeded"
+    },
+    {
+      "name": "test_failure",
+      "value": "Connection test failed"
+    },
+    {
+      "name": "local_settings",
+      "value": "Local connection"
+    },
+    {
+      "name": "remote_settings",
+      "value": "Remote connection"
+    },
+    {
+      "name": "broker_service",
+      "value": "Broker service"
+    },
+    {
+      "name": "selected_broker",
+      "value": "Selected broker"
+    },
+    {
+      "name": "modify",
+      "value": "Modify"
     }
   ]
 }

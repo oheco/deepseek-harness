@@ -99,7 +99,7 @@ admit(request: ConnectionTrustRequest): PeerAdmission
 authorizeIndex(request: ConnectionIndexRequest, response: ConnectionIndexResponse): boolean
 
 /**
- * Add the fresh process token to an ordinary Web application URL.
+ * Add the configured or process-random launch token to a Web application URL.
  * @param baseUrl - clean application URL whose authority and mount are preserved.
  * @returns tokenized URL for initial login; a mount proxy strips its prefix before {@link authorizeIndex}.
  */

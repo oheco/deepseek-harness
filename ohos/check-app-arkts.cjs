@@ -23,6 +23,8 @@ for (const [name, relative] of Object.entries({EntryAbility: 'entryability/Entry
   RunLogUrl: 'launcher/RunLogUrl.ets', ExternalLink: 'launcher/ExternalLink.ets',
   ContextActions: 'launcher/ContextActions.ets', PathActions: 'launcher/PathActions.ets',
   OverlayAppearance: 'launcher/OverlayAppearance.ets',
+  ConnectionHome: 'pages/ConnectionHome.ets', ConnectionField: 'pages/ConnectionField.ets', ConnectionProfile: 'launcher/ConnectionProfile.ets',
+  ConnectionStore: 'launcher/ConnectionStore.ets',
   Defaults: 'config/RuntimeDefaults.ets'})) entries[name] = path.join(root, relative);
 const config = {
   projectPath: root, projectTopDir: app, aceModuleRoot: app + '/entry',
@@ -31,7 +33,7 @@ const config = {
   compatibleSdkVersion: api(product.compatibleSdkVersion), compatibleSdkVersionStage: 'beta',
   minAPIVersion: api(product.compatibleSdkVersion), targetAPIVersion: api(product.targetSdkVersion),
   sdkPath: sdk, etsLoaderPath: sdk + '/build-tools/ets-loader', cachePath: output + '/cache', buildPath: output + '/build',
-  buildMode: 'debug', packageManagerType: 'ohpm', runtimeOS: 'HarmonyOS', deviceTypes: ['2in1'],
+  buildMode: 'debug', packageManagerType: 'ohpm', runtimeOS: 'HarmonyOS', deviceTypes: ['phone', 'tablet', '2in1'],
   isPreview: false, projectArkOption: {}, resolveModulePaths: [app + '/entry/src/main/cpp/types']
 };
 fs.mkdirSync(config.cachePath); fs.mkdirSync(config.buildPath);
