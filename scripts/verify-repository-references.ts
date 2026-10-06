@@ -95,7 +95,8 @@ function repositoryCommits(repoRoot: string, sources: Iterable<string>): Set<str
 /**
  * Scan tracked and nonignored new files using only the local Git object database.
  * @param repoRoot - Working tree whose files and Git objects are inspected.
- * @returns Prohibited references outside vendor, frozen Agent Notes, and the two immutable OHOS source records; absent shallow-history objects cannot match.
+ * @returns Prohibited references outside vendor, frozen Agent Notes, and the two immutable OHOS source records.
+ * Absent shallow-history objects cannot match.
  */
 export function scanRepositoryReferences(repoRoot: string): RepositoryReference[] {
   const sources = readMaintainedFiles(repoRoot)

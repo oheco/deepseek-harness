@@ -42,7 +42,7 @@ describe.skipIf((process.platform as string) !== 'openharmony')('HarmonyOS profi
   }, 20_000)
 
   it('rejects a fresh Node process without the flag before loading a native binding', () => {
-    const result = run(false, `installRuntimeInterception(resolution);`)
+    const result = run(false, 'installRuntimeInterception(resolution);')
     expect(result.error).toBeUndefined()
     expect(result.status).not.toBe(0)
     expect(result.stderr).toContain('profile resolution: HarmonyOS requires Node --expose-internals')

@@ -138,7 +138,7 @@ describe('web command-line provider', () => {
   it.each([
     { args: ['--token', ''], error: '--token must not be empty' },
     { args: ['--token='], error: '--token must not be empty' },
-    { args: ['--token'], error: "argument missing" },
+    { args: ['--token'], error: 'argument missing' },
   ])('rejects invalid token arguments $args before the consumer activates', async ({ args, error }) => {
     const { values, observed } = await bootProvider(args)
     expect(observed.out).toContain(error)

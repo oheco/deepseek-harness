@@ -32,7 +32,7 @@ async function prepare(root: string): Promise<string> {
   initProfile(profile, [])
   const selected = new Set(['web-startup', 'webserver', 'web-runtime', 'connection'])
   const rows = composeEntries([loadOverlayPatches('web-token-test', join(repoRoot, 'packages/bundle/web-app/cordis.patch.yml'))])
-    .filter(row => selected.has(row.id!))
+    .filter(row => selected.has(row.id))
     .map(row => row.id === 'web-runtime' ? { ...row, name: runtimeFixture } : row)
   expect(rows).toHaveLength(selected.size)
   await writeFile(join(profile, 'cordis.patch.yml'), yaml.dump([{ insert: [
@@ -122,7 +122,9 @@ async function reload(running: RunningWeb): Promise<string> {
 }
 
 async function get(url: URL, headers: Record<string, string> = {}): Promise<{
-  status: number; headers: IncomingHttpHeaders; body: string
+  status: number
+  headers: IncomingHttpHeaders
+  body: string
 }> {
   return new Promise((resolve, reject) => {
     const req = request(url, { headers, agent: false }, (res) => {
@@ -153,7 +155,12 @@ async function withForwardedPort<T>(port: number, inspect: (port: number) => Pro
     return await inspect((server.address() as AddressInfo).port)
   } finally {
     for (const socket of sockets) socket.destroy()
-    await new Promise<void>((resolve, reject) => { server.close(error => error === undefined ? resolve() : reject(error)) })
+    await new Promise<void>((resolve, reject) => {
+      server.close((error) => {
+        if (error === undefined) resolve()
+        else reject(error)
+      })
+    })
   }
 }
 
@@ -167,7 +174,10 @@ function cookieOf(result: { headers: IncomingHttpHeaders }): string {
 }
 
 async function inspectAuthentication(running: RunningWeb, token: string): Promise<{
-  cookie: string; login: number; wrongToken: number; mappedApi: number
+  cookie: string
+  login: number
+  wrongToken: number
+  mappedApi: number
 }> {
   const url = new URL(running.url)
   expect(url.searchParams.get('token')).toBe(token)

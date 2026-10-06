@@ -150,7 +150,7 @@ it('applies the shipped Office platform gate while retaining document preview co
   ctx.loader.builtins.include = Include
   const internal = ctx.loader.internal
   if (internal === undefined) throw new Error('Expected the Node Loader internals')
-  const originalImport = internal.import.bind(internal)
+  const originalImport: (...args: Parameters<typeof internal.import>) => Promise<unknown> = internal.import.bind(internal)
   const imports = vi.spyOn(internal, 'import').mockImplementation(async (
     specifier: string, parent: string, attributes: ImportAttributes,
   ) => {

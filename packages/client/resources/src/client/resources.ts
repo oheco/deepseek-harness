@@ -58,7 +58,7 @@ export function protocolOf(address: string): string | undefined {
   const rest = address.slice(prefix.length)
   const end = rest.search(/[/?#]/)
   const authority = end === -1 ? rest : rest.slice(0, end)
-  if (authority === '' || /[@:\[\]\\\s<>^|\u0000-\u001f\u007f]/.test(authority)) return undefined
+  if (authority === '' || /[@:\[\]\\<>^|\u0000-\u001f\u007f]/.test(authority) || /\s/.test(authority)) return undefined
   return authority.toLowerCase()
 }
 
