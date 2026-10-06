@@ -16,7 +16,7 @@
 
 [WebConnection.ets](entry/src/main/ets/launcher/WebConnection.ets)区分请求接受与连接完成。自动恢复通过状态轮询确认并检查 DSH 端点，然后通知原 WebView；正常恢复保留控制器、DOM、历史、搜索与 origin，仅已退出的渲染器在恢复后重建。[Index.ets](entry/src/main/ets/pages/Index.ets)在明确返回时立即退出页面并恢复纵向显示，继续持有未完成清理的 Promise，清理结束前不接入新 WebView。后台与临时组件脱离保留 SDK 映射；窗口/Ability 销毁及原生环境释放执行最终清理。
 
-App 为 `org.oheco.deepseekharness`、`0.2.0-rc.2-ohos.1`、versionCode `1000002`。App 私有偏好、DSH Session 日志和 SQLite 类型不变；原始输入见[迁移记录](../app-migration.json)。
+App 为 `org.oheco.deepseekharness`、`0.2.0-rc.2-ohos.1`、versionCode `1000003`。App 私有偏好、DSH Session 日志和 SQLite 类型不变；原始输入见[迁移记录](../app-migration.json)。
 
 ## 相关检查
 
@@ -24,10 +24,10 @@ App 为 `org.oheco.deepseekharness`、`0.2.0-rc.2-ohos.1`、versionCode `1000002
 
 ## 构建与设备范围
 
-[完整构建与安装回执](validation/broker-sdk-0.4.0/application-build-install-sdk4.json)记录最终 Hvigor 构建退出 0，34 项全部执行、0 项缓存，耗时约 87 秒。11 个正式 SDK C 编译单元与 App 接入均在本次构建生成；HAP 原生库为 ELF64/aarch64，包含 `brokerReconnect` 绑定。前期环境、库搜索路径和签名配套文件问题与最终成功分开记录；库路径修正在 App 自有构建包装中完成，正式 SDK CMake 保持原样。
+[发行验证回执](https://github.com/oheco/deepseek-harness/releases/download/v0.2.0-rc.2-ohos.1/deepseek-harness-0.2.0-rc.2-ohos.1-validation.json)的 `app` 项记录正式 Hvigor 构建退出 0，34 项全部执行、0 项缓存，耗时约 60 秒。11 个正式 SDK C 编译单元与 App 接入均在本次构建生成；HAP 原生库为 ELF64/aarch64，包含 `brokerReconnect` 绑定。前期环境、库搜索路径和签名配套文件问题与最终成功分开记录；库路径修正在 App 自有构建包装中完成，正式 SDK CMake 保持原样。
 
-签名使用用户指定的 fix2 原签名配置及配套文件。[签名验证](validation/broker-sdk-0.4.0/hap-verification.json)退出 0，HAP 证书链公钥摘要与 fix2 一致；[清理记录](validation/broker-sdk-0.4.0/cleanup.json)确认原配置、三个签名文件与五个配套解密文件未修改，临时副本已删除。签名 HAP 大小为 5232378 字节，SHA-256 为 `c67655692839db123557a00ce537cd95c8bb31cd4152fb1b3bbffca9ef94e43b`。
+签名使用用户指定的 fix2 原签名配置及配套文件。发行回执记录签名验证退出 0，HAP 证书链公钥摘要与 fix2 一致，原配置、三个签名文件与五个配套解密文件未修改，临时副本已删除。个人设备签名 HAP 保留在本地，大小为 5232374 字节，SHA-256 为 `6598643b1026b7e521e8692e52134026d6432eab09b0eebf0ad6ffd9402630f0`。
 
-[双设备安装回执](validation/broker-sdk-0.4.0/installed-app.json)确认电脑 `192.168.1.160:34835` 与手机 `192.168.1.191:41339` 的 HDC `install -r` 均退出 0，安装版本与代码正确。便携工程保持 SDK `6.1.0(23)`、phone/tablet/2in1；实际设备构建使用已安装 SDK26/compatible23 与有效的 default/2in1 配置，不修改 SDK 字典。交付工程不包含个人签名配置，编译输入与 HAP 的一致性另按文件摘要记录。
+发行回执的 `app.installation` 确认电脑 `192.168.1.160:34835` 与手机 `192.168.1.191:41339` 的 HDC `install -r` 均成功，安装版本与代码正确；首次手机连接离线与恢复后的成功安装分别记录。便携工程保持 SDK `6.1.0(23)`、phone/tablet/2in1；实际设备构建使用已安装 SDK26/compatible23 与有效的 default/2in1 配置，不修改 SDK 字典。交付工程不包含个人签名配置，编译输入与 HAP 的一致性另按文件摘要记录。
 
 沿用用户“只需完成安装，无需启动验证”的要求，不解锁、启动或操作电脑和手机 App。0.3.0 控制服务或 peer 仍兼容映射服务恢复；已有 TCP/WebSocket 连续恢复需要两端 peer、目标 socket 与新版控制恢复关系在保留期限内存活。本轮不将 SDK 原生探针或 App 状态替身检查扩大为真实网络中断、设备挂起或旧 TCP 续传的真机证明。之前 fix5 的导出、HAP 与安装记录保留。

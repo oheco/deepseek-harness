@@ -23,7 +23,7 @@ Export the unsigned App project with `oo export deepseek-harness app --output <n
 
 ## Reproduce the build
 
-Requirements: HarmonyOS PC ARM64, Node.js 24 with development headers, Python 3, SDK Clang and `binary-sign-tool` on PATH. Pinned tools, archives, digests and licenses live under `tpr/ohos-build-tools`, including pnpm. VitePress uses unchanged esbuild-wasm 0.21.5 for its locked 0.21.5 compiler through the local dependency copy; modern build tools retain their native HarmonyOS binaries. Prefetch the lockfile dependencies through the configured proxy, then build offline; do not reuse another version's node_modules.
+Requirements: HarmonyOS PC ARM64, Node.js 24 with development headers, Python 3, SDK Clang and `binary-sign-tool` on PATH. Pinned tools, archives, digests and licenses live under `tpr/ohos-build-tools`, including pnpm. VitePress uses unchanged esbuild-wasm 0.21.5 for its locked 0.21.5 compiler through the local dependency copy; other build tools retain their pinned HarmonyOS/WASM packages. Prefetch the lockfile dependencies through the configured proxy, then build offline; do not reuse another version's node_modules.
 
 ```sh
 python3 ohos/prepare-runtime.py

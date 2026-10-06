@@ -23,7 +23,7 @@ DSH_HOME="${XDG_CONFIG_HOME:?}/deepseek-harness" dsh web --host 127.0.0.1 --port
 
 ## 重现构建
 
-需要鸿蒙 PC ARM64、Node.js 24 及开发头文件、Python 3、SDK Clang、PATH 中的 `binary-sign-tool`。固定工具、归档、摘要及许可在 `tpr/ohos-build-tools`，含 pnpm。VitePress 锁定的 0.21.5 编译器在本地依赖副本中接入原样 esbuild-wasm 0.21.5；现代构建工具保留鸿蒙原生二进制。通过配置的代理预取锁定依赖后离线构建，不复用其他版本的 node_modules。
+需要鸿蒙 PC ARM64、Node.js 24 及开发头文件、Python 3、SDK Clang、PATH 中的 `binary-sign-tool`。固定工具、归档、摘要及许可在 `tpr/ohos-build-tools`，含 pnpm。VitePress 锁定的 0.21.5 编译器在本地依赖副本中接入原样 esbuild-wasm 0.21.5；其他构建工具保留固定的鸿蒙/WASM 包。通过配置的代理预取锁定依赖后离线构建，不复用其他版本的 node_modules。
 
 ```sh
 python3 ohos/prepare-runtime.py

@@ -4,7 +4,7 @@
   "description": "Signed POSIX flock Node-API binding for HarmonyOS arm64",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/oheco/deepseek-harness.git",
+    "url": "git+https://github.com/deepseek-ai/deepseek-harness.git",
     "directory": "native/system/packages/openharmony-arm64"
   },
   "os": [
