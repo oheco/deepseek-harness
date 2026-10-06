@@ -18,8 +18,7 @@ function harness() {
   const disk = new Map();
   const memory = new Map();
   const control = { failFlush: false, flushWait: undefined, probeState: 'ok', probe: undefined,
-    connect: undefined, close: undefined, brokers: undefined, opened: [], cookies: [], cookieFetch: undefined,
-    cookieFailure: undefined, expiredCookies: [], cookieReads: 0 };
+    connect: undefined, close: undefined, brokers: undefined, opened: [], cookieReads: 0 };
   class NavPathStack {
     routes = [];
     operations = [];
@@ -74,13 +73,11 @@ function harness() {
         const mocks = {
           '@ohos.url': { URL },
           '@ohos.web.webview': { WebCookieManager: {
-            async fetchAllCookies(incognito) {
-              assert.equal(incognito, false);
+            async fetchAllCookies() {
               control.cookieReads += 1;
-              if (control.cookieFailure) throw control.cookieFailure;
-              return control.cookieFetch ? await control.cookieFetch() : control.cookies;
+              throw new Error('CookieManager accessed before a Web component is attached');
             },
-            configCookieSync(...args) { control.expiredCookies.push(args); }
+            configCookieSync() { throw new Error('CookieManager accessed before a Web component is attached'); }
           } },
           '@ohos.util': { generateRandomUUID: () => 'connection-' + ++nextId,
             TextDecoder: { create: (encoding, options) => ({ decodeToString: bytes => new TextDecoder(encoding, options).decode(bytes) }) } },
@@ -1204,78 +1201,24 @@ test('all device forms provide matching light and dark page, window, and system-
   assert.deepEqual(resources('base').map(item => item.name), resources('zh_CN').map(item => item.name));
 });
 
-function authenticationCookie(index, overrides = {}) {
-  const cookie = { name: 'dsh-auth-' + createHash('sha256').update('synthetic-map-' + index).digest('base64url'),
-    domain: '127.0.0.1', path: '/', isHttpOnly: true, ...overrides };
-  Object.defineProperty(cookie, 'value', { get() { throw new Error('cookie values must not be inspected'); } });
-  return cookie;
-}
-
-test('a fresh authenticated open expires seventy matching cookies before handing off and retains other cookies', async () => {
+test('Home transfers an authenticated connection without accessing the cold CookieManager', async () => {
   const h = harness();
   await h.ready();
   const connection = await savedRemote(h);
-  const matching = Array.from({ length: 70 }, (_, index) => authenticationCookie(index,
-    { domain: index % 2 ? '.127.0.0.1' : '127.0.0.1' }));
-  const retained = [authenticationCookie(70, { domain: 'example.invalid' }),
-    authenticationCookie(71, { domain: '::1' }), authenticationCookie(72, { path: '/other' }),
-    authenticationCookie(73, { name: 'preferences' }), authenticationCookie(74, { name: 'dsh-auth-short' }),
-    authenticationCookie(75, { name: 'dsh-auth-' + 'a'.repeat(44) }),
-    authenticationCookie(76, { domain: '127.0.0.1.example.invalid' })];
-  h.control.cookies = [...matching, ...retained];
-  h.page.onOpen = (address, remote) => {
-    assert.equal(h.control.expiredCookies.length, 70, 'cleanup settles before WebView ownership');
-    h.control.opened.push([address, remote]);
-    return true;
-  };
   await h.page.openConnection(connection);
-  assert.equal(h.control.cookieReads, 1);
+  assert.equal(h.control.cookieReads, 0);
   assert.equal(h.control.opened.length, 1);
   assert.equal(h.page.transferred, true);
-  for (const [index, args] of h.control.expiredCookies.entries()) {
-    assert.deepEqual(args, ['http://127.0.0.1:43219/',
-      matching[index].name + '=; Path=/; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly', false, true]);
-  }
+  assert.equal(h.calls.filter(call => call[0] === 'close').length, 0);
 });
 
-test('cancelling while cookie metadata is pending cannot expire a cookie or transfer a WebView', async () => {
-  const h = harness();
-  await h.ready();
-  const connection = await savedRemote(h);
-  const read = deferred();
-  h.control.cookieFetch = () => read.promise;
-  const opening = h.page.openConnection(connection);
-  await tick();
-  assert.equal(h.control.cookieReads, 1);
-  h.page.aboutToDisappear();
-  read.resolve([authenticationCookie(0)]);
-  await opening;
-  assert.equal(h.control.expiredCookies.length, 0);
-  assert.equal(h.control.opened.length, 0);
-  assert.equal(h.page.transferred, false);
-  assert.ok(h.calls.some(call => call[0] === 'close'), 'the untransferred remote map is closed');
-});
-
-test('failed authentication leaves the WebView cookie store untouched', async () => {
+test('failed authentication cannot create a WebView or access the cold CookieManager', async () => {
   const h = harness();
   await h.ready();
   const connection = await savedRemote(h);
   h.control.probeState = 'unauthorized';
   await h.page.openConnection(connection);
   assert.equal(h.control.cookieReads, 0);
-  assert.equal(h.control.expiredCookies.length, 0);
-  assert.equal(h.control.opened.length, 0);
-});
-
-test('cookie preparation failure stays in the connection flow and releases its untransferred mapping', async () => {
-  const h = harness();
-  await h.ready();
-  const connection = await savedRemote(h);
-  h.control.cookieFailure = new Error('cookie manager unavailable');
-  await h.page.openConnection(connection);
-  assert.equal(h.page.message.name, 'app.string.connection_cookies_failed');
   assert.equal(h.control.opened.length, 0);
   assert.equal(h.page.transferred, false);
-  assert.equal(h.page.busy, false);
-  assert.ok(h.calls.some(call => call[0] === 'close'));
 });

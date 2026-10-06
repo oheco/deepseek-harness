@@ -13,6 +13,10 @@
       "value": "无法准备网页登录，请返回连接列表重试。"
     },
     {
+      "name": "web_load_failed",
+      "value": "无法加载网页，请返回连接列表重试。"
+    },
+    {
       "name": "web_load_error_title",
       "value": "无法打开此页面"
     },

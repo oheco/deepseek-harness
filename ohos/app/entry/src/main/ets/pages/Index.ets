@@ -9,6 +9,7 @@ import { ConnectionProfile } from '../launcher/ConnectionProfile';
 import { WEB_VIEW_ACTIVE_EVENT } from '../launcher/WebOrientation';
 import { leavesWebView, openOutside } from '../launcher/ExternalLink';
 import { loopbackOrigin } from '../launcher/RunLogUrl';
+import { prepareConnectionCookies } from '../launcher/ConnectionCookies';
 
 import { KeyCode } from '@ohos.multimodalInput.keyCode';
 import { CONTEXT_CAPTURE_SCRIPT, ContextSnapshot, contextSnapshotScript, contextTarget } from '../launcher/ContextActions';
@@ -44,6 +45,9 @@ struct Index {
   private activeConnection: ConnectionProfile | undefined = undefined;
   private rendererAlive: boolean = true;
   private currentWebAddress: string = '';
+  private initialAuthentication: boolean = false;
+  private webPreparationGeneration: number = -1;
+  private webPreparation: Promise<void> = Promise.resolve();
   private detachedWork: Promise<void> = Promise.resolve();
   private closeWork: Promise<void> | undefined = undefined;
   @State private connectionState: WebConnectionState = WebConnectionState.Connected;
@@ -66,8 +70,8 @@ struct Index {
   @State private webGeneration: number = 0;
   @State private pageLoaded: boolean = false;
   @State private webError: Resource | undefined = undefined;
-  // ArkWeb paints an empty surface before the page content, so a themed cover
-  // stays until the first paint instead of letting the default white show.
+  // The blank component binds the controller before authentication. Its paint
+  // cannot remove the cover; completion at the connection origin does.
   @State private webPainted: boolean = false;
   private controller: webview.WebviewController = new webview.WebviewController();
   // ArkWeb may report one navigation through more than one callback; the second
@@ -222,12 +226,64 @@ struct Index {
     this.controller = controller;
     this.rendererAlive = true;
     this.currentWebAddress = address;
+    this.initialAuthentication = true;
     this.activeConnection = connection;
     this.connectionState = WebConnectionState.Connected;
     this.webConnection.activate(connection, origin);
     this.startRemotePolling();
     this.updateWebOrientation(true);
     return true;
+  }
+
+  /** A successful controller attachment owns one preparation and navigation for its generation. */
+  private prepareAndLoad(generation: number): Promise<void> {
+    if (!this.attached || this.closingWeb || !this.rendererAlive || this.webError !== undefined ||
+      this.webUrl === '' || generation !== this.webGeneration) {
+      return Promise.resolve();
+    }
+    if (this.webPreparationGeneration === generation) {
+      return this.webPreparation;
+    }
+    const controller = this.controller;
+    const origin = this.webOrigin;
+    const address = this.webUrl;
+    const authenticate = this.initialAuthentication;
+    const current: () => boolean = () => this.attached && !this.closingWeb && this.rendererAlive &&
+      generation === this.webGeneration && controller === this.controller &&
+      origin === this.webOrigin && address === this.webUrl && this.webError === undefined;
+    this.webPreparationGeneration = generation;
+    const work: Promise<void> = (async () => {
+      let loaded = false;
+      let preparingCookies = authenticate;
+      try {
+        if (authenticate && !await prepareConnectionCookies(origin, current)) {
+          return;
+        }
+        preparingCookies = false;
+        if (!current()) {
+          return;
+        }
+        controller.loadUrl(address);
+        this.initialAuthentication = false;
+        loaded = true;
+      } catch (error) {
+        if (current()) {
+          this.webError = preparingCookies ? $r('app.string.connection_cookies_failed') :
+            $r('app.string.web_load_failed');
+          this.pageLoaded = false;
+          this.webPainted = false;
+          this.dismissMenu();
+          this.searchVisible = false;
+        }
+      } finally {
+        if (!loaded && this.webPreparationGeneration === generation && generation === this.webGeneration &&
+          controller === this.controller && this.webError === undefined) {
+          this.webPreparationGeneration = -1;
+        }
+      }
+    })();
+    this.webPreparation = work;
+    return work;
   }
 
   /** Keep a main-page failure visible even when ArkWeb later reports paint or load completion. */
@@ -276,6 +332,7 @@ struct Index {
     this.remote = false;
     this.activeConnection = undefined;
     this.currentWebAddress = '';
+    this.initialAuthentication = false;
     this.webGeneration += 1;
     this.webUrl = '';
     this.updateWebOrientation(false);
@@ -721,7 +778,8 @@ struct Index {
         .hitTestBehavior(HitTestMode.None)
       if (this.webUrl !== '') {
         ForEach([this.webGeneration], (generation: number) => {
-          Web({ src: this.webUrl, controller: this.controller })
+          Web({ src: 'about:blank', controller: this.controller })
+            .onControllerAttached(() => this.prepareAndLoad(generation))
             .javaScriptAccess(true)
             .domStorageAccess(true)
             .fileAccess(false)
@@ -751,11 +809,6 @@ struct Index {
               { script: LOCAL_CONNECTION_SCRIPT, scriptRules: ['*'] },
               { script: CONTEXT_CAPTURE_SCRIPT, scriptRules: ['*'] }
             ])
-            .onFirstScreenPaint(() => {
-              if (generation === this.webGeneration && this.webError === undefined) {
-                this.webPainted = true;
-              }
-            })
             .onHttpErrorReceive((event) => {
               if (event) {
                 this.showWebError(generation, event.request,
@@ -799,7 +852,11 @@ struct Index {
               this.handOff(url);
               return true;
             })
-            .onPageBegin(() => this.dismissMenu())
+            .onPageBegin((event) => {
+              if (event && generation === this.webGeneration && loopbackOrigin(event.url) === this.webOrigin) {
+                this.dismissMenu();
+              }
+            })
             .onPageEnd((event) => {
               if (event && generation === this.webGeneration && this.webError === undefined &&
                 loopbackOrigin(event.url) === this.webOrigin) {

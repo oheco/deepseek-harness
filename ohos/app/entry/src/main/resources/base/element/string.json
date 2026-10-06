@@ -13,6 +13,10 @@
       "value": "Unable to prepare the page login. Return to connections and try again."
     },
     {
+      "name": "web_load_failed",
+      "value": "Unable to load the page. Return to connections and try again."
+    },
+    {
       "name": "web_load_error_title",
       "value": "Unable to open this page"
     },

@@ -43,15 +43,20 @@ function renderBindings(source, filename, page, generation) {
   const callbacks = new Map();
   let homeOpen;
   let returnConnections;
+  let webSource;
   function visit(node) {
     if (ts.isCallExpression(node)) {
       const expression = node.expression;
       if (ts.isPropertyAccessExpression(expression) &&
-        ['onPageEnd', 'onRenderExited', 'onFirstScreenPaint', 'onHttpErrorReceive', 'onErrorReceive'].includes(expression.name.text)) {
+        ['onPageEnd', 'onPageBegin', 'onRenderExited', 'onControllerAttached', 'onHttpErrorReceive', 'onErrorReceive'].includes(expression.name.text)) {
         callbacks.set(expression.name.text, node.arguments[0]);
       }
       if (ts.isPropertyAccessExpression(expression) && expression.name.text === 'onClick' &&
         node.arguments[0].getText(file).includes('this.closeWeb();')) returnConnections = node.arguments[0];
+      if (expression.getText(file) === 'Web' && ts.isObjectLiteralExpression(node.arguments[0])) {
+        const property = node.arguments[0].properties.find(item => ts.isPropertyAssignment(item) && item.name.getText(file) === 'src');
+        if (property) webSource = property.initializer;
+      }
       if (expression.getText(file) === 'ConnectionHome' && ts.isObjectLiteralExpression(node.arguments[0])) {
         const property = node.arguments[0].properties.find(item => ts.isPropertyAssignment(item) && item.name.getText(file) === 'onOpen');
         if (property) homeOpen = property.initializer;
@@ -60,12 +65,16 @@ function renderBindings(source, filename, page, generation) {
     ts.forEachChild(node, visit);
   }
   visit(file);
-  assert.equal(callbacks.size, 5);
+  assert.equal(callbacks.size, 6);
+  assert(webSource, 'the actual Web constructor must declare its initial navigation');
+  assert.ok(!source.includes('.onFirstScreenPaint('), 'a blank first paint cannot hide the loading cover');
   assert(homeOpen, 'Index must receive the actual connection profile in its Home handoff');
   assert(returnConnections, 'a failed page must expose an action that returns to the connection flow');
   const sourceText = 'export function bind(generation) { return { pageEnd: ' + callbacks.get('onPageEnd').getText(file) +
     ', exited: ' + callbacks.get('onRenderExited').getText(file) +
-    ', paint: ' + callbacks.get('onFirstScreenPaint').getText(file) +
+    ', initialSource: ' + webSource.getText(file) +
+    ', attached: ' + callbacks.get('onControllerAttached').getText(file) +
+    ', pageBegin: ' + callbacks.get('onPageBegin').getText(file) +
     ', httpError: ' + callbacks.get('onHttpErrorReceive').getText(file) +
     ', networkError: ' + callbacks.get('onErrorReceive').getText(file) +
     ', homeOpen: ' + homeOpen.getText(file) +
@@ -88,8 +97,12 @@ function harness({ callbackThrows = false } = {}) {
   const timers = new Map();
   const controllers = [];
   const toasts = [];
+  const cookieCalls = [];
+  const lifecycle = [];
   const plans = { status: [], reconnect: [], connect: [], close: [], probe: [] };
-  const control = { runScriptRejects: false, runScriptThrows: false };
+  const control = { runScriptRejects: false, runScriptThrows: false, engineReady: false,
+    badInitialization: false, cookieRead: undefined, cookieFailure: undefined, cookies: [],
+    cookieWriteFailure: undefined, navigationFailure: undefined };
   const mapping = (state = 'connected') => ({ state, localUrl: ORIGIN + '/', localPort: 43219,
     brokerId: 'owned-broker', remotePort: 3080, error: '', errorCode: '' });
   function reply(name, args, fallback) {
@@ -126,7 +139,15 @@ function harness({ callbackThrows = false } = {}) {
     events = [];
     document = { identity: 'owned-dom', selection: 'keep selection' };
     history = [ADDRESS, ROUTE];
+    bound = false;
+    loaded = [];
     constructor() { controllers.push(this); }
+    loadUrl(address) {
+      assert.ok(this.bound && control.engineReady, 'authenticated navigation requires a successfully bound controller');
+      if (control.navigationFailure) throw control.navigationFailure;
+      lifecycle.push('navigate');
+      this.loaded.push(address);
+    }
     runJavaScript(script) {
       this.scripts.push(script);
       if (control.runScriptThrows) throw new Error('renderer detached');
@@ -155,7 +176,25 @@ function harness({ callbackThrows = false } = {}) {
   const mocks = {
     'libdsh_launcher.so': native,
     '@ohos.url': { URL },
-    '@ohos.web.webview': { WebCookieManager: { fetchAllCookies: async () => [], configCookieSync() {} } },
+    '@ohos.web.webview': { WebviewController, WebCookieManager: {
+      async fetchAllCookies(incognito) {
+        assert.equal(incognito, false);
+        cookieCalls.push(['read']);
+        lifecycle.push('cookies');
+        if (!control.engineReady) {
+          control.badInitialization = true;
+          throw new Error('cold CookieManager would initialize the engine on its worker');
+        }
+        if (control.cookieFailure) throw control.cookieFailure;
+        return control.cookieRead ? await control.cookieRead() : control.cookies;
+      },
+      configCookieSync(...args) {
+        assert.ok(control.engineReady);
+        if (control.cookieWriteFailure) throw control.cookieWriteFailure;
+        cookieCalls.push(['expire', ...args]);
+        lifecycle.push('expire');
+      }
+    } },
     '@ohos.util': { generateRandomUUID: () => 'owned-profile' },
     '@ohos.data.preferences': { getPreferences: async () => ({ get: async (_key, fallback) => fallback }) }
   };
@@ -173,7 +212,7 @@ function harness({ callbackThrows = false } = {}) {
     cache.set(relative, exports);
     const index = relative === 'pages/Index';
     const scope = { exports, URL, NavPathStack, native, getContext: () => context,
-      $r: name => ({ name, id: 1 }), webview: { WebviewController },
+      $r: (name, ...params) => ({ name, id: 1, params }), webview: mocks['@ohos.web.webview'],
       setInterval(callback) { const id = ++nextTimer; timers.set(id, { kind: 'interval', callback }); return id; },
       setTimeout(callback) { const id = ++nextTimer; timers.set(id, { kind: 'timeout', callback }); return id; },
       clearInterval(id) { timers.delete(id); }, clearTimeout(id) { timers.delete(id); },
@@ -184,7 +223,7 @@ function harness({ callbackThrows = false } = {}) {
       }
     };
     if (index) Object.assign(scope, load('launcher/AppActivity'), load('launcher/WebConnection'),
-      load('launcher/OverlayAppearance'), load('launcher/RunLogUrl'), {
+      load('launcher/OverlayAppearance'), load('launcher/RunLogUrl'), load('launcher/ConnectionCookies'), {
         WEB_VIEW_ACTIVE_EVENT: 'dshWebViewActive',
         ConfigurationConstant: { ColorMode: { COLOR_MODE_DARK: 0, COLOR_MODE_LIGHT: 1, COLOR_MODE_NOT_SET: -1 } },
         ConnectionHomeController: load('pages/ConnectionHome').ConnectionHomeController
@@ -225,8 +264,15 @@ function harness({ callbackThrows = false } = {}) {
     const source = fs.readFileSync(filename, 'utf8');
     return { index, adopted, bind: () => renderBindings(source, filename, index, index.webGeneration) };
   }
+  function attach(index, callbacks) {
+    assert.equal(callbacks.initialSource, 'about:blank');
+    control.engineReady = true;
+    index.controller.bound = true;
+    lifecycle.push('attached');
+    return callbacks.attached();
+  }
   return { calls, changes, plans, control, context, eventHub, listeners, registrations, publications, timers, controllers, toasts,
-    states: connectionModule.WebConnectionState, activity, helper, page, profile, load,
+    cookieCalls, lifecycle, attach, states: connectionModule.WebConnectionState, activity, helper, page, profile, load,
     count: name => calls.filter(call => call.name === name).length };
 }
 
@@ -695,13 +741,14 @@ test('HTTP 431 stays visible through paint, PageEnd and the later generic load e
   const h = harness();
   const { index, bind } = h.page();
   const callbacks = bind();
+  await h.attach(index, callbacks);
   const controller = index.controller;
   index.searchVisible = true;
   callbacks.httpError(httpFailure(431));
   assert.equal(index.webError.name, 'app.string.web_http_error');
   assert.deepEqual(Array.from(index.webError.params), [431]);
   assert.equal(index.searchVisible, false);
-  callbacks.paint();
+  callbacks.pageEnd({ url: 'about:blank' });
   callbacks.pageEnd({ url: ADDRESS });
   callbacks.networkError(networkFailure(-379));
   assert.equal(index.webError.name, 'app.string.web_http_error');
@@ -741,5 +788,193 @@ test('subresources, foreign origins and retired WebViews cannot replace the curr
   assert.deepEqual(Array.from(index.webError.params), [503]);
   current.pageEnd({ url: ADDRESS });
   assert.equal(index.pageLoaded, false);
+  await closePage(h, index);
+});
+
+function pendingCookie() {
+  const cookie = { name: 'dsh-auth-' + 'a'.repeat(43), domain: '127.0.0.1', path: '/', isHttpOnly: true };
+  Object.defineProperty(cookie, 'value', { get() { throw new Error('cookie values must not be inspected'); } });
+  return cookie;
+}
+
+test('a cold engine first binds a blank Web, then prepares cookies once before authenticated navigation', async () => {
+  const h = harness();
+  const { index, bind } = h.page();
+  const callbacks = bind();
+  const read = deferred();
+  h.control.cookieRead = () => read.promise;
+  assert.equal(h.control.engineReady, false);
+  assert.equal(h.control.badInitialization, false);
+  assert.equal(h.cookieCalls.length, 0, 'creating Index and transferring ownership cannot initialize cookies on a worker');
+  assert.equal(callbacks.initialSource, 'about:blank');
+  assert.deepEqual(index.controller.loaded, []);
+  index.menuVisible = true;
+  callbacks.pageBegin({ url: 'about:blank' });
+  callbacks.pageEnd({ url: 'about:blank' });
+  assert.equal(index.menuVisible, true);
+  assert.equal(index.pageLoaded, false);
+  assert.equal(index.webPainted, false);
+  assert.equal(index.currentWebAddress, ADDRESS);
+  const work = h.attach(index, callbacks);
+  assert.equal(callbacks.attached(), work, 'duplicate binding joins the exact pending operation');
+  assert.deepEqual(h.lifecycle, ['attached', 'cookies']);
+  assert.deepEqual(index.controller.loaded, []);
+  read.resolve([pendingCookie()]);
+  await work;
+  assert.deepEqual(h.lifecycle, ['attached', 'cookies', 'expire', 'navigate']);
+  assert.deepEqual(index.controller.loaded, [ADDRESS]);
+  assert.equal(index.initialAuthentication, false);
+  assert.equal(h.control.badInitialization, false);
+  await callbacks.attached();
+  assert.equal(h.cookieCalls.filter(call => call[0] === 'read').length, 1);
+  assert.equal(index.controller.loaded.length, 1);
+  callbacks.pageBegin({ url: ADDRESS });
+  assert.equal(index.menuVisible, false);
+  callbacks.pageEnd({ url: 'about:blank' });
+  assert.equal(index.pageLoaded, false);
+  callbacks.pageEnd({ url: ADDRESS });
+  assert.equal(index.pageLoaded, true);
+  assert.equal(index.webPainted, true);
+  await closePage(h, index);
+});
+
+test('Back before controller attachment cannot read cookies or dispatch authentication', async () => {
+  const h = harness();
+  const { index, bind } = h.page();
+  const old = bind();
+  const controller = index.controller;
+  await index.closeWeb();
+  await old.attached();
+  assert.equal(h.cookieCalls.length, 0);
+  assert.equal(h.control.engineReady, false);
+  assert.deepEqual(controller.loaded, []);
+  assert.equal(h.count('close'), 1);
+  index.aboutToDisappear();
+});
+
+test('Back during a cookie read retires its controller without touching or loading the next connection', async () => {
+  const h = harness();
+  const { index, adopted, bind } = h.page();
+  const old = bind();
+  const previous = index.controller;
+  const read = deferred();
+  h.control.cookieRead = () => read.promise;
+  const pending = h.attach(index, old);
+  await index.closeWeb();
+  h.control.cookieRead = undefined;
+  h.control.cookies = [pendingCookie()];
+  assert.equal(index.openWeb(ADDRESS, true, adopted), true);
+  const current = bind();
+  await h.attach(index, current);
+  const controller = index.controller;
+  read.resolve([pendingCookie()]);
+  await pending;
+  await old.attached();
+  assert.deepEqual(previous.loaded, []);
+  assert.deepEqual(controller.loaded, [ADDRESS]);
+  assert.equal(index.controller, controller);
+  assert.equal(index.initialAuthentication, false);
+  assert.equal(h.cookieCalls.filter(call => call[0] === 'expire').length, 1);
+  assert.equal(h.cookieCalls.filter(call => call[0] === 'read').length, 2);
+  await closePage(h, index);
+});
+
+for (const failure of ['read', 'write', 'navigate']) {
+  test(`a bound-page ${failure} failure remains visible until Back releases its mapping`, async () => {
+    const h = harness();
+    const { index, bind } = h.page();
+    const callbacks = bind();
+    h.control.cookies = [pendingCookie()];
+    const error = new Error('owned failure');
+    if (failure === 'read') h.control.cookieFailure = error;
+    if (failure === 'write') h.control.cookieWriteFailure = error;
+    if (failure === 'navigate') h.control.navigationFailure = error;
+    await h.attach(index, callbacks);
+    assert.equal(index.webError.name, failure === 'navigate' ? 'app.string.web_load_failed' :
+      'app.string.connection_cookies_failed');
+    assert.equal(index.initialAuthentication, true);
+    assert.equal(index.controller.loaded.length, 0);
+    assert.equal(h.count('close'), 0, 'Index retains mapping ownership for its visible error page');
+    callbacks.pageEnd({ url: 'about:blank' });
+    callbacks.pageEnd({ url: ADDRESS });
+    await callbacks.attached();
+    assert.equal(index.pageLoaded, false);
+    assert.equal(h.cookieCalls.filter(call => call[0] === 'read').length, 1);
+    callbacks.returnConnections();
+    await index.closeWork;
+    assert.equal(index.webUrl, '');
+    assert.equal(index.webError, undefined);
+    assert.equal(h.count('close'), 1);
+    index.aboutToDisappear();
+  });
+}
+
+test('restoring an authenticated renderer loads its clean route without expiring its session cookie', async () => {
+  const h = harness();
+  const { index, bind } = h.page();
+  const first = bind();
+  h.control.cookies = [pendingCookie()];
+  await h.attach(index, first);
+  first.pageEnd({ url: ROUTE });
+  const previous = index.controller;
+  first.exited();
+  await index.checkRemote();
+  assert.notEqual(index.controller, previous);
+  assert.equal(index.webUrl, ROUTE);
+  assert.equal(index.initialAuthentication, false);
+  const restored = bind();
+  await h.attach(index, restored);
+  assert.deepEqual(index.controller.loaded, [ROUTE]);
+  assert.equal(h.cookieCalls.filter(call => call[0] === 'read').length, 1);
+  assert.equal(h.cookieCalls.filter(call => call[0] === 'expire').length, 1);
+  sdkOwnsRecovery(h);
+  await closePage(h, index);
+});
+
+test('renderer loss before authentication preserves preparation for its successor while retiring the old read', async () => {
+  const h = harness();
+  const { index, bind } = h.page();
+  const first = bind();
+  const previous = index.controller;
+  const read = deferred();
+  h.control.cookieRead = () => read.promise;
+  const pending = h.attach(index, first);
+  assert.equal(index.initialAuthentication, true);
+  first.exited();
+  await index.checkRemote();
+  assert.notEqual(index.controller, previous);
+  assert.equal(index.initialAuthentication, true);
+  h.control.cookieRead = undefined;
+  h.control.cookies = [pendingCookie()];
+  await h.attach(index, bind());
+  read.resolve([pendingCookie()]);
+  await pending;
+  assert.deepEqual(previous.loaded, []);
+  assert.deepEqual(index.controller.loaded, [ADDRESS]);
+  assert.equal(index.initialAuthentication, false);
+  assert.equal(h.cookieCalls.filter(call => call[0] === 'expire').length, 1);
+  sdkOwnsRecovery(h);
+  await closePage(h, index);
+});
+
+test('a detached preparation cannot expire cookies, and reattachment can finish the still-new authentication', async () => {
+  const h = harness();
+  const { index, bind } = h.page(false);
+  const callbacks = bind();
+  const read = deferred();
+  h.control.cookieRead = () => read.promise;
+  const pending = h.attach(index, callbacks);
+  index.aboutToDisappear();
+  read.resolve([pendingCookie()]);
+  await pending;
+  assert.equal(h.cookieCalls.filter(call => call[0] === 'expire').length, 0);
+  assert.deepEqual(index.controller.loaded, []);
+  assert.equal(index.initialAuthentication, true);
+  h.control.cookieRead = undefined;
+  h.control.cookies = [pendingCookie()];
+  index.aboutToAppear();
+  await h.attach(index, bind());
+  assert.deepEqual(index.controller.loaded, [ADDRESS]);
+  assert.equal(h.cookieCalls.filter(call => call[0] === 'expire').length, 1);
   await closePage(h, index);
 });
