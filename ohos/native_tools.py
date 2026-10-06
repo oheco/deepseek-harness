@@ -6,6 +6,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import tarfile
+import tempfile
 
 
 def prepare(root, output):
@@ -21,6 +22,8 @@ def prepare(root, output):
             raise ValueError(f'build input no longer matches pnpm-lock.yaml: {entry["name"]}')
         if entry['name'] == 'esbuild-wasm' and f'\n  esbuild@{entry["version"]}:\n' not in lock:
             raise ValueError(f'esbuild WASM version has no matching locked consumer: {entry["version"]}')
+        if entry['name'] == '@oxlint-tsgolint/openharmony-arm64' and f'\n  oxlint-tsgolint@{entry["version"]}:\n' not in lock:
+            raise ValueError(f'tsgolint source version has no matching locked consumer: {entry["version"]}')
         destination = output / (entry['name'].replace('@', '').replace('/', '__') + '-' + entry['version'])
         destination.mkdir(parents=True, exist_ok=False)
         with tarfile.open(archive) as tar:
@@ -29,6 +32,8 @@ def prepare(root, output):
         metadata = json.loads((package / 'package.json').read_text())
         if (metadata['name'], metadata['version']) != (entry['name'], entry['version']):
             raise ValueError(f'build input identity mismatch: {archive}')
+        if entry['name'] == '@oxlint-tsgolint/openharmony-arm64':
+            build_tsgolint(package)
         # pnpm also bundles unused addons for other hosts; copy mode uses its JavaScript path.
         binaries = list(package.rglob('*.node')) if entry['origin'] == 'upstream OHOS binary' else []
         for binary in binaries:
@@ -45,7 +50,9 @@ def prepare(root, output):
 
 def connect(root, packages):
     parents = {'@esbuild/openharmony-arm64': 'esbuild', '@rolldown/binding-openharmony-arm64': 'rolldown',
-               '@rollup/rollup-openharmony-arm64': 'rollup', '@oxc-resolver/binding-openharmony-arm64': 'oxc-resolver'}
+               '@rollup/rollup-openharmony-arm64': 'rollup', '@oxc-resolver/binding-openharmony-arm64': 'oxc-resolver',
+               '@oxlint-tsgolint/openharmony-arm64': 'oxlint-tsgolint',
+               '@oxlint/binding-openharmony-arm64': 'oxlint'}
     for (name, version), package in packages.items():
         if name not in parents:
             continue
@@ -130,3 +137,29 @@ require('./esbuild.upstream.cjs');
         # Unlink before writing so even a linked installation cannot change its store bytes.
         entry.unlink()
         entry.write_text('module.exports = require(' + json.dumps(str(package.resolve() / 'lib/main.js')) + ');\n')
+
+
+def build_tsgolint(package):
+    """Compile and sign the pinned type-aware lint backend without network access."""
+    metadata = json.loads((package / 'package.json').read_text())
+    if (metadata['name'], metadata['version']) != ('@oxlint-tsgolint/openharmony-arm64', '7.0.2001'):
+        raise ValueError('tsgolint source adapter requires version 7.0.2001')
+    source = package / 'source'
+    env = dict(os.environ, GOTOOLCHAIN='local', GOPROXY='off', GOSUMDB='off',
+               CGO_ENABLED='0', GOMAXPROCS='2')
+    target = json.loads(subprocess.check_output(['go', 'env', '-json', 'GOOS', 'GOARCH', 'GOVERSION'],
+                                               cwd=source, env=env, text=True))
+    if target != {'GOOS': 'ohos', 'GOARCH': 'arm64', 'GOVERSION': 'go1.27.1'}:
+        raise ValueError(f'tsgolint requires the pinned native Go 1.27.1 OHOS ARM64 toolchain: {target}')
+    binary = package / 'tsgolint'
+    with tempfile.TemporaryDirectory(prefix='tsg-b-', dir=os.environ['TMPDIR']) as temporary:
+        env.update(TMPDIR=temporary, GOMODCACHE=str(Path(temporary) / 'gomodcache'))
+        subprocess.run(['go', 'build', '-mod=vendor', '-buildvcs=false', '-p=2', '-ldflags=-s -w',
+                        '-trimpath', '-o', str(binary), './cmd/tsgolint'], cwd=source, env=env, check=True)
+    if binary.read_bytes()[:4] != b'\x7fELF':
+        raise ValueError('tsgolint native build did not produce an ELF executable')
+    signed = binary.with_name(binary.name + '.signed')
+    subprocess.run(['binary-sign-tool', 'sign', '-inFile', str(binary), '-outFile', str(signed),
+                    '-selfSign', '1'], check=True)
+    os.replace(signed, binary)
+    binary.chmod(0o755)
