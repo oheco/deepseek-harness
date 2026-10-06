@@ -42,12 +42,16 @@ function renderBindings(source, filename, page, generation) {
   const file = ts.createSourceFile(filename, source.replace('struct Index', 'class Index'), ts.ScriptTarget.Latest, true);
   const callbacks = new Map();
   let homeOpen;
+  let returnConnections;
   function visit(node) {
     if (ts.isCallExpression(node)) {
       const expression = node.expression;
-      if (ts.isPropertyAccessExpression(expression) && ['onPageEnd', 'onRenderExited'].includes(expression.name.text)) {
+      if (ts.isPropertyAccessExpression(expression) &&
+        ['onPageEnd', 'onRenderExited', 'onFirstScreenPaint', 'onHttpErrorReceive', 'onErrorReceive'].includes(expression.name.text)) {
         callbacks.set(expression.name.text, node.arguments[0]);
       }
+      if (ts.isPropertyAccessExpression(expression) && expression.name.text === 'onClick' &&
+        node.arguments[0].getText(file).includes('this.closeWeb();')) returnConnections = node.arguments[0];
       if (expression.getText(file) === 'ConnectionHome' && ts.isObjectLiteralExpression(node.arguments[0])) {
         const property = node.arguments[0].properties.find(item => ts.isPropertyAssignment(item) && item.name.getText(file) === 'onOpen');
         if (property) homeOpen = property.initializer;
@@ -56,15 +60,22 @@ function renderBindings(source, filename, page, generation) {
     ts.forEachChild(node, visit);
   }
   visit(file);
-  assert.equal(callbacks.size, 2);
+  assert.equal(callbacks.size, 5);
   assert(homeOpen, 'Index must receive the actual connection profile in its Home handoff');
+  assert(returnConnections, 'a failed page must expose an action that returns to the connection flow');
   const sourceText = 'export function bind(generation) { return { pageEnd: ' + callbacks.get('onPageEnd').getText(file) +
-    ', exited: ' + callbacks.get('onRenderExited').getText(file) + ', homeOpen: ' + homeOpen.getText(file) + ' }; }';
+    ', exited: ' + callbacks.get('onRenderExited').getText(file) +
+    ', paint: ' + callbacks.get('onFirstScreenPaint').getText(file) +
+    ', httpError: ' + callbacks.get('onHttpErrorReceive').getText(file) +
+    ', networkError: ' + callbacks.get('onErrorReceive').getText(file) +
+    ', homeOpen: ' + homeOpen.getText(file) +
+    ', returnConnections: ' + returnConnections.getText(file) + ' }; }';
   const exports = {};
   const code = ts.transpileModule(sourceText, { compilerOptions: {
     module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022
   } }).outputText;
-  vm.runInNewContext(code, { exports, loopbackOrigin: address => page.testLoopbackOrigin(address) });
+  vm.runInNewContext(code, { exports, loopbackOrigin: address => page.testLoopbackOrigin(address),
+    $r: (name, ...params) => ({ name, params }) });
   return exports.bind.call(page, generation);
 }
 
@@ -144,6 +155,7 @@ function harness({ callbackThrows = false } = {}) {
   const mocks = {
     'libdsh_launcher.so': native,
     '@ohos.url': { URL },
+    '@ohos.web.webview': { WebCookieManager: { fetchAllCookies: async () => [], configCookieSync() {} } },
     '@ohos.util': { generateRandomUUID: () => 'owned-profile' },
     '@ohos.data.preferences': { getPreferences: async () => ({ get: async (_key, fallback) => fallback }) }
   };
@@ -664,5 +676,70 @@ test('Index Home handoff still forwards the exact profile and its boolean owners
   assert.equal(index.remote, false);
   assert.equal(flow.transferred, true);
   assert.equal(index.webUrl, 'http://127.0.0.1:' + profile.port + '/?token=' + encodeURIComponent(profile.token));
+  await closePage(h, index);
+});
+
+function failedRequest(url = ADDRESS, mainFrame = true) {
+  return { getRequestUrl: () => url, isMainFrame: () => mainFrame };
+}
+
+function httpFailure(status, request = failedRequest()) {
+  return { request, response: { getResponseCode: () => status } };
+}
+
+function networkFailure(code, request = failedRequest()) {
+  return { request, error: { getErrorCode: () => code } };
+}
+
+test('HTTP 431 stays visible through paint, PageEnd and the later generic load error, with a working exit', async () => {
+  const h = harness();
+  const { index, bind } = h.page();
+  const callbacks = bind();
+  const controller = index.controller;
+  index.searchVisible = true;
+  callbacks.httpError(httpFailure(431));
+  assert.equal(index.webError.name, 'app.string.web_http_error');
+  assert.deepEqual(Array.from(index.webError.params), [431]);
+  assert.equal(index.searchVisible, false);
+  callbacks.paint();
+  callbacks.pageEnd({ url: ADDRESS });
+  callbacks.networkError(networkFailure(-379));
+  assert.equal(index.webError.name, 'app.string.web_http_error');
+  assert.deepEqual(Array.from(index.webError.params), [431]);
+  assert.equal(index.pageLoaded, false);
+  assert.equal(index.webPainted, false);
+  assert.equal(index.controller, controller);
+  assert.equal(index.webUrl, ADDRESS);
+  callbacks.returnConnections();
+  await index.closeWork;
+  assert.equal(index.webUrl, '');
+  assert.equal(index.webError, undefined);
+  assert.equal(h.count('close'), 1);
+  index.aboutToDisappear();
+});
+
+test('subresources, foreign origins and retired WebViews cannot replace the current page with an error', async () => {
+  const h = harness();
+  const { index, adopted, bind } = h.page();
+  const old = bind();
+  for (const request of [failedRequest(ORIGIN + '/missing-icon', false), failedRequest('https://other.invalid/')]) {
+    old.httpError(httpFailure(404, request));
+    old.networkError(networkFailure(-2, request));
+    assert.equal(index.webError, undefined);
+  }
+  await index.closeWeb();
+  assert.equal(index.openWeb(ADDRESS, true, adopted), true);
+  old.httpError(httpFailure(431));
+  old.networkError(networkFailure(-379));
+  assert.equal(index.webError, undefined);
+  const current = bind();
+  current.networkError(networkFailure(-2));
+  assert.equal(index.webError.name, 'app.string.web_network_error');
+  assert.deepEqual(Array.from(index.webError.params), [-2]);
+  current.httpError(httpFailure(503));
+  assert.equal(index.webError.name, 'app.string.web_http_error');
+  assert.deepEqual(Array.from(index.webError.params), [503]);
+  current.pageEnd({ url: ADDRESS });
+  assert.equal(index.pageLoaded, false);
   await closePage(h, index);
 });

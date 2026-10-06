@@ -102,6 +102,7 @@ function harness() {
     '@ohos.window': { Orientation: { PORTRAIT: 1, AUTO_ROTATION: 5, AUTO_ROTATION_RESTRICTED: 8 } },
     '@ohos.resourceManager': { ColorMode: { DARK: 0, LIGHT: 1 } },
     '@ohos.url': { URL },
+    '@ohos.web.webview': { WebCookieManager: { fetchAllCookies: async () => [], configCookieSync() {} } },
     '@ohos.util': { generateRandomUUID: () => 'owned-profile' },
     '@ohos.data.preferences': { getPreferences: async () => ({ get: async (_key, fallback) => fallback }) },
     'libdsh_launcher.so': native

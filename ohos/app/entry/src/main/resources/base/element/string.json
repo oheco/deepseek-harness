@@ -9,6 +9,26 @@
       "value": "Opening your workspace…"
     },
     {
+      "name": "connection_cookies_failed",
+      "value": "Unable to prepare the page login. Return to connections and try again."
+    },
+    {
+      "name": "web_load_error_title",
+      "value": "Unable to open this page"
+    },
+    {
+      "name": "web_http_error",
+      "value": "The service returned HTTP %1$d. Return to connections and try again."
+    },
+    {
+      "name": "web_network_error",
+      "value": "The page could not be loaded (error %1$d). Return to connections and try again."
+    },
+    {
+      "name": "web_return_connections",
+      "value": "Return to connections"
+    },
+    {
       "name": "external_failed",
       "value": "No application on this device can open that link."
     },

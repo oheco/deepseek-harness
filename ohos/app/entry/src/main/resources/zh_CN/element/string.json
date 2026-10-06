@@ -9,6 +9,26 @@
       "value": "正在打开工作空间…"
     },
     {
+      "name": "connection_cookies_failed",
+      "value": "无法准备网页登录，请返回连接列表重试。"
+    },
+    {
+      "name": "web_load_error_title",
+      "value": "无法打开此页面"
+    },
+    {
+      "name": "web_http_error",
+      "value": "服务返回 HTTP %1$d，请返回连接列表重试。"
+    },
+    {
+      "name": "web_network_error",
+      "value": "网页加载失败（错误 %1$d），请返回连接列表重试。"
+    },
+    {
+      "name": "web_return_connections",
+      "value": "返回连接列表"
+    },
+    {
       "name": "external_failed",
       "value": "设备上没有能打开该链接的应用。"
     },

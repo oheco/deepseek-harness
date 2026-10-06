@@ -65,6 +65,7 @@ struct Index {
   @State private webOrigin: string = '';
   @State private webGeneration: number = 0;
   @State private pageLoaded: boolean = false;
+  @State private webError: Resource | undefined = undefined;
   // ArkWeb paints an empty surface before the page content, so a themed cover
   // stays until the first paint instead of letting the default white show.
   @State private webPainted: boolean = false;
@@ -192,6 +193,7 @@ struct Index {
       this.webGeneration += 1;
       this.pageLoaded = false;
       this.webPainted = false;
+      this.webError = undefined;
       this.rendererAlive = true;
       return;
     }
@@ -216,6 +218,7 @@ struct Index {
     this.overlayPalette = undefined;
     this.pageLoaded = false;
     this.webPainted = false;
+    this.webError = undefined;
     this.controller = controller;
     this.rendererAlive = true;
     this.currentWebAddress = address;
@@ -225,6 +228,21 @@ struct Index {
     this.startRemotePolling();
     this.updateWebOrientation(true);
     return true;
+  }
+
+  /** Keep a main-page failure visible even when ArkWeb later reports paint or load completion. */
+  private showWebError(generation: number, request: WebResourceRequest, message: Resource, http: boolean): void {
+    if (!this.attached || this.closingWeb || generation !== this.webGeneration ||
+      !request.isMainFrame() || loopbackOrigin(request.getRequestUrl()) !== this.webOrigin) {
+      return;
+    }
+    if (this.webError === undefined || http) {
+      this.webError = message;
+    }
+    this.pageLoaded = false;
+    this.webPainted = false;
+    this.dismissMenu();
+    this.searchVisible = false;
   }
 
   private async checkRemote(): Promise<void> {
@@ -264,6 +282,7 @@ struct Index {
     this.webOrigin = '';
     this.pageLoaded = false;
     this.webPainted = false;
+    this.webError = undefined;
     this.overlayPalette = undefined;
     try {
       await cleanup;
@@ -733,8 +752,20 @@ struct Index {
               { script: CONTEXT_CAPTURE_SCRIPT, scriptRules: ['*'] }
             ])
             .onFirstScreenPaint(() => {
-              if (generation === this.webGeneration) {
+              if (generation === this.webGeneration && this.webError === undefined) {
                 this.webPainted = true;
+              }
+            })
+            .onHttpErrorReceive((event) => {
+              if (event) {
+                this.showWebError(generation, event.request,
+                  $r('app.string.web_http_error', event.response.getResponseCode()), true);
+              }
+            })
+            .onErrorReceive((event) => {
+              if (event) {
+                this.showWebError(generation, event.request,
+                  $r('app.string.web_network_error', event.error.getErrorCode()), false);
               }
             })
             .onConsole(() => true)
@@ -770,7 +801,7 @@ struct Index {
             })
             .onPageBegin(() => this.dismissMenu())
             .onPageEnd((event) => {
-              if (event && generation === this.webGeneration &&
+              if (event && generation === this.webGeneration && this.webError === undefined &&
                 loopbackOrigin(event.url) === this.webOrigin) {
                 this.currentWebAddress = event.url;
                 this.pageLoaded = true;
@@ -791,7 +822,16 @@ struct Index {
           onOpen: (address: string, remote: boolean, connection: ConnectionProfile) =>
             this.openWeb(address, remote, connection) })
       }
-      if (this.webUrl !== '' && !this.webPainted && !this.pageLoaded) {
+      if (this.webUrl !== '' && this.webError !== undefined) {
+        Column({ space: 16 }) {
+          Text($r('app.string.web_load_error_title')).fontSize(20).fontWeight(FontWeight.Medium)
+            .fontColor($r('app.color.ink')).textAlign(TextAlign.Center)
+          Text(this.webError).fontSize(15).fontColor($r('app.color.ink')).textAlign(TextAlign.Center)
+          Button($r('app.string.web_return_connections')).height(48)
+            .onClick(() => { this.closeWeb(); })
+        }.width('100%').height('100%').padding(24).justifyContent(FlexAlign.Center)
+        .backgroundColor($r('app.color.panel'))
+      } else if (this.webUrl !== '' && !this.webPainted && !this.pageLoaded) {
         Column({ space: 16 }) {
           LoadingProgress().width(28).height(28).color($r('app.color.accent'))
           Text($r('app.string.opening')).fontSize(15).fontColor($r('app.color.ink'))

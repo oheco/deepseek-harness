@@ -4,6 +4,7 @@ import native, { BrokerInfo, BrokerConnectOptions, BrokerLoginResult, BrokerStat
 import { ConnectionMode, ConnectionProfile, connectionPort, connectionUrl, serviceOrigin, validConnection } from '../launcher/ConnectionProfile';
 import { ConnectionStore } from '../launcher/ConnectionStore';
 import { ConnectionField } from './ConnectionField';
+import { prepareConnectionCookies } from '../launcher/ConnectionCookies';
 
 /** Parent page delegates system Back to the mounted connection flow. */
 export class ConnectionHomeController {
@@ -596,6 +597,18 @@ export struct ConnectionHome {
       }
       if (result.state !== 'ok') {
         this.probeFeedback(result);
+        return;
+      }
+      try {
+        const prepared = await prepareConnectionCookies(origin, () =>
+          this.attached && generation === this.generation && !this.transferred);
+        if (!prepared || !this.attached || generation !== this.generation || this.transferred) {
+          return;
+        }
+      } catch (error) {
+        if (this.attached && generation === this.generation) {
+          this.feedback($r('app.string.connection_cookies_failed'), true);
+        }
         return;
       }
       const address = connectionUrl(origin, connection.token);
