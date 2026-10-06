@@ -1,6 +1,6 @@
 # DSH App 正式 broker 0.4.0 SDK 接入验证
 
-本轮将 App 切换到已安装的正式 broker 0.4.0 C SDK，保持 SDK 源码不变，接入异步首连、持久 peer/map、自动恢复状态与同句柄手动重连。原有系统主题、透明系统栏、旋转锁与设置页滚动布局保留。仅运行与此次恢复接入相关的检查、SDK 构建内置探针和生成可安装 HAP 所需步骤，不运行仓库全量测试或额外 VM/SDK 编译夹具。
+本轮将 App 切换到已安装的正式 broker 0.4.0 C SDK，保持 SDK 源码不变，接入异步首连、持久 peer/map、自动恢复状态与同句柄手动重连，并修复认证 Cookie 累积与 WebView 冷启动顺序。原有系统主题、透明系统栏、旋转锁与设置页滚动布局保留。仅运行此次接入和页面修复相关的检查、SDK 构建内置探针和生成可安装 HAP 所需步骤，不运行仓库全量测试或额外 VM/SDK 编译夹具。
 
 ## 正式 SDK 与离线构建
 
@@ -16,18 +16,22 @@
 
 [WebConnection.ets](entry/src/main/ets/launcher/WebConnection.ets)区分请求接受与连接完成。自动恢复通过状态轮询确认并检查 DSH 端点，然后通知原 WebView；正常恢复保留控制器、DOM、历史、搜索与 origin，仅已退出的渲染器在恢复后重建。[Index.ets](entry/src/main/ets/pages/Index.ets)在明确返回时立即退出页面并恢复纵向显示，继续持有未完成清理的 Promise，清理结束前不接入新 WebView。后台与临时组件脱离保留 SDK 映射；窗口/Ability 销毁及原生环境释放执行最终清理。
 
-App 为 `org.oheco.deepseekharness`、`0.2.0-rc.2-ohos.1`、versionCode `1000003`。App 私有偏好、DSH Session 日志和 SQLite 类型不变；原始输入见[迁移记录](../app-migration.json)。
+App 为 `org.oheco.deepseekharness`、`0.2.0-rc.2-ohos.1`、versionCode `1000005`。App 私有偏好、DSH Session 日志和 SQLite 类型不变；原始输入见[迁移记录](../app-migration.json)。
 
 ## 相关检查
 
 一次[聚焦执行](validation/broker-sdk-0.4.0/app-focused-tests.log)通过 52/52：恢复与 Index 生命周期 19 项、页面/Ability 接线 8 项、系统栏 15 项、方向 10 项。核对正式 SDK 的手动请求实现后，补充“接受请求时快照仍为 paused”的异步状态分支，仅[重跑恢复检查](validation/broker-sdk-0.4.0/web-connection-final.log)，19/19 通过、退出 0；其余三个已通过文件未变化。这些使用 SDK 状态替身检查实际 App 源码行为，不能代替普通 HAP 的网络和物理 WebView 验收。
 
+手机的既有页面日志显示 HTTP 431、发送 16572 字节及 70 个 Cookie；没有读取其 Cookie 名称或值，不能逐个确认均为 DSH Cookie。不同映射端口的认证 Cookie 共享回环主机和根路径，会增加请求头大小。[ConnectionCookies.ets](entry/src/main/ets/launcher/ConnectionCookies.ets)只按元数据匹配当前回环主机、根路径及精确 DSH 认证名称，并将其过期；不访问 Cookie 值，不清理其他主机、路径或名称。主页面 HTTP/网络错误显示资源所属的提示及返回连接列表按钮。
+
+一次修订中的 PC 日志显示，首次读取 Cookie 触发了后台线程上的 Web 引擎初始化，随后 UI 创建页面时报引擎未就绪。最终源码先创建 `about:blank` WebView，在控制器成功绑定后才准备 Cookie 并加载认证地址；空白页事件不完成加载状态，已认证渲染器恢复保留 Cookie。最终四个所属测试文件通过 92/92，覆盖冷引擎顺序、重复绑定、取消、失败和认证前后的渲染器恢复；安装 SDK 的 ArkTS 语义检查为 0 个错误。这些是模拟和语义检查，真机范围仍为安装。
+
 ## 构建与设备范围
 
-[发行验证回执](https://github.com/oheco/deepseek-harness/releases/download/v0.2.0-rc.2-ohos.1/deepseek-harness-0.2.0-rc.2-ohos.1-validation.json)的 `app` 项记录正式 Hvigor 构建退出 0，34 项全部执行、0 项缓存，耗时约 60 秒。11 个正式 SDK C 编译单元与 App 接入均在本次构建生成；HAP 原生库为 ELF64/aarch64，包含 `brokerReconnect` 绑定。前期环境、库搜索路径和签名配套文件问题与最终成功分开记录；库路径修正在 App 自有构建包装中完成，正式 SDK CMake 保持原样。
+[发行验证回执](https://github.com/oheco/deepseek-harness/releases/download/v0.2.0-rc.2-ohos.1/deepseek-harness-0.2.0-rc.2-ohos.1-validation.json)的 `app` 项记录正式 Hvigor 构建退出 0，34 项全部执行、0 项缓存，耗时约 108 秒。11 个正式 SDK C 编译单元与 App 接入均在本次构建生成；HAP 原生库为 ELF64/aarch64，包含 `brokerReconnect` 绑定。前期环境、库搜索路径和签名配套文件问题与最终成功分开记录；库路径修正在 App 自有构建包装中完成，正式 SDK CMake 保持原样。
 
-签名使用用户指定的 fix2 原签名配置及配套文件。发行回执记录签名验证退出 0，HAP 证书链公钥摘要与 fix2 一致，原配置、三个签名文件与五个配套解密文件未修改，临时副本已删除。个人设备签名 HAP 保留在本地，大小为 5232374 字节，SHA-256 为 `6598643b1026b7e521e8692e52134026d6432eab09b0eebf0ad6ffd9402630f0`。
+签名使用用户指定的 fix2 原签名配置及配套文件。发行回执记录签名验证退出 0，HAP 证书链公钥摘要与 fix2 一致，原配置、三个签名文件与五个配套解密文件未修改，临时副本已删除。个人设备签名 HAP 保留在本地，大小为 5241811 字节，SHA-256 为 `4270b7425a1cb498c9cbfaccb0e929af131c0895d171c487613dd757037430a8`。
 
-发行回执的 `app.installation` 确认电脑 `192.168.1.160:34835` 与手机 `192.168.1.191:41339` 的 HDC `install -r` 均成功，安装版本与代码正确；首次手机连接离线与恢复后的成功安装分别记录。便携工程保持 SDK `6.1.0(23)`、phone/tablet/2in1；实际设备构建使用已安装 SDK26/compatible23 与有效的 default/2in1 配置，不修改 SDK 字典。交付工程不包含个人签名配置，编译输入与 HAP 的一致性另按文件摘要记录。
+发行回执的 `app.installation` 确认电脑 `192.168.1.160:34835` 与手机 `192.168.1.191:41339` 的 HDC `install -r` 均成功，最终两台设备的安装版本与代码均为 `1000005`。早期手机离线失败及后续安装恢复的历史回执另行保留。便携工程保持 SDK `6.1.0(23)`、phone/tablet/2in1；实际设备构建使用已安装 SDK26/compatible23 与有效的 default/2in1 配置，不修改 SDK 字典。交付工程不包含个人签名配置，编译输入与 HAP 的一致性另按文件摘要记录。
 
 沿用用户“只需完成安装，无需启动验证”的要求，不解锁、启动或操作电脑和手机 App。0.3.0 控制服务或 peer 仍兼容映射服务恢复；已有 TCP/WebSocket 连续恢复需要两端 peer、目标 socket 与新版控制恢复关系在保留期限内存活。本轮不将 SDK 原生探针或 App 状态替身检查扩大为真实网络中断、设备挂起或旧 TCP 续传的真机证明。之前 fix5 的导出、HAP 与安装记录保留。
