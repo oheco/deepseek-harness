@@ -49,18 +49,24 @@ export interface BrokerServiceOptions {
   serviceUrl: string;
   /** context.tempDir + '/dsh-broker'; verified private 0700, fixed for all requests in this process. */
   tempDir: string;
+  /** App filesDir + '/dsh-broker-auth'; native verifies a real private 0700 directory. */
+  credentialDir: string;
 }
 export interface BrokerLoginOptions extends BrokerServiceOptions {
   account: string;
   password: string;
 }
-/** Persist accessToken only in application-private storage; never persist passwords. */
+/** Refresh authority is persisted natively; launcher preferences retain only its session reference. */
 export interface BrokerLoginResult {
+  /** Empty for managed login; retained only for version-one launcher migration. */
   accessToken: string;
+  authSessionId: string;
   tokenType: 'Bearer';
 }
 export interface BrokerListOptions extends BrokerServiceOptions {
+  /** Version-one static bearer; empty when authSessionId references managed credentials. */
   accessToken: string;
+  authSessionId: string;
 }
 /** Approved/connectable status is determined during peer setup, not listing. */
 export interface BrokerInfo {
@@ -74,6 +80,8 @@ export interface BrokerConnectOptions extends BrokerListOptions {
   peerPassword: string;
   /** Integer 1..65535; the target is fixed to remote 127.0.0.1. */
   remotePort: number;
+  /** Prefer the saved listener; zero allocates its first port. Local bind failure falls back to zero. */
+  localPort: number;
 }
 /** URL is unauthenticated; callers append the separate DSH token for WebView login. */
 export interface BrokerStatus {
@@ -101,11 +109,11 @@ export interface DshProbeResult {
 
 /** Asynchronous process supervisor. Methods perform no filesystem or child waits. */
 interface DshLauncher {
-  /** Login using account credentials. No disk persistence or credential logging. */
+  /** Persist refresh credentials in credentialDir before returning a managed session reference; never log credentials. */
   brokerLogin(options: BrokerLoginOptions): Promise<BrokerLoginResult>;
-  /** List the account's brokers; requires a current persisted bearer token. */
+  /** List brokers using native refresh authority or an unexpired legacy bearer; terminal account expiry rejects with DSH_BROKER_AUTH. */
   brokerList(options: BrokerListOptions): Promise<BrokerInfo[]>;
-  /** Create a persistent SDK peer and OS-assigned TCP map; wait for its first authenticated connection. */
+  /** Create a persistent peer and preferred-or-random listener; wait for initial authentication and return its actual local port. */
   brokerConnect(options: BrokerConnectOptions): Promise<BrokerStatus>;
   /** Wake a paused SDK peer without replacing its map; acceptance returns current state, completion is observed through brokerStatus. */
   brokerReconnect(): Promise<BrokerStatus>;

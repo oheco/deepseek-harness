@@ -1,0 +1,28 @@
+{
+  "namedTranslationPairs": {
+    "command": "node --import tsx/esm scripts/verify-translation-pairing.ts ohos/README.md ohos/app/README.md ohos/app/entry/src/main/cpp/broker/README.md docs/upgrade-guide/v0.2.0-rc.2/ohos-app-login/guide.md",
+    "exitCode": 0,
+    "pairs": 4
+  },
+  "markdownWrap": {
+    "command": "node --import tsx/esm scripts/verify-md-wrap.ts",
+    "exitCode": 0,
+    "filesChecked": 2333
+  },
+  "markdownLinks": {
+    "command": "node --import tsx/esm scripts/verify-md-links.ts",
+    "exitCode": 0,
+    "filesChecked": 2312
+  },
+  "completeDocSync": {
+    "command": "npm run doc-sync",
+    "passed": false,
+    "log": "doc-sync.log",
+    "unchangedBaselineFailures": [
+      "packages/bundle/web-app/tests/document-preview.spec.ts:153 TS2322 and TS18048",
+      "documentation build follow-up: ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY"
+    ],
+    "ohosTranslationRecordsUpdatedAndNamedChecksPassed": true,
+    "unrelatedRuntimeOrWebFilesChanged": false
+  }
+}

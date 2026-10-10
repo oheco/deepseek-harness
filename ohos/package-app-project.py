@@ -113,17 +113,18 @@ def runtime_defaults(home, web_launcher=None):
     return body
 
 
-def artifact_url(version, archive_name, release_url=None):
-    """Append the artifact name to an immutable GitHub release download directory."""
+def artifact_url(version, archive_name, release_url=None, tag=None):
+    """Append the artifact name to the specified immutable version tag."""
+    expected_tag = tag if tag is not None else 'v' + version
     base = (release_url if release_url is not None else
-            f'https://github.com/oheco/deepseek-harness/releases/download/v{version}').rstrip('/')
+            f'https://github.com/oheco/deepseek-harness/releases/download/{expected_tag}').rstrip('/')
     parsed = urlsplit(base)
     parts = parsed.path.split('/')
     if (parsed.scheme != 'https' or parsed.netloc != 'github.com' or
             parsed.query or parsed.fragment or len(parts) != 6 or
             not parts[1] or not parts[2] or parts[3:5] != ['releases', 'download'] or
-            parts[5] != 'v' + version):
-        raise ValueError('--release-url must be an HTTPS GitHub release download directory for v' + version)
+            parts[5] != expected_tag):
+        raise ValueError('--release-url must be an HTTPS GitHub release download directory for ' + expected_tag)
     return base + '/' + archive_name
 
 
@@ -164,9 +165,10 @@ def main():
     args = parser.parse_args()
     root = Path(__file__).resolve().parent.parent
     release = json.loads((root / 'ohos/release.json').read_text())
-    archive_name = f"deepseek-harness-app-{release['version']}.zip"
+    app_release = json.loads((root / 'ohos/app-release.json').read_text())
+    archive_name = f"deepseek-harness-app-{app_release['version']}.zip"
     try:
-        url = artifact_url(release['version'], archive_name, args.release_url)
+        url = artifact_url(app_release['version'], archive_name, args.release_url, app_release['tag'])
     except ValueError as error:
         parser.error(str(error))
     launcher = args.web_launcher.resolve() if args.web_launcher is not None else None
@@ -189,7 +191,8 @@ def main():
         'kind': 'app-project',
         'source_commit': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=root, text=True).strip(),
         'source_dirty': bool(subprocess.check_output(['git', 'status', '--porcelain'], cwd=root)),
-        'release_version': release['version'],
+        'release_version': app_release['version'],
+        'runtime_release_version': release['version'],
         'upstream_version': release['upstream_version'],
         'upstream_commit': release['upstream_commit'],
         'launch_mode': 'saved local/remote connections; native broker mapping; system-trusted HTTPS/WSS',
@@ -203,8 +206,11 @@ def main():
     validation = stage / 'validation'
     validation.mkdir(exist_ok=True)
     shutil.copyfile(root / 'ohos/app-migration.json', validation / 'app-migration.json')
+    shutil.copyfile(root / 'ohos/app-release.json', validation / 'app-release.json')
     record = stage / 'VALIDATION.md'
-    record.write_text(record.read_text().replace('](../app-migration.json)', '](validation/app-migration.json)'))
+    record.write_text(record.read_text()
+                      .replace('](../app-migration.json)', '](validation/app-migration.json)')
+                      .replace('](../app-release.json)', '](validation/app-release.json)'))
     if args.checks_dir:
         for filename in ['standalone-final.log', 'app-tests.log', 'project-tests.log', 'app-web-connection.log']:
             source_log = args.checks_dir / filename

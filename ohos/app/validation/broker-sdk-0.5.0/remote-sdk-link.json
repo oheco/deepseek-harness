@@ -1,0 +1,32 @@
+{
+  "sdk_version": "0.5.0",
+  "argv": [
+    "/storage/Users/currentUser/.oheco/bin/clang++",
+    "-shared",
+    "-Wl,--no-undefined",
+    "-Wl,--whole-archive",
+    "/data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.5.0-6gzvx3qu/remote/libob_remote.a",
+    "-Wl,--no-whole-archive",
+    "-Wl,--start-group",
+    "/storage/Users/currentUser/dev/ohos/deepseek-harness-0.2.0/ohos/app/entry/src/main/cpp/tpr/broker-native-arm64/lib/libxquic-static.a",
+    "/storage/Users/currentUser/dev/ohos/deepseek-harness-0.2.0/ohos/app/entry/src/main/cpp/tpr/broker-native-arm64/lib/libjuice.a",
+    "/storage/Users/currentUser/dev/ohos/deepseek-harness-0.2.0/ohos/app/entry/src/main/cpp/tpr/broker-native-arm64/lib/libcjson.a",
+    "/storage/Users/currentUser/dev/ohos/deepseek-harness-0.2.0/ohos/app/entry/src/main/cpp/tpr/broker-native-arm64/lib/libcurl.a",
+    "/storage/Users/currentUser/dev/ohos/deepseek-harness-0.2.0/ohos/app/entry/src/main/cpp/tpr/broker-native-arm64/lib/libssl.a",
+    "/storage/Users/currentUser/dev/ohos/deepseek-harness-0.2.0/ohos/app/entry/src/main/cpp/tpr/broker-native-arm64/lib/libcrypto.a",
+    "-Wl,--end-group",
+    "-pthread",
+    "-lm",
+    "-ldl",
+    "-o",
+    "/data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.5.0-6gzvx3qu/libbroker-sdk-0.5.0-link-check.so"
+  ],
+  "exit_code": 0,
+  "executed_binary": false,
+  "new_signed_runtime_probes": false,
+  "output": "/data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.5.0-6gzvx3qu/libbroker-sdk-0.5.0-link-check.so",
+  "output_sha256": "eb104a19c610fd81923685ec43ee44d2b920014eb655a587916c9193dd7a6297",
+  "output_elf": "ELF64/aarch64",
+  "remote_archive": "/data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.5.0-6gzvx3qu/remote/libob_remote.a",
+  "remote_archive_sha256": "5a885f4509670f351a41d39dc6301b58a8c276ac9b0e703220ef4ce31632b13a"
+}

@@ -1,6 +1,10 @@
 #include "broker_client.h"
 #include "broker_trust.h"
+#include "broker_credentials.h"
 #include "broker_sdk/ob_api.h"
+extern "C" {
+#include "broker_sdk/ob_api_internal.h"
+}
 #include "broker_sdk/ob_remote.h"
 #include "broker_sdk/ob_json.h"
 #include "launcher_util.h"
@@ -14,6 +18,8 @@
 #include <memory>
 #include <stdexcept>
 #include <sys/stat.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
 #include <unistd.h>
 #include <cjson/cJSON.h>
 #include <curl/curl.h>
@@ -30,7 +36,11 @@ struct Response {
     ~Response() { ob_api_response_free(text); }
 };
 using Json = std::unique_ptr<cJSON, JsonDelete>;
-using Api = std::unique_ptr<ob_api_client, decltype(&ob_api_client_destroy)>;
+struct ApiDelete {
+    std::shared_ptr<CredentialStore> store;
+    void operator()(ob_api_client* api) const { ob_api_client_destroy(api); }
+};
+using Api = std::unique_ptr<ob_api_client, ApiDelete>;
 const char* text(cJSON* value, const char* field) {
     cJSON* entry = cJSON_GetObjectItemCaseSensitive(value, field);
     return cJSON_IsString(entry) ? entry->valuestring : nullptr;
@@ -42,6 +52,8 @@ std::string apiError(const ob_api_error& error) {
     if (error.http_status == 401) return "Account login is required or has expired";
     if (error.http_status == 403) return "Account access is forbidden";
     if (error.http_status == 404) return "Broker service endpoint was not found";
+    if (error.code == OB_API_AUTH) return "Account login is required or has expired";
+    if (error.code == OB_API_STORAGE) return "Account credential storage is unavailable";
     if (error.code == OB_API_TRANSPORT) return "Broker HTTPS connection or certificate verification failed";
     if (error.code == OB_API_INVALID) return "Invalid broker service options";
     return "Broker service request failed";
@@ -56,17 +68,36 @@ std::string peerError(int code, int http) {
     if (code == OB_REMOTE_EQUIC) return "Broker encrypted transport failed";
     return "Broker connection failed";
 }
+bool cannotBindLocalPort(int port) {
+    dsh::launcher::Fd socketFd(socket(AF_INET, SOCK_STREAM | SOCK_CLOEXEC, 0));
+    if (socketFd.value < 0) return false;
+    sockaddr_in address{};
+    address.sin_family = AF_INET;
+    address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    address.sin_port = htons(static_cast<std::uint16_t>(port));
+    return bind(socketFd.value, reinterpret_cast<sockaddr*>(&address), sizeof(address)) < 0;
+}
 Api newApi(const Inputs& input, const char* roots, ob_api_error& error) {
     if (input.serviceUrl.rfind("https://", 0) != 0) {
         error.code = OB_API_INVALID;
-        return Api(nullptr, ob_api_client_destroy);
+        return Api(nullptr, ApiDelete{});
     }
     ob_api_options options{};
     options.base_url = input.serviceUrl.c_str();
     options.tenant_token = input.accessToken.empty() ? nullptr : input.accessToken.c_str();
     options.ca_file = roots;
     options.timeout_ms = 15000;
-    return Api(ob_api_client_create(&options, &error), ob_api_client_destroy);
+    if (input.authSessionId.empty()) return Api(ob_api_client_create(&options, &error), ApiDelete{});
+    std::shared_ptr<CredentialStore> store;
+    try { store = std::make_shared<CredentialStore>(input.credentialDir, input.serviceUrl, input.authSessionId); }
+    catch (const std::exception&) { error.code = OB_API_STORAGE; return Api(nullptr, ApiDelete{}); }
+    ob_auth_options auth{};
+    try { auth = store->options(); }
+    catch (const std::exception&) { error.code = OB_API_STORAGE; return Api(nullptr, ApiDelete{}); }
+    options.tenant_token = nullptr;
+    auto* api = ob_api_client_create_with_auth(&options, &auth, &error);
+    ob_auth_credentials_clear(&auth.credentials);
+    return Api(api, ApiDelete{std::move(store)});
 }
 void privateDirectory(const std::string& path) {
     using dsh::launcher::Fd;
@@ -219,6 +250,7 @@ void Client::release() {
     if (map_) { ob_remote_map_close(map_); map_ = nullptr; }
     if (peer_) { ob_remote_peer_close(peer_); peer_ = nullptr; }
     if (api_) { ob_api_client_destroy(api_); api_ = nullptr; }
+    credentials_.reset();
 }
 void Client::checkPeer() {
     if (!peer_) return;
@@ -308,16 +340,33 @@ Result Client::login(const Inputs& input, Cancellation& cancellation) {
     auto api = newApi(input, roots, error);
     if (!api) { result.error = apiError(error); return result; }
     Response response;
-    if (ob_api_tenant_login(api.get(), input.account.c_str(), input.password.c_str(), &response.text, &error)) {
+    Json body(cJSON_CreateObject());
+    if (!body || !cJSON_AddStringToObject(body.get(), "name", input.account.c_str()) ||
+        !cJSON_AddStringToObject(body.get(), "password", input.password.c_str())) {
+        result.error = "Cannot prepare broker login"; return result;
+    }
+    char* raw = cJSON_PrintUnformatted(body.get());
+    auto* password = cJSON_GetObjectItemCaseSensitive(body.get(), "password");
+    if (password && password->valuestring) OPENSSL_cleanse(password->valuestring, std::strlen(password->valuestring));
+    if (!raw) { result.error = "Cannot prepare broker login"; return result; }
+    const int code = ob_api_request_cancelled(api.get(), "POST", "/v1/auth/login", "", raw,
+        &response.text, &error, cancelled, &cancellation);
+    OPENSSL_cleanse(raw, std::strlen(raw)); cJSON_free(raw);
+    if (code) {
         result.error = apiError(error);
-        if (error.http_status == 401) result.errorCode = "DSH_BROKER_AUTH";
+        if (error.http_status == 401 || error.code == OB_API_AUTH) result.errorCode = "DSH_BROKER_AUTH";
         return result;
     }
-    auto json = parse(response);
-    const char* token = text(json.get(), "token");
-    if (!token || !*token || std::strlen(token) > 8192) { result.error = "Invalid broker login response"; return result; }
-    result.accessToken = token;
-    OPENSSL_cleanse(const_cast<char*>(token), std::strlen(token));
+    ob_auth_credentials credentials{};
+    if (ob_auth_credentials_parse(response.text, &credentials, &error)) {
+        result.error = "Invalid broker login response"; return result;
+    }
+    try {
+        CredentialStore store(input.credentialDir, input.serviceUrl, credentials.auth_session_id);
+        store.saveLogin(credentials);
+        result.authSessionId = credentials.auth_session_id;
+    } catch (const std::exception&) { result.error = "Account credential storage is unavailable"; }
+    ob_auth_credentials_clear(&credentials);
     return result;
 }
 Result Client::list(const Inputs& input, Cancellation& cancellation) {
@@ -329,7 +378,7 @@ Result Client::list(const Inputs& input, Cancellation& cancellation) {
     Response response;
     if (ob_api_broker_list(api.get(), &response.text, &error)) {
         result.error = apiError(error);
-        if (error.http_status == 401) result.errorCode = "DSH_BROKER_AUTH";
+        if (error.http_status == 401 || error.code == OB_API_AUTH) result.errorCode = "DSH_BROKER_AUTH";
         return result;
     }
     auto json = parse(response);
@@ -362,6 +411,7 @@ Result Client::connect(const Inputs& input, Cancellation& cancellation) {
         publishCurrent(std::move(connecting), cancellation);
         return result;
     }
+    credentials_ = api.get_deleter().store;
     api_ = api.release();
     peerGeneration_ = cancellation.generation;
     ob_remote_connect_options options{};
@@ -369,8 +419,17 @@ Result Client::connect(const Inputs& input, Cancellation& cancellation) {
     options.max_maps = 1; options.max_flows = 128;
     ob_remote_error error{};
     int code = ob_remote_connect_async(api_, input.brokerId.c_str(), input.peerPassword.c_str(), &options, &peer_, &error);
-    if (!code && !cancelled(&cancellation))
-        code = ob_remote_portmap_tcp(peer_, "127.0.0.1", 0, "127.0.0.1", static_cast<std::uint16_t>(input.remotePort), &map_, &error);
+    if (!code && !cancelled(&cancellation)) {
+        code = ob_remote_portmap_tcp(peer_, "127.0.0.1", static_cast<std::uint16_t>(input.localPort),
+            "127.0.0.1", static_cast<std::uint16_t>(input.remotePort), &map_, &error);
+        // The SDK groups socket/bind/listen failures; confirm a failed bind before changing origin.
+        if (code == OB_REMOTE_EIO && input.localPort != 0 && error.http_status == 0 &&
+            std::strcmp(error.message, "cannot bind requested local interface and port") == 0 &&
+            !cancelled(&cancellation) && cannotBindLocalPort(input.localPort)) {
+            code = ob_remote_portmap_tcp(peer_, "127.0.0.1", 0, "127.0.0.1",
+                static_cast<std::uint16_t>(input.remotePort), &map_, &error);
+        }
+    }
     if (code) {
         if (peer_) {
             ob_remote_connection_info info{};

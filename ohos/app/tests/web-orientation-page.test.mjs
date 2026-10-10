@@ -24,7 +24,7 @@ function plainPageSource(source, name) {
   const startOfBuilders = source.indexOf('\n  @Builder');
   assert.notEqual(startOfBuilders, -1, 'page builders delimit the source behavior projection');
   return (source.slice(0, startOfBuilders) + '\n}\n').replace('struct ' + name, 'class ' + name)
-    .replace(/^@(Entry|Component)\s*$/gm, '').replace(/@StorageProp\([^\n]+\)\s*/g, '').replace(/@State\s*/g, '');
+    .replace(/^@(Entry|Component)\s*$/gm, '').replace(/@StorageProp\([^\n]+\)\s*/g, '').replace(/@(State|Prop)\s*/g, '');
 }
 
 function indexProjection(source, filename) {
@@ -157,6 +157,8 @@ function harness() {
   async function home() {
     const flow = new (load('pages/ConnectionHome').ConnectionHome)();
     flow.onOpen = (address, remote, connection) => page.openWeb(address, remote, connection);
+    flow.onPrepare = connection => page.prepareConnection(connection);
+    flow.onDisconnect = id => page.disconnectConnection(id);
     flow.aboutToAppear();
     await flow.pendingWork;
     return flow;
@@ -223,6 +225,57 @@ test('valid local and remote Index opens publish true only after the URL and pol
   }
 });
 
+test('soft Back keeps the local or remote controller and map while Home owns portrait and Back', async () => {
+  for (const remote of [false, true]) {
+    const h = harness();
+    await h.ready();
+    const profile = remote ? h.remoteProfile() : h.localProfile();
+    h.page.openWeb(VALID, remote, profile);
+    await tick();
+    const controller = h.page.controller;
+    const generation = h.page.webGeneration;
+    assert.equal(h.page.onBackPress(), true);
+    await tick();
+    assert.equal(h.page.webVisible, false);
+    assert.equal(h.page.webUrl, VALID);
+    assert.equal(h.page.webGeneration, generation);
+    assert.equal(h.page.controller, controller);
+    assert.equal(h.calls.includes('close'), false);
+    assert.equal(h.timers.size, 0);
+    assert.equal(h.modes.at(-1), 1);
+    let homeBack = 0;
+    h.page.homeController.onBack = () => { homeBack += 1; return true; };
+    assert.equal(h.page.onBackPress(), true);
+    assert.equal(homeBack, 1);
+    assert.equal(await h.page.prepareConnection(profile), true);
+    await tick();
+    assert.equal(h.page.webVisible, true);
+    assert.equal(h.page.controller, controller);
+    assert.equal(h.page.webGeneration, generation);
+    assert.equal(h.modes.at(-1), 8);
+    assert.equal(h.timers.size, remote ? 1 : 0);
+    assert.equal(h.calls.includes('probe'), false, 'an intact same-config return does not reauthenticate the page');
+    await h.finish();
+  }
+});
+
+test('foregrounding with a retained but hidden WebView keeps Home portrait and does not resume page polling', async () => {
+  const h = harness();
+  await h.ready();
+  h.page.openWeb(VALID, true, h.remoteProfile());
+  h.page.hideWeb();
+  await tick();
+  h.owner.onBackground();
+  h.owner.onForeground();
+  await tick();
+  assert.equal(h.page.webVisible, false);
+  assert.equal(h.modes.at(-1), 1);
+  assert.equal(h.timers.size, 0);
+  assert.equal(h.calls.includes('probe'), false);
+  assert.equal(h.calls.includes('reconnect'), false);
+  await h.finish();
+});
+
 test('a renderer creation failure cannot enable WebView rotation or change the target', async () => {
   const h = harness();
   await h.ready();
@@ -250,9 +303,16 @@ test('remote close returns to portrait immediately while retaining ownership of 
     assert.equal(h.page.closingWeb, true);
     assert.equal(h.page.openWeb(VALID, true, h.remoteProfile()), false);
     assert.equal(h.timers.size, 0);
-    if (reject) h.control.close.reject(new Error('mapping cleanup failed'));
-    else h.control.close.resolve();
-    await closing;
+    if (reject) {
+      h.control.close.reject(new Error('mapping cleanup failed'));
+      await assert.rejects(closing, /mapping cleanup failed/);
+      assert.equal(h.page.closingWeb, true);
+      h.control.close = undefined;
+      await h.page.closeWeb();
+    } else {
+      h.control.close.resolve();
+      await closing;
+    }
     await tick();
     assert.equal(h.events.at(-1).active, false);
     assert.equal(h.events.at(-1).webUrl, '');

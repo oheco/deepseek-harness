@@ -56,7 +56,8 @@ def main():
                 env['OB_PEER_TEST_ADMIN_TOKEN'] = env['OHECO_BROKER_ADMIN_TOKEN']
                 with (Path(temporary) / 'control.log').open('w') as log:
                     fixture = subprocess.Popen([str(fixture_binary), '--db', str(Path(temporary) / 'control.sqlite'),
-                                                '--ready', str(ready)], stdout=log, stderr=log, env=env)
+                                                '--ready', str(ready), '--account-token-ttl', '8s',
+                                                '--auth-refresh-ttl', '2m', '--auth-access-overlap', '1s'], stdout=log, stderr=log, env=env)
                 deadline = time.monotonic() + 20
                 while True:
                     if fixture.poll() is not None or time.monotonic() >= deadline:

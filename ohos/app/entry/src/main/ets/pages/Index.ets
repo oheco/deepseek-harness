@@ -50,6 +50,11 @@ struct Index {
   private webPreparation: Promise<void> = Promise.resolve();
   private detachedWork: Promise<void> = Promise.resolve();
   private closeWork: Promise<void> | undefined = undefined;
+  private prepareWork: Promise<boolean> | undefined = undefined;
+  private preparingConfiguration: string = '';
+  private retainedConfiguration: string = '';
+  @State private retainedConnectionId: string = '';
+  @State private webVisible: boolean = false;
   @State private connectionState: WebConnectionState = WebConnectionState.Connected;
   private webConnection: WebConnection = new WebConnection((state: WebConnectionState, recovered: boolean) =>
     this.connectionChanged(state, recovered));
@@ -115,7 +120,7 @@ struct Index {
 
   aboutToAppear(): void {
     this.attached = true;
-    this.updateWebOrientation(this.webUrl !== '');
+    this.updateWebOrientation(this.webVisible && this.webUrl !== '');
     try {
       this.activityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
       this.activityContext.eventHub.on(APP_FOREGROUND_EVENT, this.appForeground);
@@ -123,7 +128,7 @@ struct Index {
     } catch (error) {
       // A detached context cannot deliver App activity; the page remains reachable through Back.
     }
-    if (this.activeConnection && this.webUrl !== '') {
+    if (this.activeConnection && this.webVisible && this.webUrl !== '') {
       this.reattachWeb().catch((error: Error) => {
         // A reattached renderer can retry on its next foreground event.
       });
@@ -166,28 +171,110 @@ struct Index {
 
   private startRemotePolling(): void {
     clearInterval(this.remoteTimer);
-    if (this.attached && this.remote && this.webUrl !== '' && !this.closingWeb) {
+    if (this.attached && this.webVisible && this.remote && this.webUrl !== '' && !this.closingWeb) {
       this.remoteTimer = setInterval(() => this.checkRemote(), 2000);
     }
   }
 
-  private async resumeWeb(): Promise<void> {
-    if (!this.attached || this.closingWeb || this.webUrl === '') {
+  private async resumeWeb(verifyEndpoint: boolean = true): Promise<void> {
+    if (!this.attached || !this.webVisible || this.closingWeb || this.webUrl === '') {
       return;
     }
     this.startRemotePolling();
-    await this.webConnection.foregrounded();
+    await this.webConnection.foregrounded(verifyEndpoint);
+  }
+
+  /** Names and preferred ports preserve a live page; a new managed login or legacy bearer requires new ownership. */
+  private connectionConfiguration(connection: ConnectionProfile): string {
+    return JSON.stringify([connection.id, connection.mode, connection.port, connection.token,
+      connection.serviceUrl, connection.account, connection.brokerId, connection.peerPassword,
+      connection.authSessionId, connection.authSessionId === '' ? connection.accessToken : '']);
+  }
+
+  /** Home joins preparation before any new probe or mapping; repeated selections share their pending operation. */
+  private prepareConnection(connection: ConnectionProfile): Promise<boolean> {
+    const configuration = this.connectionConfiguration(connection);
+    if (this.prepareWork && this.preparingConfiguration === configuration) {
+      return this.prepareWork;
+    }
+    const work = this.finishConnectionPreparation(configuration, this.prepareWork);
+    this.prepareWork = work;
+    this.preparingConfiguration = configuration;
+    work.then(() => this.finishPreparing(work), () => this.finishPreparing(work));
+    return work;
+  }
+
+  private finishPreparing(work: Promise<boolean>): void {
+    if (this.prepareWork === work) {
+      this.prepareWork = undefined;
+      this.preparingConfiguration = '';
+    }
+  }
+
+  private async finishConnectionPreparation(configuration: string,
+    previous: Promise<boolean> | undefined): Promise<boolean> {
+    if (previous) {
+      await previous;
+    }
+    if (this.closeWork) {
+      await this.closeWork;
+    }
+    if (!this.attached) {
+      throw new Error('Connection page is detached');
+    }
+    if (this.webUrl !== '' && !this.closingWeb && this.connectionState !== WebConnectionState.AuthenticationRequired &&
+      configuration === this.retainedConfiguration) {
+      this.webVisible = true;
+      this.updateWebOrientation(true);
+      this.resumeWeb(!this.rendererAlive).catch((error: Error) => {
+        // SDK status failures retain the resumed page and its recovery controls.
+      });
+      return true;
+    }
+    await this.closeWeb();
+    return false;
+  }
+
+  /** Soft return keeps the controller, document, history, authentication and SDK map attached. */
+  private hideWeb(): void {
+    if (!this.webVisible) {
+      return;
+    }
+    this.webVisible = false;
+    this.dismissMenu();
+    clearInterval(this.remoteTimer);
+    clearTimeout(this.paletteTimer);
+    clearTimeout(this.searchTimer);
+    this.webConnection.background();
+    this.updateWebOrientation(false);
+  }
+
+  private disconnectConnection(id: string): Promise<void> {
+    return id === this.retainedConnectionId || this.closingWeb ? this.closeWeb() : Promise.resolve();
+  }
+
+  private connectionMessage(): Resource {
+    return this.connectionState === WebConnectionState.AuthenticationRequired ?
+      $r('app.string.broker_login_expired') : $r('app.string.connection_disconnected');
+  }
+
+  private retryConnection(): Promise<void> {
+    return this.resumeWeb();
+  }
+
+  private returnFromConnection(): void {
+    if (this.connectionState === WebConnectionState.AuthenticationRequired) {
+      this.closeWeb().catch((error: Error) => this.notify($r('app.string.web_action_failed')));
+    } else {
+      this.hideWeb();
+    }
   }
 
   private connectionChanged(state: WebConnectionState, recovered: boolean): void {
     if (!this.attached || this.closingWeb || this.webUrl === '') {
       return;
     }
-    const previous = this.connectionState;
     this.connectionState = state;
-    if (state === WebConnectionState.Disconnected && previous !== state) {
-      this.notify($r('app.string.web_connection_disconnected'));
-    }
     if (!recovered) {
       return;
     }
@@ -213,6 +300,7 @@ struct Index {
       return false;
     }
     const controller = new webview.WebviewController();
+    this.webConnection.activate(connection, origin);
     this.dismissMenu();
     this.searchVisible = false;
     this.remote = remote;
@@ -229,7 +317,9 @@ struct Index {
     this.initialAuthentication = true;
     this.activeConnection = connection;
     this.connectionState = WebConnectionState.Connected;
-    this.webConnection.activate(connection, origin);
+    this.retainedConfiguration = this.connectionConfiguration(connection);
+    this.retainedConnectionId = connection.id;
+    this.webVisible = true;
     this.startRemotePolling();
     this.updateWebOrientation(true);
     return true;
@@ -302,7 +392,7 @@ struct Index {
   }
 
   private async checkRemote(): Promise<void> {
-    if (this.attached && this.remote && !this.closingWeb) {
+    if (this.attached && this.webVisible && this.remote && !this.closingWeb) {
       await this.webConnection.check();
     }
   }
@@ -310,6 +400,9 @@ struct Index {
   private closeWeb(): Promise<void> {
     if (this.closeWork) {
       return this.closeWork;
+    }
+    if (this.webUrl === '' && !this.closingWeb) {
+      return Promise.resolve();
     }
     this.closingWeb = true;
     this.dismissMenu();
@@ -319,16 +412,21 @@ struct Index {
     this.searchVisible = false;
     const work = this.finishWebClose();
     this.closeWork = work;
-    work.then(() => {
-      if (this.closeWork === work) {
-        this.closeWork = undefined;
-      }
-    });
+    work.then(() => this.finishClosingWeb(work), () => this.finishClosingWeb(work));
     return work;
+  }
+
+  private finishClosingWeb(work: Promise<void>): void {
+    if (this.closeWork === work) {
+      this.closeWork = undefined;
+    }
   }
 
   private async finishWebClose(): Promise<void> {
     const cleanup: Promise<void> = this.webConnection.close();
+    this.webVisible = false;
+    this.retainedConnectionId = '';
+    this.retainedConfiguration = '';
     this.remote = false;
     this.activeConnection = undefined;
     this.currentWebAddress = '';
@@ -341,11 +439,8 @@ struct Index {
     this.webPainted = false;
     this.webError = undefined;
     this.overlayPalette = undefined;
-    try {
-      await cleanup;
-    } finally {
-      this.closingWeb = false;
-    }
+    await cleanup;
+    this.closingWeb = false;
   }
 
   /**
@@ -387,7 +482,7 @@ struct Index {
   /** Poll only while native overlays are open, so an in-page theme switch is reflected too. */
   private async refreshOverlayPalette(): Promise<void> {
     clearTimeout(this.paletteTimer);
-    if (!this.attached || this.webUrl === '' || this.paletteReading) {
+    if (!this.attached || !this.webVisible || this.webUrl === '' || this.paletteReading) {
       return;
     }
     this.paletteReading = true;
@@ -402,7 +497,7 @@ struct Index {
       // Unavailable page colors fall back to the system theme.
     } finally {
       this.paletteReading = false;
-      if (this.attached && (this.searchVisible || this.menuVisible)) {
+      if (this.attached && this.webVisible && (this.searchVisible || this.menuVisible)) {
         this.paletteTimer = setTimeout(() => this.refreshOverlayPalette(), 400);
       }
     }
@@ -497,16 +592,16 @@ struct Index {
   private webKey(event: KeyEvent, fromFind: boolean = false): boolean {
     const ctrl = event.getModifierKeyState ? event.getModifierKeyState(['Ctrl']) : false;
     const shift = event.getModifierKeyState ? event.getModifierKeyState(['Shift']) : false;
-    const leave = ctrl && shift && event.keyCode === KeyCode.KEYCODE_L && this.webUrl !== '';
-    const find = ctrl && event.keyCode === KeyCode.KEYCODE_F && this.webUrl !== '';
-    const escape = event.keyCode === KeyCode.KEYCODE_ESCAPE && (this.menuVisible || this.searchVisible);
-    const enter = fromFind && this.searchVisible && event.keyCode === KeyCode.KEYCODE_ENTER;
+    const leave = ctrl && shift && event.keyCode === KeyCode.KEYCODE_L && this.webVisible;
+    const find = ctrl && event.keyCode === KeyCode.KEYCODE_F && this.webVisible;
+    const escape = this.webVisible && event.keyCode === KeyCode.KEYCODE_ESCAPE && (this.menuVisible || this.searchVisible);
+    const enter = this.webVisible && fromFind && this.searchVisible && event.keyCode === KeyCode.KEYCODE_ENTER;
     if (!leave && !find && !escape && !enter) {
       return false;
     }
     if (event.type === KeyType.Down) {
       if (leave) {
-        this.closeWeb();
+        this.hideWeb();
       } else if (find) {
         this.showSearch();
       } else if (escape) {
@@ -646,6 +741,9 @@ struct Index {
   }
 
   onBackPress(): boolean {
+    if (!this.webVisible) {
+      return this.homeController.back();
+    }
     if (this.menuVisible) {
       this.dismissMenu();
       return true;
@@ -665,7 +763,7 @@ struct Index {
     } catch (error) {
       // A detached renderer has no history; Back still returns to saved connections.
     }
-    this.closeWeb();
+    this.hideWeb();
     return true;
   }
 
@@ -683,6 +781,38 @@ struct Index {
         break;
       }
     }
+  }
+
+  @Builder
+  private connectionStatus() {
+    Column() {
+      if (this.connectionState === WebConnectionState.Recovering) {
+        Row({ space: 8 }) {
+          LoadingProgress().width(20).height(20).color(this.palette().accent)
+            .accessibilityText($r('app.string.reconnecting'))
+          Text($r('app.string.reconnecting')).fontSize(14).fontColor(this.palette().text)
+        }.padding(12).borderRadius(12).backgroundColor(this.palette().surface)
+          .hitTestBehavior(HitTestMode.None)
+      } else {
+        Column({ space: 10 }) {
+          Text(this.connectionMessage()).fontSize(14).fontColor(this.palette().text)
+            .textAlign(TextAlign.Center)
+          Row({ space: 8 }) {
+            if (this.connectionState === WebConnectionState.Disconnected) {
+              Button($r('app.string.retry_connection')).fontSize(14).height(36)
+                .onClick(() => {
+                  this.retryConnection().catch((error: Error) => this.notify($r('app.string.web_action_failed')));
+                })
+            }
+            Button($r('app.string.web_return_connections')).fontSize(14).height(36)
+              .onClick(() => this.returnFromConnection())
+          }
+        }.padding(12).constraintSize({ maxWidth: 480 }).borderRadius(12)
+          .backgroundColor(this.palette().surface)
+          .border({ width: 0.5, color: this.palette().border })
+      }
+    }.width('100%').position({ x: 0, y: 12 }).alignItems(HorizontalAlign.Center)
+      .hitTestBehavior(this.connectionState === WebConnectionState.Recovering ? HitTestMode.None : HitTestMode.Transparent)
   }
 
   @Builder
@@ -873,32 +1003,43 @@ struct Index {
               }
             })
             .width('100%').height('100%')
+            .visibility(this.webVisible ? Visibility.Visible : Visibility.Hidden)
         }, (generation: number) => generation.toString())
-      } else {
-        ConnectionHome({ controller: this.homeController,
-          onOpen: (address: string, remote: boolean, connection: ConnectionProfile) =>
-            this.openWeb(address, remote, connection) })
       }
-      if (this.webUrl !== '' && this.webError !== undefined) {
+      ConnectionHome({ controller: this.homeController, retainedConnectionId: this.retainedConnectionId,
+        onPrepare: (connection: ConnectionProfile) => this.prepareConnection(connection),
+        onDisconnect: (id: string) => this.disconnectConnection(id),
+        onOpen: (address: string, remote: boolean, connection: ConnectionProfile) =>
+          this.openWeb(address, remote, connection) })
+        .visibility(this.webVisible ? Visibility.Hidden : Visibility.Visible)
+      if (this.webVisible && this.webError !== undefined) {
         Column({ space: 16 }) {
           Text($r('app.string.web_load_error_title')).fontSize(20).fontWeight(FontWeight.Medium)
             .fontColor($r('app.color.ink')).textAlign(TextAlign.Center)
           Text(this.webError).fontSize(15).fontColor($r('app.color.ink')).textAlign(TextAlign.Center)
           Button($r('app.string.web_return_connections')).height(48)
-            .onClick(() => { this.closeWeb(); })
+            .onClick(() => { this.hideWeb(); })
+          Button($r('app.string.disconnect_connection')).height(48)
+            .onClick(() => {
+              this.disconnectConnection(this.retainedConnectionId)
+                .catch((error: Error) => this.notify($r('app.string.web_action_failed')));
+            })
         }.width('100%').height('100%').padding(24).justifyContent(FlexAlign.Center)
         .backgroundColor($r('app.color.panel'))
-      } else if (this.webUrl !== '' && !this.webPainted && !this.pageLoaded) {
+      } else if (this.webVisible && !this.webPainted && !this.pageLoaded) {
         Column({ space: 16 }) {
           LoadingProgress().width(28).height(28).color($r('app.color.accent'))
           Text($r('app.string.opening')).fontSize(15).fontColor($r('app.color.ink'))
         }.width('100%').height('100%').justifyContent(FlexAlign.Center)
         .backgroundColor($r('app.color.panel'))
       }
-      if (this.searchVisible && this.webUrl !== '') {
+      if (this.webVisible && this.connectionState !== WebConnectionState.Connected) {
+        this.connectionStatus()
+      }
+      if (this.searchVisible && this.webVisible) {
         this.findBar()
       }
-      if (this.menuVisible && this.webUrl !== '') {
+      if (this.menuVisible && this.webVisible) {
         this.contextMenu()
       }
     }.width('100%').height('100%').backgroundColor($r('app.color.panel'))

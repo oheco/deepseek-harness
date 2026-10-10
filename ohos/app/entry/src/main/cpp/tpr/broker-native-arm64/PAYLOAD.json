@@ -1,11 +1,22 @@
 {
   "platform": "arm64 HarmonyOS",
-  "sdk_snapshot": "released 0.4.0",
-  "source_commit": "dc4a1812328942bc2117724b869822f97528e508",
+  "sdk_snapshot": "released 0.5.0",
+  "source_commit": "5ccd4e26cc5eed822086873b00d15b23bd32578f",
   "local_sdk_changes": "NONE",
-  "source_archive_sha256": "3b309480074c59ba5dd446721d2bd49bc2a1cb1a74054924cf2a38bb9dba0931",
-  "sdk_all_files_sha256": "1dc40f50e8d6138591910c1be310d4e68d4a7a857b39e9dcbb7679a7b068826f",
-  "build": "original released SDK build.sh; offline; signed SDK feature probes",
+  "source_archive_sha256": "94b563b96f66e5af9d9a99ba728aec0a0ba726685cf7ea878c4759f0ddee073b",
+  "sdk_all_files_sha256": "e976c5584929848e19401f45859f7c565bd91aefa10080720036efc8c5d72fb0",
+  "build": "dependency payload reused after byte-identical third-party source and build-input verification; 0.5.0 remote SDK compiled and linked separately",
+  "dependency_build_origin": {
+    "sdk_version": "0.4.0",
+    "source_commit": "dc4a1812328942bc2117724b869822f97528e508",
+    "source_archive_sha256": "3b309480074c59ba5dd446721d2bd49bc2a1cb1a74054924cf2a38bb9dba0931",
+    "build": "original released SDK build.sh; offline; signed SDK feature probes",
+    "third_party_source_identical_to_0_5_0": true,
+    "dependency_build_inputs_identical_to_0_5_0": true,
+    "new_dependency_build_performed": false,
+    "new_signed_dependency_probes_run": false,
+    "native_probes_record": "historical results from the 0.4.0 dependency build; unchanged"
+  },
   "files_sha256": {
     "include/cjson/cJSON.h": "25b0145150d500498e4d209cec69c18c42cf818bffcc54690be3b895a2a16dee",
     "include/curl/curl.h": "9ec2e9040d8d95545a4c331461c54748651edc3852a6ceca0672f858103e0528",

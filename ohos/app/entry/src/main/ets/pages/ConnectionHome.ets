@@ -1,7 +1,7 @@
 import common from '@ohos.app.ability.common';
 import util from '@ohos.util';
 import native, { BrokerInfo, BrokerConnectOptions, BrokerLoginResult, BrokerStatus, DshProbeResult } from 'libdsh_launcher.so';
-import { ConnectionMode, ConnectionProfile, connectionPort, connectionUrl, serviceOrigin, validConnection } from '../launcher/ConnectionProfile';
+import { ConnectionMode, ConnectionProfile, connectionPort, connectionUrl, serviceOrigin, validConnection, parseConnections, encodeConnections } from '../launcher/ConnectionProfile';
 import { ConnectionStore } from '../launcher/ConnectionStore';
 import { ConnectionField } from './ConnectionField';
 
@@ -38,6 +38,8 @@ class BrokerIdentitySnapshot {
   serviceUrl: string = '';
   account: string = '';
   accessToken: string = '';
+  authSessionId: string = '';
+  localPort: number = 0;
   brokerId: string = '';
   brokerName: string = '';
   peerPassword: string = '';
@@ -48,6 +50,9 @@ class BrokerIdentitySnapshot {
 export struct ConnectionHome {
   controller: ConnectionHomeController = new ConnectionHomeController();
   onOpen: (address: string, remote: boolean, connection: ConnectionProfile) => boolean = () => false;
+  onPrepare: (connection: ConnectionProfile) => Promise<boolean> = async () => false;
+  onDisconnect: (id: string) => Promise<void> = async () => {};
+  @Prop retainedConnectionId: string = '';
   @StorageProp('dshColorMode') private colorMode: number = -1;
   @State private page: LauncherPage = LauncherPage.Home;
   @State private connections: ConnectionProfile[] = [];
@@ -67,6 +72,8 @@ export struct ConnectionHome {
   @State private account: string = '';
   @State private password: string = '';
   @State private accessToken: string = '';
+  @State private authSessionId: string = '';
+  private localPort: number = 0;
   @State private brokerId: string = '';
   @State private brokerName: string = '';
   @State private peerPassword: string = '';
@@ -188,7 +195,9 @@ export struct ConnectionHome {
     this.busy = true;
     const work = this.pendingWork;
     try {
-      await native.brokerClose();
+      if (!this.transferred) {
+        await native.brokerClose();
+      }
     } catch (error) {
       // A failed close still leaves pending UI work to settle before the route is popped.
     }
@@ -226,6 +235,8 @@ export struct ConnectionHome {
     this.account = '';
     this.password = '';
     this.accessToken = '';
+    this.authSessionId = '';
+    this.localPort = 0;
     this.brokerId = '';
     this.brokerName = '';
     this.peerPassword = '';
@@ -258,6 +269,8 @@ export struct ConnectionHome {
     this.account = connection.account;
     this.password = '';
     this.accessToken = connection.accessToken;
+    this.authSessionId = connection.authSessionId;
+    this.localPort = connection.localPort;
     this.brokerId = connection.brokerId;
     this.brokerName = connection.brokerName;
     this.peerPassword = connection.peerPassword;
@@ -276,6 +289,8 @@ export struct ConnectionHome {
       connection.serviceUrl = serviceOrigin(this.serviceUrl);
       connection.account = this.account.trim();
       connection.accessToken = this.accessToken;
+      connection.authSessionId = this.authSessionId;
+      connection.localPort = this.localPort;
       connection.brokerId = this.brokerId;
       connection.brokerName = this.brokerName;
       connection.peerPassword = this.peerPassword;
@@ -296,7 +311,7 @@ export struct ConnectionHome {
       this.feedback($r('app.string.token_required'), true);
       return false;
     }
-    if (this.mode === ConnectionMode.Remote && (this.brokerId === '' || this.accessToken === '' ||
+    if (this.mode === ConnectionMode.Remote && (this.brokerId === '' || (this.accessToken === '' && this.authSessionId === '') ||
       serviceOrigin(this.serviceUrl) === '' || this.peerPassword === '')) {
       this.feedback($r('app.string.remote_config_required'), true);
       return false;
@@ -316,13 +331,22 @@ export struct ConnectionHome {
     const generation = ++this.generation;
     this.busy = true;
     try {
-      const next = this.connections.filter((item: ConnectionProfile) => item.id !== connection.id);
+      const next = this.connections.filter((item: ConnectionProfile) => item.id !== connection.id)
+        .map((item: ConnectionProfile): ConnectionProfile => {
+          if (connection.authSessionId === '' || item.mode !== ConnectionMode.Remote ||
+            item.serviceUrl !== connection.serviceUrl || item.account !== connection.account) { return item; }
+          const updated = parseConnections(encodeConnections([item]))[0];
+          updated.authSessionId = connection.authSessionId;
+          updated.accessToken = '';
+          return updated;
+        });
       const oldIndex = this.connections.findIndex((item: ConnectionProfile) => item.id === connection.id);
       if (oldIndex < 0) {
         next.push(connection);
       } else {
         next.splice(oldIndex, 0, connection);
       }
+      await this.releaseRetained();
       await this.store.save(next);
       if (this.attached && generation === this.generation) {
         this.publishConnections(next);
@@ -351,6 +375,7 @@ export struct ConnectionHome {
     this.busy = true;
     try {
       const next = this.connections.filter((item: ConnectionProfile) => item.id !== this.editingId);
+      await this.releaseRetained();
       await this.store.save(next);
       if (this.attached && generation === this.generation) {
         this.publishConnections(next);
@@ -375,6 +400,8 @@ export struct ConnectionHome {
     if (value !== this.serviceUrl) {
       this.testState = ConnectionTestState.Idle;
       this.accessToken = '';
+      this.authSessionId = '';
+      this.localPort = 0;
       this.brokerId = '';
       this.brokerName = '';
       this.peerPassword = '';
@@ -386,6 +413,8 @@ export struct ConnectionHome {
     if (value !== this.account) {
       this.testState = ConnectionTestState.Idle;
       this.accessToken = '';
+      this.authSessionId = '';
+      this.localPort = 0;
       this.brokerId = '';
       this.brokerName = '';
       this.peerPassword = '';
@@ -406,15 +435,20 @@ export struct ConnectionHome {
     this.busy = true;
     this.feedback($r('app.string.broker_logging_in'));
     try {
+      await this.releaseRetained();
+      if (!this.attached || generation !== this.generation) { return; }
       const session: BrokerLoginResult = await native.brokerLogin({ serviceUrl: origin, account: this.account.trim(),
-        password: this.password, tempDir: this.context().tempDir + '/dsh-broker' });
+        password: this.password, tempDir: this.context().tempDir + '/dsh-broker',
+        credentialDir: this.context().filesDir + '/dsh-broker-auth' });
       if (!this.attached || generation !== this.generation) {
         return;
       }
       this.password = '';
       this.serviceUrl = origin;
       this.accessToken = session.accessToken;
+      this.authSessionId = session.authSessionId;
       const brokers: BrokerInfo[] = await native.brokerList({ serviceUrl: origin, accessToken: session.accessToken,
+        authSessionId: session.authSessionId, credentialDir: this.context().filesDir + '/dsh-broker-auth',
         tempDir: this.context().tempDir + '/dsh-broker' });
       if (this.attached && generation === this.generation) {
         this.brokers = brokers;
@@ -447,7 +481,7 @@ export struct ConnectionHome {
     if (this.busy) {
       return;
     }
-    if (this.accessToken === '') {
+    if (this.accessToken === '' && this.authSessionId === '') {
       this.navigate(LauncherPage.Login);
       return;
     }
@@ -455,7 +489,8 @@ export struct ConnectionHome {
     this.busy = true;
     try {
       const brokers: BrokerInfo[] = await native.brokerList({ serviceUrl: serviceOrigin(this.serviceUrl),
-        accessToken: this.accessToken, tempDir: this.context().tempDir + '/dsh-broker' });
+        accessToken: this.accessToken, authSessionId: this.authSessionId,
+        credentialDir: this.context().filesDir + '/dsh-broker-auth', tempDir: this.context().tempDir + '/dsh-broker' });
       if (this.attached && generation === this.generation) {
         this.brokers = brokers;
         this.feedback($r('app.string.brokers_hint'));
@@ -480,6 +515,7 @@ export struct ConnectionHome {
     this.testState = ConnectionTestState.Idle;
     if (broker.id !== this.brokerId) {
       this.peerPassword = '';
+      this.localPort = 0;
     }
     this.brokerId = broker.id;
     this.brokerName = broker.name;
@@ -491,9 +527,45 @@ export struct ConnectionHome {
     this.returnToConfig();
   }
 
+  private async releaseRetained(): Promise<void> {
+    if (this.retainedConnectionId !== '') {
+      await this.onDisconnect(this.retainedConnectionId);
+    }
+    this.transferred = false;
+  }
+
+  private async disconnectSaved(id: string): Promise<void> {
+    if (this.busy) { return; }
+    this.busy = true;
+    try {
+      await this.onDisconnect(id);
+      this.transferred = false;
+      this.feedback($r('app.string.connection_disconnected'));
+    } catch (error) {
+      this.feedback($r('app.string.broker_connection_failed'), true);
+    } finally { this.busy = false; }
+  }
+
+  private async rememberPort(connection: ConnectionProfile, port: number): Promise<void> {
+    if (connection.localPort === port) { return; }
+    const next = this.connections.map((item: ConnectionProfile): ConnectionProfile => {
+      if (item.id !== connection.id) { return item; }
+      const updated = parseConnections(encodeConnections([item]))[0];
+      updated.localPort = port;
+      return updated;
+    });
+    if (next.some((item: ConnectionProfile): boolean => item.id === connection.id)) {
+      await this.store.save(next);
+      if (this.attached) { this.publishConnections(next); }
+    }
+    connection.localPort = port;
+    if (this.editingId === connection.id) { this.localPort = port; }
+  }
+
   private remoteOptions(connection: ConnectionProfile): BrokerConnectOptions {
     return { serviceUrl: connection.serviceUrl, accessToken: connection.accessToken,
-      brokerId: connection.brokerId, peerPassword: connection.peerPassword,
+      authSessionId: connection.authSessionId, credentialDir: this.context().filesDir + '/dsh-broker-auth',
+      brokerId: connection.brokerId, peerPassword: connection.peerPassword, localPort: connection.localPort,
       remotePort: connection.port, tempDir: this.context().tempDir + '/dsh-broker' };
   }
 
@@ -513,6 +585,7 @@ export struct ConnectionHome {
         this.editConnection(saved);
       }
       this.accessToken = '';
+      this.authSessionId = '';
       this.password = '';
       this.feedback($r('app.string.broker_login_expired'), true);
       this.navigate(LauncherPage.Login);
@@ -533,11 +606,17 @@ export struct ConnectionHome {
     const generation = ++this.generation;
     this.busy = true;
     this.testState = ConnectionTestState.Testing;
+    let mappingAttempted = false;
     this.feedback($r(connection.mode === ConnectionMode.Local ? 'app.string.local_hint' : 'app.string.remote_config_hint'));
     try {
+      await this.releaseRetained();
+      if (!this.attached || generation !== this.generation) { return; }
       let origin = 'http://127.0.0.1:' + connection.port.toString();
       if (connection.mode === ConnectionMode.Remote) {
+        mappingAttempted = true;
         const mapping: BrokerStatus = await native.brokerConnect(this.remoteOptions(connection));
+        if (!this.attached || generation !== this.generation) { return; }
+        await this.rememberPort(connection, mapping.localPort);
         origin = mapping.localUrl.replace(/\/$/, '');
       }
       if (!this.attached || generation !== this.generation) {
@@ -557,7 +636,7 @@ export struct ConnectionHome {
       }
     } finally {
       try {
-        if (connection.mode === ConnectionMode.Remote) {
+        if (mappingAttempted) {
           await native.brokerClose();
         }
       } catch (error) {
@@ -581,10 +660,21 @@ export struct ConnectionHome {
     this.busy = true;
     this.feedback($r('app.string.opening'));
     let opened = false;
+    let mappingAttempted = false;
     try {
+      if (await this.onPrepare(connection)) {
+        opened = true;
+        this.transferred = true;
+        return;
+      }
+      this.transferred = false;
+      if (!this.attached || generation !== this.generation) { return; }
       let origin = 'http://127.0.0.1:' + connection.port.toString();
       if (connection.mode === ConnectionMode.Remote) {
+        mappingAttempted = true;
         const mapping: BrokerStatus = await native.brokerConnect(this.remoteOptions(connection));
+        if (!this.attached || generation !== this.generation) { return; }
+        await this.rememberPort(connection, mapping.localPort);
         origin = mapping.localUrl.replace(/\/$/, '');
       }
       if (!this.attached || generation !== this.generation) {
@@ -614,11 +704,14 @@ export struct ConnectionHome {
         this.brokerFailure(error as BrokerFailure, connection.mode === ConnectionMode.Remote ? connection : undefined);
       }
     } finally {
-      if (!opened && connection.mode === ConnectionMode.Remote) {
-        await native.brokerClose();
-      }
-      if (this.attached && generation === this.generation) {
-        this.busy = false;
+      try {
+        if (!opened && mappingAttempted) { await native.brokerClose(); }
+      } catch (error) {
+        if (this.attached && generation === this.generation) {
+          this.feedback($r('app.string.broker_connection_failed'), true);
+        }
+      } finally {
+        if (this.attached && generation === this.generation) { this.busy = false; }
       }
     }
   }
@@ -656,6 +749,8 @@ export struct ConnectionHome {
     identity.serviceUrl = this.serviceUrl;
     identity.account = this.account;
     identity.accessToken = this.accessToken;
+    identity.authSessionId = this.authSessionId;
+    identity.localPort = this.localPort;
     identity.brokerId = this.brokerId;
     identity.brokerName = this.brokerName;
     identity.peerPassword = this.peerPassword;
@@ -673,6 +768,8 @@ export struct ConnectionHome {
     this.serviceUrl = identity.serviceUrl;
     this.account = identity.account;
     this.accessToken = identity.accessToken;
+    this.authSessionId = identity.authSessionId;
+    this.localPort = identity.localPort;
     this.brokerId = identity.brokerId;
     this.brokerName = identity.brokerName;
     this.peerPassword = identity.peerPassword;
@@ -720,6 +817,11 @@ export struct ConnectionHome {
       }.layoutWeight(1).constraintSize({ minHeight: 80 }).padding(16)
       .backgroundColor(Color.Transparent).borderRadius(12)
       .enabled(!this.busy).onClick(() => this.runTask(() => this.openConnection(connection)))
+      if (this.retainedConnectionId === connection.id) {
+        Button($r('app.string.disconnect_connection')).fontSize(13).height(40)
+          .backgroundColor($r('app.color.canvas')).fontColor($r('app.color.ink'))
+          .enabled(!this.busy).onClick(() => this.runTask(() => this.disconnectSaved(connection.id)))
+      }
       Button($r('app.string.edit_connection')).fontSize(13).height(40).margin({ right: 12 })
         .backgroundColor($r('app.color.canvas')).fontColor($r('app.color.ink'))
         .enabled(!this.busy).onClick(() => this.editConnection(connection))

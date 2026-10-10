@@ -4,7 +4,7 @@ English | [中文](README.zh.md)
 
 ## Scope
 
-The oheco distribution is `0.2.0-rc.2-ohos.1`, based on upstream `dsh-v0.2.0-rc.2`; upstream workspace packages retain their rc.2 versions. [release.json](release.json) records the exact upstream source and adapted dependencies. The adaptation branch is `ohos/0.2.0-rc.2` in the upstream fork. CLI/Web excludes Electron; the separate HarmonyOS App manages local and broker connections without embedding Node or the npm runtime.
+The oheco distribution is `0.2.0-rc.2-ohos.1`, based on upstream `dsh-v0.2.0-rc.2`; upstream workspace packages retain their rc.2 versions. [release.json](release.json) records the exact upstream source and adapted dependencies. [app-release.json](app-release.json) independently records the App revision. The adaptation branch is `ohos/0.2.0-rc.2` in the upstream fork. CLI/Web excludes Electron; the separate HarmonyOS App manages local and broker connections without embedding Node or the npm runtime.
 
 ## Install and run
 
@@ -19,7 +19,7 @@ DSH_HOME="${XDG_CONFIG_HOME:?}/deepseek-harness" dsh web --host 127.0.0.1 --port
 
 The catalog installs the four exact HarmonyOS dependencies in `release.json` through npm. The archive contains the production CLI/Web closure, Web assets and signed system addon. npm installs globally by default through oo 0.10; explicit npm options after `--` select another scope or prefix. Open the authentication URL printed by `dsh web`. Use an application-private `DSH_HOME`; shared HOME cannot enforce private permissions. Do not copy existing credentials or sessions into validation roots. Upstream owns Session upgrade compatibility; this adaptation does not promise downgrade support.
 
-Export the unsigned App project with `oo export deepseek-harness app --output <new-directory>`. Its bundle is `org.oheco.deepseekharness`; installation upgrades the same App. Personally sign the project for the intended devices in DevEco. New connection defaults launch installed `dsh`, choose a loopback port automatically and write `~/Documents/dsh-0.2.0-run.log`; saved user commands remain unchanged. See the [App reference](app/README.md) for connection behavior and the [broker integration](app/entry/src/main/cpp/broker/README.md) for the unchanged official 0.4.0 SDK, trust and recovery requirements. Engineering exports contain the offline SDK and native dependencies, but no personal signing configuration.
+Export App `0.2.0-rc.2-ohos.2` with `oo export deepseek-harness@0.2.0-rc.2-ohos.1 app-0.2.0-rc.2-ohos.2 --output <new-directory>`; the package version selects the unchanged CLI/Web release and the named project selects this App revision. Its bundle is `org.oheco.deepseekharness`; installation upgrades the same App. Personally sign the project for the intended devices in DevEco. New connection defaults launch installed `dsh`, choose a loopback port automatically and write `~/Documents/dsh-0.2.0-run.log`; saved user commands remain unchanged. See the [App reference](app/README.md) for connection behavior and the [broker integration](app/entry/src/main/cpp/broker/README.md) for the unchanged official 0.5.0 SDK, trust and recovery requirements. Engineering exports contain the offline SDK and native dependencies, but no personal signing configuration.
 
 ## Reproduce the build
 

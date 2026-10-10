@@ -1,5 +1,6 @@
 #include "broker_napi.h"
 #include "broker_client.h"
+#include "broker_credentials.h"
 #include <cmath>
 #include <memory>
 #include <stdexcept>
@@ -75,11 +76,20 @@ Inputs inputs(napi_env env, napi_value object, Method method) {
     input.serviceUrl = string(env, object, "serviceUrl", 2048);
     input.tempDir = string(env, object, "tempDir", 900);
     if (input.tempDir[0] != '/') throw std::invalid_argument("tempDir must be absolute");
+    input.credentialDir = string(env, object, "credentialDir", 900, true);
+    if (!input.credentialDir.empty() && input.credentialDir[0] != '/')
+        throw std::invalid_argument("credentialDir must be absolute");
     if (method == Method::Login) {
+        if (input.credentialDir.empty()) throw std::invalid_argument("credentialDir is required for account login");
         input.account = string(env, object, "account", 256);
         input.password = string(env, object, "password", 1024);
     } else {
-        input.accessToken = string(env, object, "accessToken", 8192);
+        input.authSessionId = string(env, object, "authSessionId", 36, true);
+        input.accessToken = string(env, object, "accessToken", 8192, true);
+        if (input.authSessionId.empty() && input.accessToken.empty())
+            throw std::invalid_argument("Account credentials are required");
+        if (!input.authSessionId.empty() && (input.credentialDir.empty() || !dsh::broker::CredentialStore::validSession(input.authSessionId)))
+            throw std::invalid_argument("Invalid account login session");
         if (method == Method::Connect) {
             input.brokerId = string(env, object, "brokerId", 128);
             input.peerPassword = string(env, object, "peerPassword", 1024);
@@ -89,7 +99,12 @@ Inputs inputs(napi_env env, napi_value object, Method method) {
             input.remotePort = static_cast<int>(port);
             bool requestedPort = false;
             check(napi_has_named_property(env, object, "localPort", &requestedPort));
-            if (requestedPort) throw std::invalid_argument("localPort is not supported; the SDK retains its allocated listener during recovery");
+            if (requestedPort) {
+                double localPort; check(napi_get_value_double(env, field(env, object, "localPort"), &localPort));
+                if (!std::isfinite(localPort) || localPort != std::floor(localPort) || localPort < 0 || localPort > 65535)
+                    throw std::invalid_argument("localPort must be an integer from 0 through 65535");
+                input.localPort = static_cast<int>(localPort);
+            }
         }
     }
     return input;
@@ -127,7 +142,9 @@ napi_value output(napi_env env, const Work& work) {
     }
     check(napi_create_object(env, &value));
     if (work.method == Method::Login) {
-        setString(env, value, "accessToken", work.result.accessToken); setString(env, value, "tokenType", "Bearer");
+        setString(env, value, "accessToken", work.result.accessToken);
+        setString(env, value, "authSessionId", work.result.authSessionId);
+        setString(env, value, "tokenType", "Bearer");
     } else {
         setString(env, value, "state", work.result.probeState); setNumber(env, value, "httpStatus", work.result.httpStatus);
     }

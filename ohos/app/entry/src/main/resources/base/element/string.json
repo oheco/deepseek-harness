@@ -371,6 +371,22 @@
     {
       "name": "modify",
       "value": "Modify"
+    },
+    {
+      "name": "reconnecting",
+      "value": "Reconnecting…"
+    },
+    {
+      "name": "connection_disconnected",
+      "value": "Disconnected"
+    },
+    {
+      "name": "retry_connection",
+      "value": "Reconnect"
+    },
+    {
+      "name": "disconnect_connection",
+      "value": "Disconnect"
     }
   ]
 }

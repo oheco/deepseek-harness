@@ -16,6 +16,10 @@ export class ConnectionProfile {
   serviceUrl: string = '';
   account: string = '';
   accessToken: string = '';
+  /** Native private credential journal reference; new logins keep token material outside preferences. */
+  authSessionId: string = '';
+  /** Last successful loopback listener; zero asks the OS to allocate its first port. */
+  localPort: number = 0;
   brokerId: string = '';
   brokerName: string = '';
   peerPassword: string = '';
@@ -23,7 +27,7 @@ export class ConnectionProfile {
 
 /** Versioned launcher preferences; these records do not modify DSH Session data. */
 export class ConnectionDocument {
-  version: number = 1;
+  version: number = 2;
   connections: ConnectionProfile[] = [];
 }
 
@@ -72,18 +76,25 @@ export function validConnection(value: ConnectionProfile): boolean {
     !shortString(value.token, 4096) || value.token.trim() === '') {
     return false;
   }
+  if (!Number.isInteger(value.localPort) || value.localPort < 0 || value.localPort > 65535 ||
+    !shortString(value.authSessionId, 36) || (value.authSessionId !== '' &&
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(value.authSessionId))) {
+    return false;
+  }
   if (value.mode === ConnectionMode.Local) {
     return value.serviceUrl === '' && value.account === '' && value.accessToken === '' &&
+      value.authSessionId === '' && value.localPort === 0 &&
       value.brokerId === '' && value.brokerName === '' && value.peerPassword === '';
   }
   return value.mode === ConnectionMode.Remote && shortString(value.serviceUrl, 2048) &&
     serviceOrigin(value.serviceUrl) === value.serviceUrl && shortString(value.account, 256) &&
-    value.account.trim() !== '' && shortString(value.accessToken, 4096) && value.accessToken !== '' &&
+    value.account.trim() !== '' && shortString(value.accessToken, 4096) &&
+    (value.authSessionId !== '' ? value.accessToken === '' : value.accessToken !== '') &&
     shortString(value.brokerId, 128) && value.brokerId !== '' &&
     shortString(value.brokerName, 256) && shortString(value.peerPassword, 4096) && value.peerPassword !== '';
 }
 
-/** Reads current fields from bounded version-one settings; retired CA fields are not retained. */
+/** Migrates bounded version-one preferences; credential journals remain native and App-private. */
 export function parseConnections(raw: string): ConnectionProfile[] {
   if (raw === '') {
     return [];
@@ -92,17 +103,16 @@ export function parseConnections(raw: string): ConnectionProfile[] {
     throw new Error('connection preferences exceed the supported size');
   }
   const document = JSON.parse(raw) as ConnectionDocument;
-  if (!document || document.version !== 1 || !Array.isArray(document.connections) ||
+  if (!document || (document.version !== 1 && document.version !== 2) || !Array.isArray(document.connections) ||
     document.connections.length > 100) {
     throw new Error('unsupported connection preferences');
   }
   const ids: string[] = [];
   const connections: ConnectionProfile[] = [];
   for (const connection of document.connections) {
-    if (!validConnection(connection) || ids.includes(connection.id)) {
+    if (!connection) {
       throw new Error('invalid connection preferences');
     }
-    ids.push(connection.id);
     const current = new ConnectionProfile();
     current.id = connection.id;
     current.name = connection.name;
@@ -115,6 +125,12 @@ export function parseConnections(raw: string): ConnectionProfile[] {
     current.brokerId = connection.brokerId;
     current.brokerName = connection.brokerName;
     current.peerPassword = connection.peerPassword;
+    current.authSessionId = document.version === 1 ? '' : connection.authSessionId;
+    current.localPort = document.version === 1 ? 0 : connection.localPort;
+    if (!validConnection(current) || ids.includes(current.id)) {
+      throw new Error('invalid connection preferences');
+    }
+    ids.push(current.id);
     connections.push(current);
   }
   return connections;

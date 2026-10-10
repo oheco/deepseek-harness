@@ -15,16 +15,18 @@ struct ob_api_client;
 struct ob_remote_peer;
 struct ob_remote_map;
 
+namespace dsh::broker { class CredentialStore; }
+
 namespace dsh::broker {
 
 struct Inputs {
-    std::string serviceUrl, account, password, accessToken;
+    std::string serviceUrl, account, password, accessToken, authSessionId, credentialDir;
     std::string brokerId, peerPassword, tempDir, origin, token;
 #ifdef DSH_BROKER_FIXTURE_TRUST
     // Compiled only in the standalone fixture library, never the App module.
     std::string testCaPath;
 #endif
-    int remotePort = 0;
+    int remotePort = 0, localPort = 0;
     Inputs() = default;
     Inputs(const Inputs&) = default;
     Inputs& operator=(const Inputs&) = default;
@@ -38,7 +40,7 @@ struct Status {
     int localPort = 0, remotePort = 0;
 };
 struct Result {
-    std::string error, accessToken, probeState, errorCode = "DSH_BROKER";
+    std::string error, accessToken, authSessionId, probeState, errorCode = "DSH_BROKER";
     std::vector<Broker> brokers;
     Status status;
     int httpStatus = 0;
@@ -94,6 +96,7 @@ private:
     std::deque<std::unique_ptr<Task>> queue_;
     std::atomic<std::uint64_t> generation_{0};
     std::atomic<bool> stopping_{false};
+    std::shared_ptr<CredentialStore> credentials_;
     ob_api_client* api_ = nullptr;
     ob_remote_peer* peer_ = nullptr;
     ob_remote_map* map_ = nullptr;

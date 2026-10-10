@@ -25,7 +25,7 @@ function behaviorPrefix(source, name) {
   const offset = source.indexOf('\n  @Builder');
   assert.notEqual(offset, -1, 'page must expose its behavior before its builders');
   return (source.slice(0, offset) + '\n}\n').replace('struct ' + name, 'class ' + name)
-    .replace(/^@(Entry|Component)\s*$/gm, '').replace(/@StorageProp\([^\n]+\)\s*/g, '').replace(/@State\s*/g, '');
+    .replace(/^@(Entry|Component)\s*$/gm, '').replace(/@StorageProp\([^\n]+\)\s*/g, '').replace(/@(State|Prop)\s*/g, '');
 }
 
 function indexBehavior(source, filename) {
@@ -42,7 +42,11 @@ function renderBindings(source, filename, page, generation) {
   const file = ts.createSourceFile(filename, source.replace('struct Index', 'class Index'), ts.ScriptTarget.Latest, true);
   const callbacks = new Map();
   let homeOpen;
+  let homePrepare;
+  let homeDisconnect;
   let returnConnections;
+  let disconnect;
+  let retry;
   let webSource;
   function visit(node) {
     if (ts.isCallExpression(node)) {
@@ -51,15 +55,24 @@ function renderBindings(source, filename, page, generation) {
         ['onPageEnd', 'onPageBegin', 'onRenderExited', 'onControllerAttached', 'onHttpErrorReceive', 'onErrorReceive'].includes(expression.name.text)) {
         callbacks.set(expression.name.text, node.arguments[0]);
       }
-      if (ts.isPropertyAccessExpression(expression) && expression.name.text === 'onClick' &&
-        node.arguments[0].getText(file).includes('this.closeWeb();')) returnConnections = node.arguments[0];
+      if (ts.isPropertyAccessExpression(expression) && expression.name.text === 'onClick') {
+        const callback = node.arguments[0].getText(file);
+        if (callback.includes('this.hideWeb();')) returnConnections = node.arguments[0];
+        if (callback.includes('this.disconnectConnection(this.retainedConnectionId)')) disconnect = node.arguments[0];
+        if (callback.includes('this.retryConnection()')) retry = node.arguments[0];
+      }
       if (expression.getText(file) === 'Web' && ts.isObjectLiteralExpression(node.arguments[0])) {
         const property = node.arguments[0].properties.find(item => ts.isPropertyAssignment(item) && item.name.getText(file) === 'src');
         if (property) webSource = property.initializer;
       }
       if (expression.getText(file) === 'ConnectionHome' && ts.isObjectLiteralExpression(node.arguments[0])) {
-        const property = node.arguments[0].properties.find(item => ts.isPropertyAssignment(item) && item.name.getText(file) === 'onOpen');
-        if (property) homeOpen = property.initializer;
+        for (const property of node.arguments[0].properties) {
+          if (!ts.isPropertyAssignment(property)) continue;
+          const name = property.name.getText(file);
+          if (name === 'onOpen') homeOpen = property.initializer;
+          if (name === 'onPrepare') homePrepare = property.initializer;
+          if (name === 'onDisconnect') homeDisconnect = property.initializer;
+        }
       }
     }
     ts.forEachChild(node, visit);
@@ -69,7 +82,9 @@ function renderBindings(source, filename, page, generation) {
   assert(webSource, 'the actual Web constructor must declare its initial navigation');
   assert.ok(!source.includes('.onFirstScreenPaint('), 'a blank first paint cannot hide the loading cover');
   assert(homeOpen, 'Index must receive the actual connection profile in its Home handoff');
-  assert(returnConnections, 'a failed page must expose an action that returns to the connection flow');
+  assert(returnConnections, 'a failed page must expose a soft return to the connection flow');
+  assert(homePrepare && homeDisconnect, 'the mounted Home must prepare and explicitly release retained connections');
+  assert(disconnect && retry, 'retained errors expose disconnect and SDK recovery actions');
   const sourceText = 'export function bind(generation) { return { pageEnd: ' + callbacks.get('onPageEnd').getText(file) +
     ', exited: ' + callbacks.get('onRenderExited').getText(file) +
     ', initialSource: ' + webSource.getText(file) +
@@ -78,6 +93,10 @@ function renderBindings(source, filename, page, generation) {
     ', httpError: ' + callbacks.get('onHttpErrorReceive').getText(file) +
     ', networkError: ' + callbacks.get('onErrorReceive').getText(file) +
     ', homeOpen: ' + homeOpen.getText(file) +
+    ', homePrepare: ' + homePrepare.getText(file) +
+    ', homeDisconnect: ' + homeDisconnect.getText(file) +
+    ', disconnect: ' + disconnect.getText(file) +
+    ', retry: ' + retry.getText(file) +
     ', returnConnections: ' + returnConnections.getText(file) + ' }; }';
   const exports = {};
   const code = ts.transpileModule(sourceText, { compilerOptions: {
@@ -312,6 +331,44 @@ function sdkOwnsRecovery(h) {
   assert.equal(h.count('close'), 0, 'outage recovery must not destroy the SDK handle');
 }
 
+test('activation after a backgrounded old page resumes status polling for the new owner', async () => {
+  const h = harness();
+  const { value } = h.helper();
+  value.background();
+  await value.close();
+  value.activate(h.profile(), ORIGIN);
+  h.plans.status.push(sdkStatus('retry_wait'));
+  await value.check();
+  assert.equal(h.count('status'), 1);
+  assert.equal(h.changes.at(-1).state, h.states.Recovering);
+  await value.close();
+});
+
+test('polling a paused SDK stops recovery indication until a manual wake is requested', async () => {
+  const h = harness();
+  const { value } = h.helper();
+  h.plans.status.push(sdkStatus('reconnecting'), sdkStatus('paused'), sdkStatus('paused'));
+  await value.check();
+  assert.equal(h.changes.at(-1).state, h.states.Recovering);
+  await value.check();
+  assert.equal(h.changes.at(-1).state, h.states.Disconnected);
+  assert.equal(h.count('reconnect'), 0);
+  await value.foregrounded();
+  assert.equal(h.count('reconnect'), 1);
+  assert.equal(h.changes.at(-1).state, h.states.Recovering);
+  await value.close();
+});
+
+test('authentication failure on a paused snapshot requires login and cannot wake the SDK', async () => {
+  const h = harness();
+  const { value } = h.helper();
+  h.plans.status.push(sdkStatus('paused', { errorCode: 'DSH_BROKER_AUTH' }));
+  await value.foregrounded();
+  assert.equal(h.changes.at(-1).state, h.states.AuthenticationRequired);
+  assert.equal(h.count('reconnect'), 0);
+  await value.close();
+});
+
 test('automatic SDK recovery states retain the handle and never request manual reconnect', async () => {
   for (const state of ['connecting', 'reconnecting', 'retry_wait']) {
     const h = harness();
@@ -361,7 +418,8 @@ test('failed, closed, idle, and failed-auth handles remain disconnected without 
     await value.foregrounded();
     await value.check();
     await value.foregrounded();
-    assert.equal(h.changes.at(-1).state, h.states.Disconnected);
+    assert.equal(h.changes.at(-1).state, snapshot.errorCode === 'DSH_BROKER_AUTH' ?
+      h.states.AuthenticationRequired : h.states.Disconnected);
     assert.equal(h.count('reconnect'), 0);
     assert.equal(h.count('probe'), 0);
     sdkOwnsRecovery(h);
@@ -471,16 +529,24 @@ test('explicit close cancels before joining a pending manual request even when n
     const before = h.changes.length;
     let settled = false;
     const closing = value.close();
-    closing.then(() => { settled = true; });
+    closing.then(() => { settled = true; }, () => { settled = true; });
     assert.equal(value.close(), closing);
     await tick();
     assert.equal(h.count('close'), 1);
     assert.equal(settled, false, 'native cancellation precedes the join of pending work');
     manual.resolve(sdkStatus('connected', { localUrl: 'http://127.0.0.1:54321/', localPort: 54321 }));
-    await Promise.all([recovery, closing]);
+    await recovery;
+    if (rejectClose) await assert.rejects(closing, /SDK close failed/);
+    else await closing;
     assert.equal(h.changes.length, before);
     assert.equal(h.count('probe'), 0);
     assert.equal(h.count('close'), 1, 'retired results cannot issue a later close');
+    if (rejectClose) {
+      assert.throws(() => value.activate(h.profile(), ORIGIN), /cleanup has not completed/);
+      await value.close();
+      value.activate(h.profile(), ORIGIN);
+      await value.close();
+    }
   }
 });
 
@@ -528,6 +594,155 @@ test('callback and manual request failures are contained without App restart att
   await assert.doesNotReject(value.close());
 });
 
+test('soft return and repeated same-config opens retain actual local and remote WebViews without new probes', async () => {
+  for (const remote of [false, true]) {
+    const h = harness();
+    const { index, adopted, bind } = h.page(remote);
+    await h.attach(index, bind());
+    bind().pageEnd({ url: ROUTE });
+    index.searchText = 'kept search';
+    index.searchCount = 3;
+    const before = preserve(index);
+    const probes = h.count('probe');
+    const cookies = h.cookieCalls.length;
+    const loads = index.controller.loaded.length;
+    for (let reopen = 0; reopen < 5; reopen += 1) {
+      assert.equal(index.onBackPress(), true);
+      assert.equal(index.webVisible, false);
+      assert.equal(index.retainedConnectionId, adopted.id);
+      unchanged(index, before);
+      const updated = h.profile(remote);
+      updated.name = 'renamed while retained';
+      updated.localPort = 54321;
+      assert.equal(await bind().homePrepare(updated), true);
+      await tick();
+      assert.equal(index.webVisible, true);
+      unchanged(index, before);
+      assert.equal(index.controller.loaded.length, loads);
+    }
+    assert.equal(h.count('probe'), probes);
+    assert.equal(h.cookieCalls.length, cookies);
+    assert.equal(h.controllers.length, 2);
+    sdkOwnsRecovery(h);
+    await closePage(h, index);
+  }
+});
+
+test('every transport configuration change retires the retained page before new ownership', async () => {
+  const fields = { id: 'other-profile', mode: 'local', port: 3091, token: 'new-dsh-token',
+    serviceUrl: 'https://other.invalid', account: 'other-account', brokerId: 'other-broker', peerPassword: 'other-peer',
+    authSessionId: '12345678-1234-4234-8234-123456789abc', accessToken: 'other-legacy-bearer' };
+  for (const [field, next] of Object.entries(fields)) {
+    const h = harness();
+    const { index } = h.page();
+    index.hideWeb();
+    const updated = h.profile();
+    updated[field] = next;
+    assert.equal(await index.prepareConnection(updated), false, field);
+    assert.equal(index.webUrl, '', field);
+    assert.equal(index.retainedConnectionId, '', field);
+    assert.equal(h.count('close'), 1, field);
+    assert.equal(index.closingWeb, false, field);
+    await closePage(h, index);
+  }
+});
+
+test('the retained configuration is a snapshot even when a caller edits the adopted profile in place', async () => {
+  const h = harness();
+  const { index, adopted } = h.page();
+  index.hideWeb();
+  adopted.token = 'edited-token';
+  assert.equal(await index.prepareConnection(adopted), false);
+  assert.equal(h.count('close'), 1);
+  await closePage(h, index);
+});
+
+test('switch preparation merges repeated clicks and waits for actual SDK teardown', async () => {
+  const h = harness();
+  const { index, bind } = h.page();
+  index.hideWeb();
+  const cleanup = deferred();
+  h.plans.close.push(cleanup.promise);
+  const next = h.profile();
+  next.id = 'next-profile';
+  const preparation = bind().homePrepare(next);
+  assert.equal(bind().homePrepare(next), preparation);
+  let finished = false;
+  preparation.then(() => { finished = true; });
+  await tick();
+  assert.equal(finished, false);
+  assert.equal(index.closingWeb, true);
+  assert.equal(index.webVisible, false);
+  assert.equal(index.openWeb(ADDRESS, true, next), false);
+  assert.equal(h.count('close'), 1);
+  cleanup.resolve();
+  assert.equal(await preparation, false);
+  assert.equal(index.openWeb(ADDRESS, true, next), true);
+  assert.equal(index.retainedConnectionId, next.id);
+  await closePage(h, index);
+});
+
+test('explicit Home disconnect and deleting its retained id join one real close while unrelated ids remain intact', async () => {
+  const h = harness();
+  const { index, adopted, bind } = h.page();
+  const before = preserve(index);
+  index.hideWeb();
+  await bind().homeDisconnect('unrelated-profile');
+  unchanged(index, before);
+  assert.equal(h.count('close'), 0);
+  const cleanup = deferred();
+  h.plans.close.push(cleanup.promise);
+  const closing = bind().homeDisconnect(adopted.id);
+  assert.equal(bind().homeDisconnect(adopted.id), closing);
+  await tick();
+  assert.equal(index.webUrl, '');
+  assert.equal(index.retainedConnectionId, '');
+  assert.equal(index.closingWeb, true);
+  cleanup.resolve();
+  await closing;
+  assert.equal(index.closingWeb, false);
+  assert.equal(h.count('close'), 1);
+  await closePage(h, index);
+});
+
+test('a visible manual retry wakes the paused SDK once without replacing the retained document', async () => {
+  const h = harness();
+  const { index, bind } = h.page();
+  bind().pageEnd({ url: ROUTE });
+  const before = preserve(index);
+  h.plans.status.push(sdkStatus('paused'));
+  await index.checkRemote();
+  assert.equal(index.connectionState, h.states.Disconnected);
+  const waking = deferred();
+  h.plans.status.push(sdkStatus('paused'));
+  h.plans.reconnect.push(waking.promise);
+  bind().retry();
+  bind().retry();
+  await tick();
+  assert.equal(h.count('reconnect'), 1);
+  assert.equal(index.connectionState, h.states.Recovering);
+  waking.resolve(sdkStatus('retry_wait'));
+  await index.retryConnection();
+  unchanged(index, before);
+  sdkOwnsRecovery(h);
+  await closePage(h, index);
+});
+
+test('returning from an expired broker login releases its failed map for the Home login flow', async () => {
+  const h = harness();
+  const { index } = h.page();
+  h.plans.status.push(sdkStatus('failed', { errorCode: 'DSH_BROKER_AUTH' }));
+  await index.checkRemote();
+  assert.equal(index.connectionMessage().name, 'app.string.broker_login_expired');
+  index.returnFromConnection();
+  await index.closeWork;
+  assert.equal(index.webVisible, false);
+  assert.equal(index.retainedConnectionId, '');
+  assert.equal(h.count('close'), 1);
+  assert.equal(h.count('reconnect'), 0);
+  await closePage(h, index);
+});
+
 test('SDK automatic recovery preserves actual Index DOM, history, search, route, and profile', async () => {
   const h = harness();
   const { index, adopted, bind } = h.page();
@@ -570,7 +785,8 @@ test('failed SDK handles and local probe failures keep actual Index pages until 
     if (remote) h.plans.status.push(sdkStatus('failed', { errorCode: 'DSH_BROKER_AUTH' }));
     else h.plans.probe.push({ state: 'unreachable', httpStatus: 0 });
     await index.resumeWeb();
-    assert.equal(index.connectionState, h.states.Disconnected);
+    assert.equal(index.connectionState, remote ? h.states.AuthenticationRequired : h.states.Disconnected);
+    assert.equal(index.connectionMessage().name, remote ? 'app.string.broker_login_expired' : 'app.string.connection_disconnected');
     assert.equal(index.activeConnection, adopted);
     unchanged(index, before);
     assert.equal(h.count('reconnect'), 0);
@@ -579,7 +795,7 @@ test('failed SDK handles and local probe failures keep actual Index pages until 
   }
 });
 
-test('actual Back clears page and orientation immediately while cancellation retains the cleanup barrier', async () => {
+test('explicit disconnect clears page immediately and a failed native close continues blocking new ownership', async () => {
   for (const rejectClose of [false, true]) {
     const h = harness();
     const { index } = h.page();
@@ -591,8 +807,8 @@ test('actual Back clears page and orientation immediately while cancellation ret
     const generation = index.webGeneration;
     const oldController = index.controller;
     if (rejectClose) h.plans.close.push(new Error('SDK close failed'));
-    assert.equal(index.onBackPress(), true);
-    const closing = index.closeWeb();
+    const closing = index.disconnectConnection(index.retainedConnectionId);
+    assert.equal(index.closeWeb(), closing);
     assert.equal(index.webUrl, '');
     assert.equal(index.activeConnection, undefined);
     assert.equal(index.webGeneration, generation + 1);
@@ -602,12 +818,20 @@ test('actual Back clears page and orientation immediately while cancellation ret
     assert.equal(index.closingWeb, true);
     assert.equal(index.openWeb(ADDRESS, true, h.profile()), false, 'new ownership waits for native quiescence');
     manual.resolve(sdkStatus('connected'));
-    await Promise.all([recovery, closing]);
+    await recovery;
+    if (rejectClose) {
+      await assert.rejects(closing, /SDK close failed/);
+      assert.equal(index.closingWeb, true);
+      assert.equal(index.openWeb(ADDRESS, true, h.profile()), false);
+      assert.equal(await index.prepareConnection(h.profile()), false, 'a later preparation retries unfinished teardown');
+    } else {
+      await closing;
+    }
     assert.equal(index.closingWeb, false);
     assert.equal(oldController.events.length, 0, 'retired completion cannot notify the old DOM');
-    assert.equal(h.count('close'), 1);
+    assert.equal(h.count('close'), rejectClose ? 2 : 1);
     assert.equal(index.openWeb(ADDRESS, true, h.profile()), true);
-    assert.equal(h.count('close'), 1);
+    assert.equal(h.count('close'), rejectClose ? 2 : 1);
     await closePage(h, index);
   }
 });
@@ -705,6 +929,84 @@ test('foreground event coalescing and notification failures preserve the live re
   }
 });
 
+test('one mounted Home restores the retained local page before any second probe or handoff', async () => {
+  const h = harness();
+  const { index, adopted, bind } = h.page(false);
+  await h.attach(index, bind());
+  bind().pageEnd({ url: ROUTE });
+  const before = preserve(index);
+  const flow = new (h.load('pages/ConnectionHome').ConnectionHome)();
+  flow.onPrepare = bind().homePrepare;
+  flow.onDisconnect = bind().homeDisconnect;
+  let handoffs = 0;
+  flow.onOpen = (...args) => { handoffs += 1; return bind().homeOpen(...args); };
+  flow.aboutToAppear();
+  await flow.pendingWork;
+  const reads = h.cookieCalls.length;
+  for (let reopen = 0; reopen < 3; reopen += 1) {
+    index.hideWeb();
+    await flow.openConnection(adopted);
+    assert.equal(flow.busy, false);
+    assert.equal(flow.transferred, true);
+    assert.equal(index.webVisible, true);
+    unchanged(index, before);
+  }
+  assert.equal(h.count('probe'), 0);
+  assert.equal(h.count('connect'), 0);
+  assert.equal(handoffs, 0);
+  assert.equal(h.cookieCalls.length, reads);
+  await closePage(h, index);
+});
+
+test('build bindings keep Home mounted and hide the retained Web without changing its creation generation', () => {
+  const source = fs.readFileSync(path.join(ets, 'pages/Index.ets'), 'utf8');
+  const file = ts.createSourceFile('Index.ets', source.replace('struct Index', 'class Index'), ts.ScriptTarget.Latest, true);
+  const nodes = [];
+  function visit(node) {
+    if (ts.isCallExpression(node) && ['Web', 'ConnectionHome'].includes(node.expression.getText(file))) nodes.push(node);
+    ts.forEachChild(node, visit);
+  }
+  visit(file);
+  const web = nodes.find(node => node.expression.getText(file) === 'Web');
+  const home = nodes.find(node => node.expression.getText(file) === 'ConnectionHome');
+  assert(web && home);
+  function enclosingConditions(node) {
+    const conditions = [];
+    for (let ancestor = node.parent; ancestor; ancestor = ancestor.parent) {
+      if (ts.isIfStatement(ancestor)) conditions.push(ancestor.expression.getText(file));
+    }
+    return conditions;
+  }
+  assert.deepEqual(enclosingConditions(home), [], 'Home remains in the tree while the WebView is shown');
+  assert.deepEqual(enclosingConditions(web), ["this.webUrl !== ''"], 'visibility cannot remove the retained Web');
+  assert.match(source, /\.visibility\(this\.webVisible \? Visibility\.Visible : Visibility\.Hidden\)/);
+  assert.match(source, /\.visibility\(this\.webVisible \? Visibility\.Hidden : Visibility\.Visible\)/);
+});
+
+test('the recovery indicator stays in its recovering branch and its top overlay permits page hit testing', () => {
+  const source = fs.readFileSync(path.join(ets, 'pages/Index.ets'), 'utf8');
+  const start = source.indexOf('  private connectionStatus()');
+  const end = source.indexOf('\n  @Builder', start);
+  const builder = source.slice(start, end);
+  const file = ts.createSourceFile('connection-status.ts', builder, ts.ScriptTarget.Latest, true);
+  const spinners = [];
+  function visit(node) {
+    if (ts.isCallExpression(node) && node.expression.getText(file) === 'LoadingProgress') spinners.push(node);
+    ts.forEachChild(node, visit);
+  }
+  visit(file);
+  assert.equal(spinners.length, 1);
+  let recovering;
+  for (let ancestor = spinners[0].parent; ancestor; ancestor = ancestor.parent) {
+    if (ts.isIfStatement(ancestor)) { recovering = ancestor.expression.getText(file); break; }
+  }
+  assert.equal(recovering, 'this.connectionState === WebConnectionState.Recovering');
+  assert.match(builder, /position\(\{ x: 0, y: 12 \}\)/);
+  assert.match(builder, /Recovering \? HitTestMode\.None : HitTestMode\.Transparent/);
+  assert.match(builder, /app\.string\.reconnecting/);
+  assert.match(builder, /app\.string\.retry_connection/);
+});
+
 test('Index Home handoff still forwards the exact profile and its boolean ownership result', async () => {
   const h = harness();
   const { index, bind } = h.page(false);
@@ -714,6 +1016,8 @@ test('Index Home handoff still forwards the exact profile and its boolean owners
   const callback = bind().homeOpen;
   let accepted;
   flow.onOpen = (...args) => { accepted = callback(...args); return accepted; };
+  flow.onPrepare = bind().homePrepare;
+  flow.onDisconnect = bind().homeDisconnect;
   flow.aboutToAppear();
   await flow.pendingWork;
   await flow.openConnection(profile);
@@ -758,6 +1062,11 @@ test('HTTP 431 stays visible through paint, PageEnd and the later generic load e
   assert.equal(index.controller, controller);
   assert.equal(index.webUrl, ADDRESS);
   callbacks.returnConnections();
+  assert.equal(index.webVisible, false);
+  assert.equal(index.webUrl, ADDRESS);
+  assert.equal(index.webError.name, 'app.string.web_http_error');
+  assert.equal(h.count('close'), 0);
+  callbacks.disconnect();
   await index.closeWork;
   assert.equal(index.webUrl, '');
   assert.equal(index.webError, undefined);
@@ -901,6 +1210,10 @@ for (const failure of ['read', 'write', 'navigate']) {
     assert.equal(index.pageLoaded, false);
     assert.equal(h.cookieCalls.filter(call => call[0] === 'read').length, 1);
     callbacks.returnConnections();
+    assert.equal(index.webVisible, false);
+    assert.equal(index.webUrl, ADDRESS);
+    assert.equal(h.count('close'), 0);
+    callbacks.disconnect();
     await index.closeWork;
     assert.equal(index.webUrl, '');
     assert.equal(index.webError, undefined);
@@ -976,5 +1289,17 @@ test('a detached preparation cannot expire cookies, and reattachment can finish 
   await h.attach(index, bind());
   assert.deepEqual(index.controller.loaded, [ADDRESS]);
   assert.equal(h.cookieCalls.filter(call => call[0] === 'expire').length, 1);
+  await closePage(h, index);
+});
+
+
+test('an account authentication terminal state retires its retained peer before reopening', async () => {
+  const h = harness();
+  const { index, adopted } = h.page();
+  index.connectionChanged(h.states.AuthenticationRequired, false);
+  index.hideWeb();
+  assert.equal(await index.prepareConnection(adopted), false);
+  assert.equal(h.count('close'), 1);
+  assert.equal(index.retainedConnectionId, '');
   await closePage(h, index);
 });

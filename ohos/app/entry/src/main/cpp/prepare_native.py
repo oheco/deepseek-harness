@@ -14,7 +14,6 @@ import hashlib
 import json
 import os
 from pathlib import Path, PurePosixPath
-import re
 import shutil
 import stat
 import subprocess
@@ -22,6 +21,7 @@ import tarfile
 import tempfile
 
 
+SDK_VERSION = '0.5.0'
 ARCHIVES = ('libxquic-static.a', 'libjuice.a', 'libcjson.a', 'libssl.a',
             'libcrypto.a', 'libcurl.a')
 PREVIOUS_INPUTS = ('broker_sdk', 'tpr/broker-sources.tar.gz',
@@ -96,12 +96,25 @@ def backup_inputs(cpp, destination=None):
     return destination
 
 
+def replacement_target(root, name):
+    """Verify the exact App input destination before replacing or restoring it."""
+    if name not in (*PREVIOUS_INPUTS, 'broker-native-arm64'):
+        raise ValueError(f'Unexpected App input destination: {name}')
+    expected = root.resolve() / name
+    target = root / name
+    if target.resolve() != expected:
+        raise ValueError(f'App input destination resolves outside its expected path: {target}')
+    return expected
+
+
 def publish_inputs(root, replacements, backup):
     """Replace App inputs, restoring their backups if any replacement fails."""
+    for name in replacements:
+        replacement_target(root, name)
     changed = []
     try:
         for name, source in replacements.items():
-            target = root / name
+            target = replacement_target(root, name)
             changed.append(name)
             if target.exists():
                 if target.is_dir():
@@ -115,7 +128,7 @@ def publish_inputs(root, replacements, backup):
                 shutil.copyfile(source, target)
     except BaseException as error:
         for name in reversed(changed):
-            target = root / name
+            target = replacement_target(root, name)
             saved = backup / name if backup else None
             try:
                 if target.exists():
@@ -147,14 +160,15 @@ def snapshot(sdk, cpp, backup=None):
     release = dict(line.split('=', 1) for line in buildinfo.read_text().splitlines()
                    if '=' in line)
     version = release.get('version', '')
-    if not re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?', version) or release.get('platform') != 'ohos-arm64':
-        raise ValueError('Expected a released ohos-arm64 SDK package with version in BUILDINFO.txt')
+    if version != SDK_VERSION or release.get('platform') != 'ohos-arm64':
+        raise ValueError(f'Expected the released {SDK_VERSION} ohos-arm64 SDK package in BUILDINFO.txt')
     commit = release.get('source_commit', '')
     if len(commit) != 40 or any(character not in '0123456789abcdef' for character in commit):
         raise ValueError('Released SDK BUILDINFO.txt has no valid source_commit')
     sdk_records = file_records(sdk)
     for required in ('build.sh', 'CMakeLists.txt', 'tpr/native-dependencies.json',
-                     'remote/CMakeLists.txt', 'build/common.sh'):
+                     'remote/CMakeLists.txt', 'remote/ob_auth.c', 'remote/ob_auth.h',
+                     'remote/ob_api_internal.h', 'build/common.sh'):
         if required not in sdk_records:
             raise ValueError(f'Released SDK is incomplete: {required}')
     inputs = {'source/sdk/c/' + name: sdk / name for name in sdk_records}
@@ -223,8 +237,10 @@ def snapshot(sdk, cpp, backup=None):
 def prepare(cpp, build):
     tpr = cpp / 'tpr'
     metadata = json.loads((tpr / 'broker-sources.json').read_text())
-    if metadata.get('schema_version') != 2 or metadata.get('local_sdk_changes') != 'NONE':
-        raise ValueError('Import the released SDK with --sdk-from before rebuilding')
+    if (metadata.get('schema_version') != 2 or metadata.get('local_sdk_changes') != 'NONE'
+            or metadata.get('sdk_version') != SDK_VERSION
+            or metadata.get('sdk_release', {}).get('version') != SDK_VERSION):
+        raise ValueError(f'Import the released {SDK_VERSION} SDK with --sdk-from before rebuilding')
     archive = tpr / metadata['archive']
     companion = metadata['native_dependency_manifest']
     if digest(tpr / companion['file']) != companion['sha256'] or digest(archive) != metadata['sha256']:

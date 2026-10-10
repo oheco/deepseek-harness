@@ -31,7 +31,9 @@ class ProjectTests(unittest.TestCase):
         metadata = json.loads((app / 'AppScope/app.json5').read_text())['app']
         self.assertEqual(metadata['bundleName'], 'org.oheco.' + 'deepseek-harness'.replace('-', ''))
         release = json.loads((ROOT / 'ohos/release.json').read_text())
-        self.assertEqual(metadata['versionName'], release['version'])
+        app_release = json.loads((ROOT / 'ohos/app-release.json').read_text())
+        self.assertEqual(metadata['versionName'], app_release['version'])
+        self.assertEqual(metadata['versionCode'], app_release['version_code'])
         self.assertRegex(release['version'], r'^\d+\.\d+\.\d+-rc\.[1-9]\d*-ohos\.[1-9]\d*$')
         self.assertEqual(release['version'], release['upstream_version'] + '-ohos.1')
         self.assertEqual(release['upstream_version'], '0.2.0-rc.2')
@@ -310,7 +312,9 @@ class ProjectTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout)
         info = json.loads((export / 'BUILD-INFO.json').read_text())
         release = json.loads((ROOT / 'ohos/release.json').read_text())
-        self.assertEqual(info['release_version'], release['version'])
+        app_release = json.loads((ROOT / 'ohos/app-release.json').read_text())
+        self.assertEqual(info['release_version'], app_release['version'])
+        self.assertEqual(info['runtime_release_version'], release['version'])
         self.assertEqual(info['upstream_version'], release['upstream_version'])
         self.assertEqual(info['upstream_commit'], release['upstream_commit'])
         self.assertRegex(info['source_commit'], r'^[0-9a-f]{40}$')
@@ -319,9 +323,9 @@ class ProjectTests(unittest.TestCase):
         self.assertFalse(info['launcher_override'])
         self.assertEqual(info['web_launcher'], 'dsh')
         self.assertIn('system-trusted HTTPS/WSS', info['launch_mode'])
-        self.assertEqual(info['broker_inputs']['sdk_version'], '0.4.0')
+        self.assertEqual(info['broker_inputs']['sdk_version'], '0.5.0')
         self.assertEqual(info['broker_inputs']['local_sdk_changes'], 'NONE')
-        self.assertEqual(info['broker_inputs']['sdk_source_files'], 24)
+        self.assertEqual(info['broker_inputs']['sdk_source_files'], 26)
         self.assertEqual((export / 'entry/src/main/ets/config/RuntimeDefaults.ets').read_text(),
                          packaging.runtime_defaults(Path.home()))
         self.assertEqual((export / 'LICENSE').read_bytes(), (ROOT / 'LICENSE').read_bytes())
@@ -334,15 +338,15 @@ class ProjectTests(unittest.TestCase):
         self.assertIn('](validation/app-migration.json)', documentation)
         self.assertNotIn('](../app-migration.json)', documentation)
         checks = json.loads((export / 'LOCAL-CHECKS.json').read_text())
-        self.assertEqual(checks['version'], release['version'])
+        self.assertEqual(checks['version'], app_release['version'])
         self.assertIn('by this tool', checks['packager_scope'])
         self.assertIn('separate HAP build and signature receipts', checks['hap_build'])
         self.assertIn('separate installation and device receipts', checks['device_acceptance'])
         self.assertNotIn('awaits user verification', checks['device_acceptance'])
         archive = output / ('deepseek-harness-app-' + info['release_version'] + '.zip')
         artifact = json.loads((output / 'project-artifact.json').read_text())
-        self.assertEqual(artifact['url'], 'https://github.com/oheco/deepseek-harness/releases/download/v' +
-                         release['version'] + '/' + archive.name)
+        self.assertEqual(artifact['url'], 'https://github.com/oheco/deepseek-harness/releases/download/' +
+                         app_release['tag'] + '/' + archive.name)
         self.assertEqual(artifact['sha256'], packaging.digest(archive))
         self.assertEqual(artifact['size'], archive.stat().st_size)
         self.assertEqual((output / (archive.name + '.sha256')).read_text(),
@@ -369,7 +373,8 @@ class ProjectTests(unittest.TestCase):
         original_launcher = launcher.read_bytes()
         output = self.root / 'local-archive'
         release = json.loads((ROOT / 'ohos/release.json').read_text())
-        base = 'https://github.com/oheco/deepseek-harness/releases/download/v' + release['version']
+        app_release = json.loads((ROOT / 'ohos/app-release.json').read_text())
+        base = 'https://github.com/oheco/deepseek-harness/releases/download/' + app_release['tag']
         result = subprocess.run(['python3', '-B', str(ROOT / 'ohos/package-app-project.py'),
                                  '--output', str(output), '--web-launcher', str(launcher),
                                  '--home', str(home), '--release-url', base + '/'],
@@ -383,7 +388,7 @@ class ProjectTests(unittest.TestCase):
         self.assertEqual((stage / 'entry/src/main/ets/config/RuntimeDefaults.ets').read_text(),
                          packaging.runtime_defaults(home, launcher.resolve()))
         artifact = json.loads((output / 'project-artifact.json').read_text())
-        self.assertEqual(artifact['url'], base + '/deepseek-harness-app-' + release['version'] + '.zip')
+        self.assertEqual(artifact['url'], base + '/deepseek-harness-app-' + app_release['version'] + '.zip')
         self.assertEqual(launcher.read_bytes(), original_launcher)
         self.assertEqual(profile.read_text(), 'existing user profile')
 

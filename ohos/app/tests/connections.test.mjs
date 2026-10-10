@@ -18,7 +18,7 @@ function harness() {
   const disk = new Map();
   const memory = new Map();
   const control = { failFlush: false, flushWait: undefined, probeState: 'ok', probe: undefined,
-    connect: undefined, close: undefined, brokers: undefined, opened: [], cookieReads: 0 };
+    connect: undefined, close: undefined, brokers: undefined, session: undefined, opened: [], cookieReads: 0 };
   class NavPathStack {
     routes = [];
     operations = [];
@@ -39,7 +39,7 @@ function harness() {
       if (control.flushWait) await control.flushWait;
       for (const [key, value] of memory) disk.set(key, value); } };
   const native = {
-    async brokerLogin(options) { calls.push(['login', options]); return { accessToken: 'account-bearer', tokenType: 'Bearer' }; },
+    async brokerLogin(options) { calls.push(['login', options]); return control.session ?? { accessToken: 'account-bearer', authSessionId: '', tokenType: 'Bearer' }; },
     async brokerList(options) { calls.push(['list', options]); return control.brokers ?? [
       { id: 'online-broker', name: 'Workstation', online: true },
       { id: 'offline-broker', name: 'Offline', online: false } ]; },
@@ -59,7 +59,7 @@ function harness() {
     if (relative === 'pages/ConnectionHome') {
       source = source.slice(0, source.indexOf('\n  @Builder')) + '\n}\nexport { ConnectionTestState, LauncherPage };\n';
       source = source.replace('export struct ConnectionHome', 'export class ConnectionHome')
-        .replace(/^@Component\s*$/gm, '').replace(/@StorageProp\([^\n]+\)\s*/g, '').replace(/@State\s*/g, '');
+        .replace(/^@Component\s*$/gm, '').replace(/@StorageProp\([^\n]+\)\s*/g, '').replace(/@State\s*/g, '').replace(/@Prop\s*/g, '');
     }
     const output = ts.transpileModule(source, { compilerOptions: {
       module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022
@@ -175,11 +175,11 @@ function renderedConnectionRows(h) {
       (ts.isPropertyAccessExpression(node.expression) && node.expression.expression.getText(file) === 'Text' && node.expression.name.text === 'create')) text.push(node.arguments[0]);
     if (ts.isPropertyAccessExpression(node.expression) && node.expression.name.text === 'onClick') clicks.push(node.arguments[0]);
   });
-  assert(key && text.length >= 3 && clicks.length === 2);
+  assert(key && text.length >= 3 && clicks.length === 3);
   const exports = {};
   const javascript = ts.transpileModule('export function bind() { return ' + key.getText(file) + '; }\n' +
     'export function row(connection) { return { name: () => (' + text[0].getText(file) + '), detail: () => (' +
-    text[2].getText(file) + '), open: ' + clicks[0].getText(file) + ', edit: ' + clicks[1].getText(file) + ' }; }', {
+    text[2].getText(file) + '), open: ' + clicks[0].getText(file) + ', edit: ' + clicks[2].getText(file) + ' }; }', {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 }
   }).outputText;
   vm.runInNewContext(javascript, { exports, ConnectionMode: h.profile.ConnectionMode });
@@ -274,6 +274,7 @@ for (const outcome of ['ok', 'unauthorized', 'throws']) {
     assert.equal(h.page.token, original.token);
     assert.equal(h.page.name, original.name);
     assert.equal(h.page.port, '3091');
+    await tick();
     assert.equal(h.calls.find(([name]) => name === 'probe')[1].token, original.token);
     await h.page.testConnection();
     assert.equal(h.calls.filter(([name]) => name === 'probe').length, 1, 'busy testing cannot start another probe');
@@ -386,7 +387,7 @@ test('version-one records retain connection settings while retired and unowned f
   assert.equal('caPath' in loaded[0], false);
   assert.equal('extraSetting' in loaded[0], false);
   const encoded = JSON.parse(h.profile.encodeConnections([legacy]));
-  assert.equal(encoded.version, 1);
+  assert.equal(encoded.version, 2);
   assert.equal(encoded.connections[0].token, current.token);
   assert.equal('caPath' in encoded.connections[0], false);
   assert.equal('extraSetting' in encoded.connections[0], false);
@@ -515,7 +516,7 @@ test('a failed flush retains the saved list and does not announce completion', a
 });
 
 test('corrupt or future preferences cannot be silently replaced by a new connection', async () => {
-  for (const raw of ['{"version":2,"connections":[]}', '{', '{"version":1,"connections":[null]}']) {
+  for (const raw of ['{"version":3,"connections":[]}', '{', '{"version":1,"connections":[null]}']) {
     const h = harness();
     h.disk.set('connections_v1', raw);
     await h.ready();
@@ -716,6 +717,7 @@ test('native Back awaits pending mapping work even when close rejects and preven
   h.control.connect = () => blocked.promise;
   h.control.close = async () => { throw new Error('close rejected'); };
   h.page.runTask(() => h.page.openConnection(saved));
+  await tick();
   let backWork;
   const goBack = h.page.goBack.bind(h.page);
   h.page.goBack = () => { const work = goBack(); backWork ??= work; return work; };
@@ -882,6 +884,7 @@ test('Back waits for cancelled remote work and prevents a late mapping transfer'
   const blocked = deferred();
   h.control.connect = () => blocked.promise;
   h.page.runTask(() => h.page.openConnection(connection));
+  await tick();
   const back = h.page.goBack();
   await tick();
   assert.equal(h.page.busy, true, 'navigation awaits the owner operation after cancellation');
@@ -981,7 +984,7 @@ test('expired broker authentication routes a saved remote connection to login wh
     }
     await h.page.openConnection(connection);
     assert.deepEqual(h.control.opened, []);
-    assert.equal(h.disk.get('connections_v1'), previous, 'opening failure preserves the saved connection');
+    assert.equal(h.page.connections[0].id, connection.id, 'opening failure preserves the saved connection');
     if (failure === 'broker-auth') {
       assert.equal(h.page.message.name, 'app.string.broker_login_expired');
       assert.equal(h.page.title().name, 'app.string.remote_login');
@@ -1221,4 +1224,122 @@ test('failed authentication cannot create a WebView or access the cold CookieMan
   assert.equal(h.control.cookieReads, 0);
   assert.equal(h.control.opened.length, 0);
   assert.equal(h.page.transferred, false);
+});
+
+
+test('managed login persists only its native session reference and shares it with same-account connections', async () => {
+  const h = harness();
+  await h.ready();
+  const old = await savedRemote(h);
+  h.page.addConnection();
+  h.page.chooseMode(h.profile.ConnectionMode.Remote);
+  remoteDraft(h);
+  const session = '12345678-1234-4234-8234-123456789abc';
+  h.control.session = { accessToken: '', authSessionId: session, tokenType: 'Bearer' };
+  await h.page.login();
+  h.page.selectBroker(h.page.brokers[0]);
+  h.page.name = 'Second service';
+  h.page.token = 'dsh-token';
+  h.page.peerPassword = 'peer-password';
+  await h.page.saveConnection();
+  assert.equal(h.page.connections.length, 2);
+  for (const profile of h.page.connections) {
+    assert.equal(profile.accessToken, '');
+    assert.equal(profile.authSessionId, session);
+  }
+  const list = h.calls.filter(([name]) => name === 'list').at(-1)[1];
+  assert.equal(list.authSessionId, session);
+  assert.equal(list.credentialDir, '/private/files/dsh-broker-auth');
+  assert.equal(h.page.password, '');
+  const restarted = await new h.store.ConnectionStore().load({});
+  assert.equal(restarted.find(profile => profile.id === old.id).authSessionId, session);
+  assert.equal(h.disk.get('connections_v1').includes('account-password'), false);
+});
+
+test('the actual successful listener is saved and requested on the next remote open', async () => {
+  const h = harness();
+  await h.ready();
+  const old = await savedRemote(h);
+  assert.equal(old.localPort, 0);
+  await h.page.openConnection(old);
+  const restarted = await new h.store.ConnectionStore().load({});
+  assert.equal(restarted[0].localPort, 43219);
+  h.page.transferred = false;
+  await h.page.openConnection(restarted[0]);
+  const calls = h.calls.filter(([name]) => name === 'connect');
+  assert.equal(calls[0][1].localPort, 0);
+  assert.equal(calls[1][1].localPort, 43219);
+});
+
+test('a retained page is resumed before any new native connect or token probe', async () => {
+  const h = harness();
+  await h.ready();
+  const connection = await savedRemote(h);
+  let prepared;
+  h.page.onPrepare = async profile => { prepared = profile.id; return true; };
+  const before = h.calls.length;
+  await h.page.openConnection(connection);
+  assert.equal(prepared, connection.id);
+  assert.equal(h.calls.length, before);
+  assert.equal(h.page.transferred, true);
+  assert.equal(h.page.busy, false);
+});
+
+test('testing releases the retained owner before a temporary mapping and explicit disconnect remains available', async () => {
+  const h = harness();
+  await h.ready();
+  const connection = await savedRemote(h);
+  h.page.retainedConnectionId = connection.id;
+  h.page.transferred = true;
+  let released = false;
+  h.page.onDisconnect = async id => { assert.equal(id, connection.id); released = true; h.page.retainedConnectionId = ''; };
+  h.control.connect = async () => {
+    assert.equal(released, true);
+    return { state: 'connected', localUrl: 'http://127.0.0.1:43219/', localPort: 43219 };
+  };
+  await h.page.testConnection();
+  assert.equal(h.page.testState, h.states.Success);
+  assert.equal(h.page.transferred, false);
+  assert.equal(h.page.retainedConnectionId, '');
+});
+
+test('version-one settings migrate to zero preferred port and version-two rejects malformed session references', async () => {
+  const h = harness();
+  await h.ready();
+  const profile = await savedRemote(h);
+  const migrated = h.profile.parseConnections(JSON.stringify({ version: 1, connections: [profile] }))[0];
+  assert.equal(migrated.localPort, 0);
+  assert.equal(migrated.authSessionId, '');
+  for (const patch of [{ localPort: 65536 }, { localPort: -1 }, { authSessionId: '../other' },
+    { authSessionId: '12345678-1234-4234-8234-123456789abc', accessToken: 'stale-bearer' }]) {
+    assert.throws(() => h.profile.parseConnections(JSON.stringify({ version: 2, connections: [{ ...profile, ...patch }] })));
+  }
+});
+
+
+test('cancelled login does not dispatch credentials after retained teardown', async () => {
+  const h = harness(); await h.ready(); remoteDraft(h);
+  const released = deferred();
+  h.page.retainedConnectionId = 'retained-page';
+  h.page.transferred = true;
+  h.page.onDisconnect = () => released.promise;
+  h.page.runTask(() => h.page.login());
+  await tick();
+  const back = h.page.goBack();
+  released.resolve();
+  await back;
+  await h.page.pendingWork;
+  assert.equal(h.calls.filter(([name]) => name === 'login').length, 0);
+  assert.equal(h.page.busy, false);
+});
+
+test('failed open cleanup reports failure and unlocks the connection list', async () => {
+  const h = harness(); await h.ready(); const saved = await savedRemote(h);
+  h.page.onOpen = () => false;
+  h.control.close = async () => { throw new Error('mapping teardown failed'); };
+  await assert.doesNotReject(h.page.openConnection(saved));
+  assert.equal(h.page.busy, false);
+  assert.equal(h.page.message.name, 'app.string.broker_connection_failed');
+  h.control.close = undefined;
+  await h.page.goBack();
 });

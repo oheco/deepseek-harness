@@ -1,5 +1,10 @@
 #include "broker_client.h"
 #include "broker_trust.h"
+#include "broker_credentials.h"
+#include <cjson/cJSON.h>
+#include <ctime>
+#include <cerrno>
+#include <sys/stat.h>
 #include <curl/curl.h>
 #include "broker_sdk/ob_api.h"
 #include "broker_sdk/ob_remote.h"
@@ -27,9 +32,29 @@
 #include <vector>
 
 namespace {
+// Linker fault injection is confined to the standalone test binary, never the HAP.
+static std::atomic<bool> failNextDirectorySync{false}, failNextListener{false};
+extern "C" int __real_fsync(int fd);
+extern "C" int __real_listen(int fd, int backlog);
+extern "C" int __wrap_fsync(int fd) {
+    struct stat info{};
+    if (!fstat(fd, &info) && S_ISDIR(info.st_mode) && failNextDirectorySync.exchange(false)) {
+        errno = EIO; return -1;
+    }
+    return __real_fsync(fd);
+}
+extern "C" int __wrap_listen(int fd, int backlog) {
+    if (failNextListener.exchange(false)) { errno = EIO; return -1; }
+    return __real_listen(fd, backlog);
+}
 using namespace dsh::broker;
 using Clock = std::chrono::steady_clock;
 void require(bool ok, const char* message) { if (!ok) throw std::runtime_error(message); }
+std::string timestamp(std::time_t value) {
+    std::tm result{}; gmtime_r(&value, &result);
+    char text[32]; require(std::strftime(text, sizeof(text), "%Y-%m-%dT%H:%M:%SZ", &result) != 0, "fixture timestamp");
+    return text;
+}
 SSL_CTX* certificate(const std::string& ca) {
     auto* keyContext = EVP_PKEY_CTX_new_id(EVP_PKEY_EC, nullptr);
     require(keyContext && EVP_PKEY_keygen_init(keyContext) == 1 &&
@@ -55,6 +80,11 @@ struct Fixture {
     SSL_CTX* tls = nullptr;
     std::atomic<bool> stop{false};
     std::atomic<int> requests{0};
+    std::atomic<bool> dropRefreshReply{false};
+    std::mutex authMutex;
+    std::string accountToken = std::string(64, 'a'), refreshToken = std::string(64, 'b'), predecessorRequest;
+    int authGeneration = 1;
+    std::string accessDeadline, refreshDeadline;
     std::thread acceptor;
     std::mutex mutex;
     std::vector<int> clients;
@@ -132,13 +162,39 @@ struct Fixture {
             SSL_free(ssl); return;
         }
         int status = 200; std::string body, headers;
-        if (request.find("/v1/tenants/login ") != std::string::npos) {
+        if (request.find("/v1/auth/login ") != std::string::npos || request.find("/v1/tenants/login ") != std::string::npos) {
             require(request.find("Authorization:") == std::string::npos, "login sent bearer");
             if (request.find("\"slow\"") != std::string::npos) std::this_thread::sleep_for(std::chrono::seconds(2));
             if (request.find("\"bad\"") != std::string::npos) { status = 401; body = "{}"; }
-            else body = "{\"tenant\":{},\"token\":\"fixture-token\"}";
+            else {
+                std::lock_guard<std::mutex> auth(authMutex);
+                accessDeadline = timestamp(std::time(nullptr) + 3600);
+                refreshDeadline = timestamp(std::time(nullptr) + 86400);
+                body = "{\"tenant\":{},\"auth_session_id\":\"11111111-1111-4111-8111-111111111111\",\"generation\":" +
+                    std::to_string(authGeneration) + ",\"token\":\"" + accountToken + "\",\"refresh_token\":\"" + refreshToken +
+                    "\",\"token_expires_at\":\"" + accessDeadline + "\",\"refresh_expires_at\":\"" + refreshDeadline + "\"}";
+            }
+        } else if (request.find("/v1/auth/refresh ") != std::string::npos) {
+            std::lock_guard<std::mutex> auth(authMutex);
+            auto* json = cJSON_Parse(request.c_str() + request.find("\r\n\r\n") + 4);
+            auto field = [&](const char* name) { auto* item = cJSON_GetObjectItemCaseSensitive(json, name); return cJSON_IsString(item) ? std::string(item->valuestring) : std::string(); };
+            const auto requestId = field("request_id");
+            if (requestId == predecessorRequest && !requestId.empty()) {
+                // Replaying the exact pending request acknowledges the existing commit.
+            } else if (request.find("Authorization: Bearer " + refreshToken) != std::string::npos) {
+                accountToken = field("next_token"); refreshToken = field("next_refresh_token");
+                predecessorRequest = requestId; ++authGeneration;
+                accessDeadline = timestamp(std::time(nullptr) + 3600);
+                refreshDeadline = timestamp(std::time(nullptr) + 86400);
+            } else { status = 401; }
+            cJSON_Delete(json);
+            body = status == 200 ? "{\"auth_session_id\":\"11111111-1111-4111-8111-111111111111\",\"generation\":" +
+                std::to_string(authGeneration) + ",\"token_expires_at\":\"" + accessDeadline +
+                "\",\"refresh_expires_at\":\"" + refreshDeadline + "\"}" : "{}";
+            if (dropRefreshReply.exchange(false)) { SSL_free(ssl); return; }
         } else if (request.find("/v1/brokers ") != std::string::npos) {
-            if (request.find("Authorization: Bearer fixture-token") == std::string::npos) { status = 401; body = "{}"; }
+            std::lock_guard<std::mutex> auth(authMutex);
+            if (request.find("Authorization: Bearer " + accountToken) == std::string::npos) { status = 401; body = "{}"; }
             else body = "{\"brokers\":[{\"id\":\"11111111-1111-4111-8111-111111111111\",\"name\":\"device\",\"online\":true}]}";
         } else if (request.find("/?token=valid ") != std::string::npos) { status = 303; headers = "Location: ./\r\nSet-Cookie: fixture-session=yes; Path=/; HttpOnly\r\n"; }
         else if (request.find("/?token=foreign ") != std::string::npos) { status = 303; headers = "Location: https://example.invalid/\r\nSet-Cookie: fixture-session=yes\r\n"; }
@@ -156,14 +212,43 @@ void basic(const std::string& root) {
     {
         Fixture fixture(context), web;
         Client client; auto input = service(fixture.port, ca); input.account = "account"; input.password = "password";
-        input.tempDir = root + "/peer";
+        input.tempDir = root + "/peer"; input.credentialDir = root + "/credentials";
+        failNextDirectorySync.store(true);
+        auto unsynced = client.submit(Method::Login, input).get();
+        require(!unsynced.error.empty() && unsynced.authSessionId.empty() && !failNextDirectorySync.load(),
+            "first login acknowledged an unsynced credential directory");
         auto start = Clock::now(); auto future = client.submit(Method::Login, input);
         require(Clock::now() - start < std::chrono::milliseconds(100), "submit blocked");
-        auto login = future.get(); require(login.error.empty() && login.accessToken == "fixture-token", "TLS login failed");
-        input.accessToken = login.accessToken;
+        auto login = future.get(); require(login.error.empty() && CredentialStore::validSession(login.authSessionId) && login.accessToken.empty(), "TLS managed login failed");
+        input.authSessionId = login.authSessionId;
         auto list = client.submit(Method::List, input).get(); require(list.error.empty() && list.brokers.size() == 1 && list.brokers[0].online && list.brokers[0].name == "device", "typed list failed");
-        auto expired = input; expired.accessToken = "expired-token";
+        auto expired = input; expired.authSessionId.clear(); expired.accessToken = "expired-token";
         require(client.submit(Method::List, expired).get().errorCode == "DSH_BROKER_AUTH", "expired account bearer classification");
+        {
+            CredentialStore store(input.credentialDir, input.serviceUrl, input.authSessionId);
+            auto options = store.options();
+            options.credentials.token_expires_at_ms = static_cast<std::int64_t>(std::time(nullptr)) * 1000 - 1000;
+            store.saveLogin(options.credentials); ob_auth_credentials_clear(&options.credentials);
+            fixture.dropRefreshReply.store(true);
+            auto interrupted = client.submit(Method::List, input).get();
+            require(!interrupted.error.empty(), "lost refresh response unexpectedly acknowledged");
+            options = store.options();
+            ob_auth_credentials current{}; ob_auth_pending pending{}; int hasPending = 0;
+            require(options.begin(options.user, &current, &pending, &hasPending) == 0 && hasPending == 1,
+                "interrupted refresh discarded durable pending request");
+            options.end(options.user); ob_auth_credentials_clear(&current); ob_auth_pending_clear(&pending);
+            ob_auth_credentials_clear(&options.credentials);
+            Client restarted;
+            auto recovered = restarted.submit(Method::List, input).get();
+            require(recovered.error.empty() && recovered.brokers.size() == 1, "restart did not replay pending refresh");
+            options = store.options();
+            require(options.credentials.generation == 2, "refresh rotation was not durably committed");
+            require(options.begin(options.user, &current, &pending, &hasPending) == 0 && hasPending == 0,
+                "committed refresh retained pending journal");
+            options.end(options.user); ob_auth_credentials_clear(&current); ob_auth_pending_clear(&pending);
+            ob_auth_credentials_clear(&options.credentials); restarted.dispose();
+            std::cout << "PASS expired access refresh, lost response journal and restarted client exact replay\n";
+        }
         auto* trust = SSL_CTX_new(TLS_client_method()); require(trust, "system trust context");
         auto* certificateFile = fopen(ca.c_str(), "r");
         auto* privateCertificate = certificateFile ? PEM_read_X509(certificateFile, nullptr, nullptr, nullptr) : nullptr;
@@ -194,7 +279,7 @@ void basic(const std::string& root) {
         ob_api_response_free(tlsReceipt); ob_api_client_destroy(tlsApi);
         require(fixture.requests.load() == beforeTlsFailure, "credentials reached a server with an invalid TLS certificate");
         std::cout << "PASS self-signed and wrong-host HTTPS rejected before account credentials\n";
-        input.password = "bad"; require(client.submit(Method::Login, input).get().error == "Account login is required or has expired", "wrong password diagnostic");
+        input.authSessionId.clear(); input.password = "bad"; require(client.submit(Method::Login, input).get().error == "Account login is required or has expired", "wrong password diagnostic");
         Inputs probe; probe.origin = "http://127.0.0.1:" + std::to_string(web.port); probe.token = "valid";
         auto good = client.submit(Method::Probe, probe).get(); require(good.error.empty() && good.probeState == "ok" && good.httpStatus == 200, "DSH fresh cookie exchange failed");
         probe.token = "wrong"; auto bad = client.submit(Method::Probe, probe).get(); require(bad.probeState == "forbidden" && bad.httpStatus == 403 && bad.errorCode == "DSH_BROKER", "wrong DSH token reused cookie or was treated as management expiry");
@@ -245,15 +330,18 @@ void integration(const std::string& root, int upstreamPort) {
         const char* realToken = std::getenv("DSH_BROKER_REAL_DSH_TOKEN");
         int targetPort = realPort ? std::atoi(realPort) : web.port;
         require(targetPort > 0 && targetPort <= 65535 && (!realPort || (realToken && *realToken)), "real DSH driver inputs");
-        auto input = service(proxy.port, ca); input.tempDir = root + "/peer";
+        auto input = service(proxy.port, ca); input.tempDir = root + "/peer"; input.credentialDir = root + "/credentials";
         ob_api_options apiOptions{}; apiOptions.base_url = input.serviceUrl.c_str(); apiOptions.ca_file = ca.c_str();
         ob_api_error error{}; auto* api = ob_api_client_create(&apiOptions, &error); require(api, "integration api");
         ob_api_credentials credentials{}; char* receipt = nullptr;
         require(ob_api_tenant_register(api, &credentials, &receipt, &error) == 0, "integration account registration");
         ob_api_response_free(receipt); ob_api_client_destroy(api);
         Client client; input.account = credentials.name; input.password = credentials.password;
-        auto login = client.submit(Method::Login, input).get(); require(login.error.empty(), "integration account login"); input.accessToken = login.accessToken;
-        apiOptions.tenant_token = input.accessToken.c_str(); api = ob_api_client_create(&apiOptions, &error); require(api, "integration bearer api");
+        auto login = client.submit(Method::Login, input).get(); require(login.error.empty(), "integration account login"); input.authSessionId = login.authSessionId;
+        CredentialStore store(input.credentialDir, input.serviceUrl, input.authSessionId);
+        auto auth = store.options();
+        api = ob_api_client_create_with_auth(&apiOptions, &auth, &error);
+        ob_auth_credentials_clear(&auth.credentials); require(api, "integration managed api");
         ob_remote_allow_rule rule{"127.0.0.1", static_cast<uint16_t>(targetPort), static_cast<uint16_t>(targetPort), OB_REMOTE_TCP};
         ob_remote_serve_options serveOptions{}; serveOptions.allow_rules = &rule; serveOptions.allow_rule_count = 1;
         serveOptions.stun_server = "127.0.0.1"; serveOptions.stun_port = 9;
@@ -263,15 +351,32 @@ void integration(const std::string& root, int upstreamPort) {
         require(serveCode == 0, "integration native serve");
         auto list = client.submit(Method::List, input).get(); require(list.error.empty() && list.brokers.size() == 1 && list.brokers[0].online, "integration list live broker");
         input.brokerId = list.brokers[0].id; input.remotePort = targetPort; input.peerPassword = "wrong-peer-password"; input.tempDir = root + "/peer";
-        auto expired = input; expired.accessToken = "expired-management-token";
+        auto expired = input; expired.authSessionId.clear(); expired.accessToken = "expired-management-token";
         require(client.submit(Method::Connect, expired).get().errorCode == "DSH_BROKER_AUTH", "connect management bearer classification");
         client.submit(Method::Close, {}).get();
         auto wrong = client.submit(Method::Connect, input).get(); require(!wrong.error.empty() && wrong.errorCode == "DSH_BROKER", "wrong peer password accepted or classified as management expiry");
         client.submit(Method::Close, {}).get(); input.peerPassword = "peer-test-password";
+        auto unused = client.submit(Method::Connect, input).get();
+        require(unused.error.empty(), "unused mapping setup");
+        client.submit(Method::Close, {}).get();
+        input.localPort = unused.status.localPort;
+        auto reused = client.submit(Method::Connect, input).get();
+        require(reused.error.empty() && reused.status.localPort == input.localPort, "available preferred listener was not reused");
+        client.submit(Method::Close, {}).get();
+        failNextListener.store(true);
+        auto listenerFailure = client.submit(Method::Connect, input).get();
+        require(!listenerFailure.error.empty() && !failNextListener.load(),
+            "listen failure changed an available preferred port instead of reporting failure");
+        client.submit(Method::Close, {}).get();
+        std::cout << "PASS available preferred port reuse and non-bind listener failure does not fall back\n";
+        Fixture occupied;
+        input.localPort = occupied.port;
         for (int n = 0; n < 2; ++n) {
             auto connected = client.submit(Method::Connect, input).get();
             if (!connected.error.empty()) std::cerr << "integration connect iteration=" << n << ": " << connected.error << '\n';
             require(connected.error.empty() && connected.status.state == "connected" && connected.status.localPort > 0 && connected.status.remotePort == targetPort, "integration mapped connection failed");
+            if (n == 0) require(connected.status.localPort != occupied.port, "occupied preferred port did not fall back");
+            input.localPort = connected.status.localPort;
             auto snapshot = client.submit(Method::Status, {}).get();
             auto wake = client.submit(Method::Reconnect, {}).get();
             require(snapshot.error.empty() && wake.error.empty() && snapshot.status.state == "connected" &&
@@ -327,6 +432,7 @@ int main() {
             if (std::strcmp(enabled, "1") == 0) publicHttps();
         }
         if (const char* port = std::getenv("DSH_BROKER_FIXTURE_PORT")) integration(directory, std::atoi(port));
-        rmdir((std::string(directory) + "/peer").c_str()); rmdir(directory); return 0;
+        // The owning Python TemporaryDirectory removes journals and peer certificate directories.
+        return 0;
     } catch (const std::exception& error) { std::cerr << "FAIL " << error.what() << '\n'; return 1; }
 }

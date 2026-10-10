@@ -1,0 +1,16 @@
+# Bilingual-pair consistency record for guide.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/upgrade-guide/v0.2.0-rc.2/ohos-app-login/guide.md
+/:
+  en: 663cbced9a462113
+  zh: e4a6b7ea4294f657
+/harmonyos-app-login-and-saved-connections:
+  en: ab1db5df2e1407a2
+  zh: 6137555524c5cb34
+/harmonyos-app-login-and-saved-connections/change:
+  en: 86ea569d6d96daa0
+  zh: 57da1bfdcff0687f
+/harmonyos-app-login-and-saved-connections/migration:
+  en: b8a281dcee00e108
+  zh: 75ea582bbceced82

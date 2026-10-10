@@ -371,6 +371,22 @@
     {
       "name": "modify",
       "value": "修改"
+    },
+    {
+      "name": "reconnecting",
+      "value": "正在重新连接…"
+    },
+    {
+      "name": "connection_disconnected",
+      "value": "已断开连接"
+    },
+    {
+      "name": "retry_connection",
+      "value": "重新连接"
+    },
+    {
+      "name": "disconnect_connection",
+      "value": "断开连接"
     }
   ]
 }

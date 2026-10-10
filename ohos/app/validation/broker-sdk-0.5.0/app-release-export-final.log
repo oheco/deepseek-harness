@@ -1,0 +1,7 @@
+test_packaging_exports_new_directory_and_refuses_existing_output (__main__.ProjectTests.test_packaging_exports_new_directory_and_refuses_existing_output) ... ok
+test_explicit_launcher_export_keeps_local_override_metadata_and_quoted_paths (__main__.ProjectTests.test_explicit_launcher_export_keeps_local_override_metadata_and_quoted_paths) ... ok
+
+----------------------------------------------------------------------
+Ran 2 tests in 846.830s
+
+OK

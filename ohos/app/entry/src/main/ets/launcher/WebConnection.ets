@@ -5,7 +5,8 @@ import { ConnectionMode, ConnectionProfile } from './ConnectionProfile';
 export enum WebConnectionState {
   Connected = 'connected',
   Disconnected = 'disconnected',
-  Recovering = 'recovering'
+  Recovering = 'recovering',
+  AuthenticationRequired = 'authentication-required'
 }
 
 /** Owns one WebView's persistent mapping and observes SDK recovery without changing its origin. */
@@ -18,6 +19,7 @@ export class WebConnection {
   private state: WebConnectionState = WebConnectionState.Connected;
   private pending: Promise<void> | undefined = undefined;
   private closing: Promise<void> | undefined = undefined;
+  private closeRemote: boolean = false;
   private reading: boolean = false;
   private recoveryNotice: boolean = false;
   private changed: (state: WebConnectionState, recovered: boolean) => void;
@@ -28,6 +30,10 @@ export class WebConnection {
 
   /** Adopt an authenticated SDK mapping; its listener stays owned until explicit close. */
   activate(profile: ConnectionProfile, origin: string): void {
+    if (this.closing || this.closeRemote) {
+      throw new Error('Connection cleanup has not completed');
+    }
+    this.foreground = true;
     this.profile = profile;
     this.origin = origin;
     this.generation += 1;
@@ -41,10 +47,10 @@ export class WebConnection {
     this.foreground = false;
   }
 
-  /** Verify the endpoint and manually wake a paused SDK peer; repeated events share pending work. */
-  foregrounded(): Promise<void> {
+  /** Resume notifications and wake a paused SDK peer; an intact retained page can skip healthy HTTP verification. */
+  foregrounded(verifyEndpoint: boolean = true): Promise<void> {
     this.foreground = true;
-    return this.recover();
+    return this.recover(verifyEndpoint);
   }
 
   /** Retain the page when its renderer or business connection becomes unavailable. */
@@ -78,34 +84,40 @@ export class WebConnection {
     if (this.closing) {
       return this.closing;
     }
-    const remote = this.active && this.profile?.mode === ConnectionMode.Remote;
+    this.closeRemote = this.closeRemote || (this.active && this.profile?.mode === ConnectionMode.Remote);
     this.active = false;
     this.generation += 1;
     this.profile = undefined;
-    const work = this.finishClose(remote, this.pending);
+    const work = this.finishClose(this.pending);
     this.closing = work;
-    work.then(() => {
-      if (this.closing === work) {
-        this.closing = undefined;
-      }
-    });
+    work.then(() => this.finishClosing(work), () => this.finishClosing(work));
     return work;
   }
 
-  private async finishClose(remote: boolean, pending: Promise<void> | undefined): Promise<void> {
-    try {
-      if (remote) {
-        await native.brokerClose();
-      }
-    } catch (error) {
-      // A failed native close still requires the canceled App operation to settle.
-    }
-    if (pending) {
-      await pending;
+  private finishClosing(work: Promise<void>): void {
+    if (this.closing === work) {
+      this.closing = undefined;
     }
   }
 
-  private recover(): Promise<void> {
+  private async finishClose(pending: Promise<void> | undefined): Promise<void> {
+    let closed = false;
+    try {
+      if (this.closeRemote) {
+        await native.brokerClose();
+      }
+      closed = true;
+    } finally {
+      if (pending) {
+        await pending;
+      }
+      if (closed) {
+        this.closeRemote = false;
+      }
+    }
+  }
+
+  private recover(verifyEndpoint: boolean): Promise<void> {
     if (this.pending) {
       return this.pending;
     }
@@ -113,7 +125,7 @@ export class WebConnection {
     if (!this.active || !this.foreground || !profile || this.closing) {
       return Promise.resolve();
     }
-    const work = this.restore(profile, this.generation);
+    const work = this.restore(profile, this.generation, verifyEndpoint);
     this.pending = work;
     work.then(() => {
       if (this.pending === work) {
@@ -164,6 +176,10 @@ export class WebConnection {
     if (!this.current(generation)) {
       return;
     }
+    if (status.errorCode === 'DSH_BROKER_AUTH') {
+      this.publish(WebConnectionState.AuthenticationRequired, false, generation);
+      return;
+    }
     if (status.localUrl.replace(/\/$/, '') !== this.origin) {
       this.publish(WebConnectionState.Disconnected, false, generation);
       return;
@@ -179,20 +195,26 @@ export class WebConnection {
     this.publish(recovering ? WebConnectionState.Recovering : WebConnectionState.Disconnected, false, generation);
   }
 
-  private async restore(profile: ConnectionProfile, generation: number): Promise<void> {
+  private async restore(profile: ConnectionProfile, generation: number, verifyEndpoint: boolean): Promise<void> {
     try {
       if (profile.mode === ConnectionMode.Local) {
-        await this.verify(profile, generation);
+        if (verifyEndpoint) {
+          await this.verify(profile, generation);
+        } else {
+          this.publish(this.state, false, generation);
+        }
         return;
       }
       const status: BrokerStatus = await native.brokerStatus();
       if (!this.current(generation)) {
         return;
       }
-      if (status.localUrl.replace(/\/$/, '') === this.origin && status.state === 'paused') {
+      if (status.localUrl.replace(/\/$/, '') === this.origin && status.state === 'paused' &&
+        status.errorCode !== 'DSH_BROKER_AUTH') {
         this.publish(WebConnectionState.Recovering, false, generation);
         const accepted: BrokerStatus = await native.brokerReconnect();
-        if (accepted.localUrl.replace(/\/$/, '') === this.origin && accepted.state === 'paused') {
+        if (accepted.localUrl.replace(/\/$/, '') === this.origin && accepted.state === 'paused' &&
+          accepted.errorCode !== 'DSH_BROKER_AUTH') {
           // An accepted request may precede the SDK coordinator's first state transition.
           this.publish(WebConnectionState.Recovering, false, generation);
         } else {
@@ -200,7 +222,7 @@ export class WebConnection {
         }
         return;
       }
-      await this.inspect(status, profile, generation, true);
+      await this.inspect(status, profile, generation, verifyEndpoint);
     } catch (error) {
       this.publish(WebConnectionState.Disconnected, false, generation);
     }

@@ -1,37 +1,37 @@
-# DSH App 正式 broker 0.4.0 SDK 接入验证
+# DSH App broker 0.5.0 刷新与页面保留验证
 
-本轮将 App 切换到已安装的正式 broker 0.4.0 C SDK，保持 SDK 源码不变，接入异步首连、持久 peer/map、自动恢复状态与同句柄手动重连，并修复认证 Cookie 累积与 WebView 冷启动顺序。原有系统主题、透明系统栏、旋转锁与设置页滚动布局保留。仅运行此次接入和页面修复相关的检查、SDK 构建内置探针和生成可安装 HAP 所需步骤，不运行仓库全量测试或额外 VM/SDK 编译夹具。
+App 为 `org.oheco.deepseekharness`、`0.2.0-rc.2-ohos.2`、versionCode `1000006`。本轮范围为 App、其原生 SDK 接入、工程导出及验证文档；CLI/Web 运行包继续使用 `0.2.0-rc.2-ohos.1`。App 修订由 [app-release.json](../app-release.json) 单独记录。
 
-## 正式 SDK 与离线构建
+## 正式 SDK 与离线输入
 
-[SDK 导入记录](validation/broker-sdk-0.4.0/sdk-intake.json)确认版本 `0.4.0`，完整归档 13885 个 SDK 文件及软件包版本/许可文件，原样复制 24 个 remote 文件及原始 CMake。安装目录前后全文件摘要均为 `1dc40f50e8d6138591910c1be310d4e68d4a7a857b39e9dcbb7679a7b068826f`，`installed_sdk_unchanged = true`、`local_sdk_changes = NONE`。
+[SDK 导入记录](validation/broker-sdk-0.5.0/sdk-intake.json)确认正式 broker 0.5.0，完整 SDK 归档 SHA-256 为 `94b563b96f66e5af9d9a99ba728aec0a0ba726685cf7ea878c4759f0ddee073b`。26 个 remote 源文件与安装版逐文件一致，包含新增认证模块和原始 CMake，SDK 无本地修改。[差异记录](validation/broker-sdk-0.5.0/source-comparison.json)确认依赖源码、构建脚本与六个依赖库沿用原样输入；依赖探针仍为历史 0.4.0 证据。
 
-[最终原样复核](validation/broker-sdk-0.4.0/final-sdk-immutability.json)逐文件核对安装包中的 13887 个输入（其中 SDK 文件 13885 个）及 App 的 24 个 SDK 副本，摘要均与原导入一致。
+独立 SDK 的[编译回执](validation/broker-sdk-0.5.0/remote-sdk-build.json)和[整库链接回执](validation/broker-sdk-0.5.0/remote-sdk-link.json)均退出 0。此次独立 SDK 编译与链接未执行目标探针，App 原生运行验收另行记录。
 
-完整源码归档 SHA-256 为 `3b309480074c59ba5dd446721d2bd49bc2a1cb1a74054924cf2a38bb9dba0931`。原始 SDK 离线 `build.sh` 在新的私有目录退出 0，构建六个依赖静态库和包含 coordinator/recovery 的 11 个 SDK C 源文件；只执行构建器内置的签名目标探针。见 [SDK 构建日志](validation/broker-sdk-0.4.0/sdk-build.log)。App 依赖载荷只含六个依赖库、头文件与许可证，HAP 构建独立编译原样 SDK 源码，不复用预编译 remote SDK 库。
+## 连接与账号持久化
 
-## App 恢复与清理
+[原生参考](entry/src/main/cpp/broker/README.zh.md)定义刷新记录、文件权限和所有权。SDK 自动更新 access/refresh 凭据，App 在网络发送前持久化 pending，在确认新凭据持久化后清除 pending；首次创建目录也同步父目录。账号密码不落盘，连接偏好只保存托管会话引用。旧静态 bearer 需重新登录一次才能获得刷新授权。
 
-[原生客户端](entry/src/main/cpp/broker/README.zh.md)使用 `ob_remote_connect_async`，首次创建 SDK 监听端后持续持有 API、peer 与 map。可恢复故障、自动退避和暂停均保留本地端口；前台仅对已暂停 peer 请求 `ob_remote_peer_reconnect`。App 不再关闭后按旧端口重新绑定，也不增加自有 TCP 转发器。
+返回列表保留最近一个 WebView、控制器、文档、路由、历史与映射；同配置再次打开恢复保留页面，切换或明确断开等待真实清理。普通重连显示顶部中央旋转指示，不重新加载整页；仅退出的渲染器在恢复后重建。首个远程监听请求随机端口，后续优先上次成功端口，仅独立确认绑定失败后才回退随机端口。
 
-[WebConnection.ets](entry/src/main/ets/launcher/WebConnection.ets)区分请求接受与连接完成。自动恢复通过状态轮询确认并检查 DSH 端点，然后通知原 WebView；正常恢复保留控制器、DOM、历史、搜索与 origin，仅已退出的渲染器在恢复后重建。[Index.ets](entry/src/main/ets/pages/Index.ets)在明确返回时立即退出页面并恢复纵向显示，继续持有未完成清理的 Promise，清理结束前不接入新 WebView。后台与临时组件脱离保留 SDK 映射；窗口/Ability 销毁及原生环境释放执行最终清理。
+App 连接偏好兼容读取版本一、写入版本二；旧 App 不支持版本二。DSH Session 日志与 SQLite 格式保留。初始 App 输入见[迁移记录](../app-migration.json)，当前升级操作见[App 参考](README.zh.md)。
 
-App 为 `org.oheco.deepseekharness`、`0.2.0-rc.2-ohos.1`、versionCode `1000005`。App 私有偏好、DSH Session 日志和 SQLite 类型不变；原始输入见[迁移记录](../app-migration.json)。
+## 源码与原生检查
 
-## 相关检查
+[App 回归日志](validation/broker-sdk-0.5.0/app-tests.log)记录 163/163 通过，覆盖配置迁移、托管引用、端口记录、页面保留、暂停/重连、关闭等待、取消登录和清理失败解锁。安装 SDK 的 ArkTS 独立语义检查为 0 错误；最终 Hvigor 编译亦通过。
 
-一次[聚焦执行](validation/broker-sdk-0.4.0/app-focused-tests.log)通过 52/52：恢复与 Index 生命周期 19 项、页面/Ability 接线 8 项、系统栏 15 项、方向 10 项。核对正式 SDK 的手动请求实现后，补充“接受请求时快照仍为 paused”的异步状态分支，仅[重跑恢复检查](validation/broker-sdk-0.4.0/web-connection-final.log)，19/19 通过、退出 0；其余三个已通过文件未变化。这些使用 SDK 状态替身检查实际 App 源码行为，不能代替普通 HAP 的网络和物理 WebView 验收。
+[原生运行日志](validation/broker-sdk-0.5.0/native-final.log)记录已签名测试退出 0：125 个系统根证书、HTTPS/WSS、无效 TLS、账号与 peer 认证、PAKE/ICE/QUIC、TCP/HTTP/WebSocket、重复关闭和取消。过期 access 的刷新、丢失响应后的 pending 保留及重启精确重放均通过；目录同步失败不会确认登录，非绑定监听失败不会触发随机端口回退，真实端口占用会回退。
 
-手机的既有页面日志显示 HTTP 431、发送 16572 字节及 70 个 Cookie；没有读取其 Cookie 名称或值，不能逐个确认均为 DSH Cookie。不同映射端口的认证 Cookie 共享回环主机和根路径，会增加请求头大小。[ConnectionCookies.ets](entry/src/main/ets/launcher/ConnectionCookies.ets)只按元数据匹配当前回环主机、根路径及精确 DSH 认证名称，并将其过期；不访问 Cookie 值，不清理其他主机、路径或名称。主页面 HTTP/网络错误显示资源所属的提示及返回连接列表按钮。
+[工程检查日志](validation/broker-sdk-0.5.0/project-tests.log)保留原 22 项执行；旧 SDK 断言修正后的[单项复核](validation/broker-sdk-0.5.0/project-export-final.log)及 App 独立版本后的[最终导出复核](validation/broker-sdk-0.5.0/app-release-export-final.log)另行记录，不将中间失败表述为通过。
 
-一次修订中的 PC 日志显示，首次读取 Cookie 触发了后台线程上的 Web 引擎初始化，随后 UI 创建页面时报引擎未就绪。最终源码先创建 `about:blank` WebView，在控制器成功绑定后才准备 Cookie 并加载认证地址；空白页事件不完成加载状态，已认证渲染器恢复保留 Cookie。最终四个所属测试文件通过 92/92，覆盖冷引擎顺序、重复绑定、取消、失败和认证前后的渲染器恢复；安装 SDK 的 ArkTS 语义检查为 0 个错误。这些是模拟和语义检查，真机范围仍为安装。
+完整 `npm run doc-sync` 的[执行日志](validation/broker-sdk-0.5.0/doc-sync.log)记录未改动 Web 测试的 `TS2322`、`TS18048` 与文档构建后的 pnpm 无 TTY 依赖清理失败，不表述为全量通过。Markdown 链接、换行和升级指南检查通过；App 与鸿蒙参考的双语配对在最终交付文字更新后重新确认。本轮不修改运行时或 Web 文件来消除这些基线错误。
 
-## 构建与设备范围
+## HAP 构建、签名与设备范围
 
-[发行验证回执](https://github.com/oheco/deepseek-harness/releases/download/v0.2.0-rc.2-ohos.1/deepseek-harness-0.2.0-rc.2-ohos.1-validation.json)的 `app` 项记录正式 Hvigor 构建退出 0，34 项全部执行、0 项缓存，耗时约 108 秒。11 个正式 SDK C 编译单元与 App 接入均在本次构建生成；HAP 原生库为 ELF64/aarch64，包含 `brokerReconnect` 绑定。前期环境、库搜索路径和签名配套文件问题与最终成功分开记录；库路径修正在 App 自有构建包装中完成，正式 SDK CMake 保持原样。
+[最终构建回执](validation/broker-sdk-0.5.0/application-build-sdk5.json)记录全新目录完整 Hvigor 构建退出 0，随后针对取消与清理补强重新编译 ArkTS 并签名，原生输入保持不变。12 个 SDK C 编译单元及 App 原生接入在新目录构建；HAP 为 ELF64/aarch64，包内业务源码摘要与当前源文件一致。
 
-签名使用用户指定的 fix2 原签名配置及配套文件。发行回执记录签名验证退出 0，HAP 证书链公钥摘要与 fix2 一致，原配置、三个签名文件与五个配套解密文件未修改，临时副本已删除。个人设备签名 HAP 保留在本地，大小为 5241811 字节，SHA-256 为 `4270b7425a1cb498c9cbfaccb0e929af131c0895d171c487613dd757037430a8`。
+最终 HAP 为 5340361 字节，SHA-256 `b065286dcc8cc587abb61d684bb326d668534fa4027d49caecbea3b0ace4ca10`。签名验证退出 0，公钥与用户原 fix2 签名系列一致。个人签名 HAP 保留本地；无签名工程使用便携 SDK `6.1.0(23)` 和 phone/tablet/2in1，实际构建使用 SDK26/compatible23 及 default/2in1。签名原文件保持只读，临时副本与含签名凭据的构建缓存单独清理。
 
-发行回执的 `app.installation` 确认电脑 `192.168.1.160:34835` 与手机 `192.168.1.191:41339` 的 HDC `install -r` 均成功，最终两台设备的安装版本与代码均为 `1000005`。早期手机离线失败及后续安装恢复的历史回执另行保留。便携工程保持 SDK `6.1.0(23)`、phone/tablet/2in1；实际设备构建使用已安装 SDK26/compatible23 与有效的 default/2in1 配置，不修改 SDK 字典。交付工程不包含个人签名配置，编译输入与 HAP 的一致性另按文件摘要记录。
+[电脑安装回执](validation/broker-sdk-0.5.0/installation-computer.json)与[手机安装回执](validation/broker-sdk-0.5.0/installation-phone.json)均确认最终 HAP 经代理成功覆盖安装，安装版本为 `0.2.0-rc.2-ohos.2`、代码 `1000006`，HAP 摘要与最终构建一致。两台设备均未启动或操作 App。
 
-沿用用户“只需完成安装，无需启动验证”的要求，不解锁、启动或操作电脑和手机 App。0.3.0 控制服务或 peer 仍兼容映射服务恢复；已有 TCP/WebSocket 连续恢复需要两端 peer、目标 socket 与新版控制恢复关系在保留期限内存活。本轮不将 SDK 原生探针或 App 状态替身检查扩大为真实网络中断、设备挂起或旧 TCP 续传的真机证明。之前 fix5 的导出、HAP 与安装记录保留。
+原生运行与状态替身测试不能证明普通 HAP 沙箱网络、系统挂起或物理 WebView 连续性。用户此前仅要求安装，无需启动验收；本轮保持该范围。历史 0.4.0 构建及安装证据保留在 [历史 SDK 回执](validation/broker-sdk-0.4.0/application-build-install-sdk4.json)及其同目录记录。
