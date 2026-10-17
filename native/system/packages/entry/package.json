@@ -2,7 +2,7 @@
   "name": "@deepseek-ai/node-addon-system",
   "version": "0.1.2",
   "type": "module",
-  "description": "Prebuilt system primitives: a Linux Landlock launcher and asynchronous POSIX flock through stable Node-API",
+  "description": "Prebuilt system primitives: Linux Landlock, asynchronous POSIX flock, and HarmonyOS exclusive file creation through stable Node-API",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/deepseek-ai/deepseek-harness.git",
@@ -17,6 +17,10 @@
       "types": "./lib/flock.d.ts",
       "default": "./lib/flock.js"
     },
+    "./exclusive-file": {
+      "types": "./lib/exclusive-file.d.ts",
+      "default": "./lib/exclusive-file.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [
@@ -24,7 +28,9 @@
     "lib/",
     "!lib/*.tsbuildinfo",
     "src/main.c",
-    "src/flock.c"
+    "src/flock.c",
+    "src/exclusive-file.c",
+    "src/exclusive-file.h"
   ],
   "scripts": {
     "build:js": "tsc -b",

@@ -35,6 +35,7 @@ replace_importer('native/system/packages/openharmony-arm64', '  native/system/pa
 for importer, dependency, specifier, version in [
     ('native/system/packages/entry', '@deepseek-ai/node-addon-system-openharmony-arm64', 'workspace:~', 'link:../openharmony-arm64'),
     ('packages/attachment/attachment-local', 'koffi', '^3.1.0', '3.1.1'),
+    ('packages/subprocess/subprocess-local', '@deepseek-ai/node-addon-system', 'workspace:~', 'link:../../../native/system/packages/entry'),
 ]:
     pattern = re.compile(r'(^  ' + re.escape(importer) + r':\n)(.*?)(?=^  [^ ].*:(?: \{\})?\n|^packages:)', re.M | re.S)
     match = pattern.search(text)

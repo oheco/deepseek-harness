@@ -10,6 +10,9 @@
 #include <limits.h>
 #include <stdlib.h>
 #include <sys/file.h>
+#if defined(__OHOS__)
+#include "exclusive-file.h"
+#endif
 
 typedef struct {
   napi_env env;
@@ -160,5 +163,8 @@ NAPI_MODULE_INIT() {
       napi_set_named_property(env, exports, "tryLock", function) != napi_ok) {
     return NULL;
   }
+#if defined(__OHOS__)
+  if (register_exclusive_file(env, exports) != napi_ok) return NULL;
+#endif
   return exports;
 }

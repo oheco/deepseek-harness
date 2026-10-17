@@ -71,10 +71,19 @@ async function openWithPosixDirectorySync(path: string, flags: string, mode?: nu
   return handle
 }
 
+/** Simulate exclusive POSIX publication on a host that does not permit hardlinks. */
+async function linkForPosixSimulation(existingPath: string, newPath: string): Promise<void> {
+  if ((process.platform as string) === 'openharmony') {
+    await writeFile(newPath, await readFile(existingPath), { flag: 'wx' })
+    return
+  }
+  await link(existingPath, newPath)
+}
+
 function posixSimulationFs<T extends Record<string, unknown>>(
   overrides: T,
-): T & { readonly open: typeof openWithPosixDirectorySync } {
-  return { open: openWithPosixDirectorySync, ...overrides }
+): T & { readonly open: typeof openWithPosixDirectorySync; readonly link: typeof linkForPosixSimulation } {
+  return { open: openWithPosixDirectorySync, link: linkForPosixSimulation, ...overrides }
 }
 
 function header(version: number, id = 'generation-test'): Record<string, unknown> {
@@ -586,7 +595,7 @@ describe('JSONL immutable generation publication', () => {
       ...identical,
       verifyCurrentFile: async (path, compression, expectedId, expectedEventCount) => {
         const verified = await verifyJsonlCurrentGeneration(path, compression, expectedId, expectedEventCount)
-        if (path !== identical.currentPath) await link(path, identical.currentPath)
+        if (path !== identical.currentPath) await linkForPosixSimulation(path, identical.currentPath)
         return verified
       },
     })
@@ -1228,7 +1237,8 @@ describe('JSONL immutable generation publication', () => {
     },
   )
 
-  it('accepts an identical regular hardlink target', async () => {
+  // The application sandbox denies native hardlinks even in its private temporary filesystem.
+  it.skipIf((process.platform as string) === 'openharmony')('accepts an identical regular hardlink target', async () => {
     const root = await tempRoot()
     const request = options(root)
     const expected = join(root, 'expected.jsonl')
@@ -1301,7 +1311,7 @@ describe('JSONL immutable generation publication', () => {
 
     await expect(ensureWithOverrides(
       request,
-      { platform: 'darwin', fs: { open: openFile } },
+      { platform: 'darwin', fs: posixSimulationFs({ open: openFile }) },
     )).rejects.toBe(directorySyncFailure)
     expect((await readdir(root)).sort()).toEqual(['session.jsonl', `session.v${SESSION_FORMAT_VERSION}.jsonl`])
 
@@ -1655,7 +1665,7 @@ describe('JSONL immutable generation publication', () => {
     await writeFile(request.sourcePath, line(header(0)) + line(event0))
     let raced = false
     const linkFile = async (existingPath: string, newPath: string) => {
-      await link(existingPath, newPath)
+      await linkForPosixSimulation(existingPath, newPath)
       raced = true
       throw fsError('EEXIST')
     }

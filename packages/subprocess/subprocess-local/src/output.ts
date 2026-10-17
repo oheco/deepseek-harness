@@ -3,6 +3,7 @@ import { randomBytes } from 'node:crypto'
 import { closeSync, mkdtempSync, openSync, rmdirSync, unlinkSync, writeSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
+import { ExclusiveFileSignalMaskError, openExclusive } from '@deepseek-ai/node-addon-system/exclusive-file'
 import type { CollectedOutput } from '@deepseek-ai/dsh-subprocess'
 
 /**
@@ -63,7 +64,10 @@ process.once('exit', () => {
  * @param label - the failed stream label.
  */
 function reportSpillFailureToStderr(error: unknown, label: string): void {
-  process.stderr.write(`dsh-subprocess-local: ${label} spill failed; only the in-memory tail is retained: ${String(error)}\n`)
+  const impact = error instanceof ExclusiveFileSignalMaskError && error.phase === 'restore'
+    ? 'thread signal mask is unknown; collection must stop. Restart the host'
+    : 'only the in-memory tail is retained'
+  process.stderr.write(`dsh-subprocess-local: ${label} spill failed; ${impact}: ${String(error)}\n`)
 }
 
 /**
@@ -76,6 +80,10 @@ function reportSpillFailureToStderr(error: unknown, label: string): void {
  */
 export function logSpillFailure(logger: { error(message: string, ...detail: unknown[]): void }, owner: string): SpillFailureReporter {
   return (error, label) => {
+    if (error instanceof ExclusiveFileSignalMaskError && error.phase === 'restore') {
+      logger.error(`${owner} cannot continue collecting the ${label} stream: the thread signal mask is unknown. Restart the host.`, error)
+      return
+    }
     const removedDirectory = (error as NodeJS.ErrnoException).code === 'ENOENT'
     logger.error(
       `${owner} could not write the complete ${label} stream to its spill file; the result keeps only the in-memory tail and reports no full-output path.`
@@ -121,7 +129,10 @@ export function prepareManagedProcessBinding(
  * Spilling is best-effort: a spill open or write failure discards the spill,
  * reports once through {@link SpillOptions.onFailure}, and never interrupts
  * in-memory collection, because `push()` runs inside the stream's `'data'`
- * listener where a thrown error would become an uncaught exception.
+ * listener where a thrown error would become an uncaught exception. A native
+ * signal-mask restore failure is reported and rethrown instead: the calling
+ * thread's mask is unknown, so the collector must be discarded and the host's
+ * fatal-error path must stop dependent execution.
  *
  * Tail-keep rationale (pi/OpenCode): errors and final results cluster at the
  * end of command output; the spill file covers the head.
@@ -156,6 +167,7 @@ export class OutputCollector {
    * there from then on; the in-memory tail then drops whole chunks from its
    * head (or the head of a single over-cap chunk) until it fits the cap again.
    * @param chunk - the raw bytes from one stream 'data' event.
+   * @throws ExclusiveFileSignalMaskError if the thread mask cannot be restored; discard this collector and stop dependent execution.
    */
   push(chunk: Buffer): void {
     this.total += chunk.length
@@ -205,7 +217,8 @@ export class OutputCollector {
           spill.dir,
           `dsh-subprocess-${process.pid}-${++spillCounter}-${randomBytes(6).toString('hex')}-${this.label}.log`,
         )
-        const fd = openSync(file, 'wx', 0o600)
+        const platform: string = process.platform
+        const fd = platform === 'openharmony' ? openExclusive(file, 0o600) : openSync(file, 'wx', 0o600)
         this.spillFile = file
         this.spillFd = fd
         for (const prior of this.chunks) writeSync(fd, prior)
@@ -223,6 +236,7 @@ export class OutputCollector {
         // must not become the uncaught exception this path exists to prevent.
         process.stderr.write(`dsh-subprocess-local: spill failure reporter threw: ${String(reporterFailure)}\n`)
       }
+      if (error instanceof ExclusiveFileSignalMaskError && error.phase === 'restore') throw error
     }
   }
 

@@ -13,8 +13,8 @@ const organizationUrl = new RegExp(`\\bgithub\\.com/${organization}(?![a-z0-9-])
 const kitRepositoryUrl = new RegExp(`\\bgithub\\.com/${organization}/libreoffice-kit(?:\\.git)?(?=/|[^a-zA-Z0-9_.-]|$)`, 'g')
 const commitCandidate = /(?<![a-z0-9])[\da-f]{7,40}(?![a-z0-9])/gi
 const excludedPrefixes = ['vendor/', '.agents/notes/archived/']
-// These machine records pin immutable upstream and migration source commits for reproducible OHOS inputs.
-const immutableSourceRecords = new Set(['ohos/release.json', 'ohos/app-migration.json'])
+// Machine inputs retain upstream pins and integrity metadata unchanged.
+const immutableSourceRecords = new Set(['ohos/release.json', 'ohos/app-migration.json', 'python/sdk/uv.lock'])
 const gitOutputLimit = 64 * 1024 * 1024
 // One 41-byte line per object; 1.2 million objects produce about 49 MiB.
 const objectListingLimit = 1024 * 1024 * 1024

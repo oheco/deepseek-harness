@@ -1,7 +1,7 @@
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { LocalBashExecutor } from '@deepseek-ai/dsh-bash-local'
 import LocalSubprocessRuntime from '@deepseek-ai/dsh-subprocess-local'
@@ -22,6 +22,11 @@ function start(x: { execute(spec: ShellExecSpec): Promise<ShellExecution> }, spe
 
 
 const spillDir = mkdtempSync(join(tmpdir(), 'dsh-bash-exec-spec-'))
+const contexts: Context[] = []
+
+afterEach(async () => {
+  await Promise.all(contexts.splice(0).map(ctx => ctx.fiber.dispose()))
+})
 
 afterAll(() => {
   rmSync(spillDir, { recursive: true, force: true })
@@ -29,6 +34,7 @@ afterAll(() => {
 
 async function setup(config: Parameters<typeof LocalBashExecutor.Config>[0] = {}) {
   const ctx = new Context()
+  contexts.push(ctx)
   await ctx.plugin(LocalSubprocessRuntime)
   ;(ctx.subprocess as LocalSubprocessRuntime).internals = { spillDir }
   // A short kill grace via the REAL config path, so escalation tests stay fast.
@@ -260,22 +266,24 @@ describe('LocalBashExecutor.start (background process handles)', () => {
   })
 
   it('readOutput flags lossy reads and reports stdout spill paths', async () => {
-    const { bash } = await setup({ maxOutputBytes: 100 })
+    const { ctx, bash } = await setup({ maxOutputBytes: 100 })
+    const failures = vi.spyOn(ctx.logger, 'error')
     const proc = (await start(bash, bash.resolve({ command: 'for i in $(seq 1 100); do printf "line-%04d\\n" $i; done' })))
     await proc.done
     const read = proc.readOutput()
     // Window slid past offset 0 → lossy, spill path points at the full stream.
     expect(read.lossy).toBe(true)
-    expect(read.stdoutSpillPath).toBeDefined()
+    expect(read.stdoutSpillPath, JSON.stringify(failures.mock.calls, ['code', 'syscall', 'path', 'message'])).toBeDefined()
   })
 
   it('readOutput reports stderr spill paths', async () => {
-    const { bash } = await setup({ maxOutputBytes: 100 })
+    const { ctx, bash } = await setup({ maxOutputBytes: 100 })
+    const failures = vi.spyOn(ctx.logger, 'error')
     const proc = (await start(bash, bash.resolve({ command: 'for i in $(seq 1 100); do printf "line-%04d\\n" $i >&2; done' })))
     await proc.done
     const read = proc.readOutput()
     expect(read.lossy).toBe(true)
-    expect(read.stderrSpillPath).toBeDefined()
+    expect(read.stderrSpillPath, JSON.stringify(failures.mock.calls, ['code', 'syscall', 'path', 'message'])).toBeDefined()
     expect(read.delta).toContain('[stderr]')
   })
 

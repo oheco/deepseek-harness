@@ -1,36 +1,6 @@
 /** Lazy POSIX flock entry; importing it does not load a native addon. */
-import { createRequire } from 'node:module'
-import { dirname, join } from 'node:path'
 import { getSystemErrorName } from 'node:util'
-
-interface FlockBinding {
-  tryLock(fd: number, callback: (errno: number) => void): void
-}
-
-let binding: FlockBinding | undefined
-
-function loadBinding(): FlockBinding {
-  if (binding) return binding
-  const platform: string = process.platform
-  const { arch } = process
-  if (platform !== 'linux' && platform !== 'darwin' && platform !== 'openharmony') {
-    throw Object.assign(new Error(`flock is not supported on ${platform}-${arch}`), {
-      code: 'ERR_FLOCK_UNSUPPORTED_PLATFORM',
-      syscall: 'flock',
-    })
-  }
-
-  let filename = 'system.node'
-  if (platform === 'linux') {
-    // Node's report types omit the libc field supplied by Linux reports.
-    const report = process.report.getReport() as { header: { glibcVersionRuntime?: string } }
-    filename = join(report.header.glibcVersionRuntime ? 'glibc' : 'musl', filename)
-  }
-  const require = createRequire(import.meta.url)
-  const manifest = require.resolve(`@deepseek-ai/node-addon-system-${platform}-${arch}/package.json`)
-  binding = require(join(dirname(manifest), 'bin', filename)) as FlockBinding
-  return binding
-}
+import { loadSystemBinding } from './system-binding.js'
 
 /**
  * Attempt an exclusive, nonblocking POSIX flock on the caller's descriptor.
@@ -45,8 +15,15 @@ function loadBinding(): FlockBinding {
  *   platforms, and addon loading failures reject; importing alone does not load it.
  */
 export async function tryLockExclusive(fd: number): Promise<void> {
+  const platform: string = process.platform
+  if (platform !== 'linux' && platform !== 'darwin' && platform !== 'openharmony') {
+    throw Object.assign(new Error(`flock is not supported on ${platform}-${process.arch}`), {
+      code: 'ERR_FLOCK_UNSUPPORTED_PLATFORM',
+      syscall: 'flock',
+    })
+  }
   const errno = await new Promise<number>((resolve) => {
-    loadBinding().tryLock(fd, resolve)
+    loadSystemBinding().tryLock(fd, resolve)
   })
   if (errno === 0) return
   const code = getSystemErrorName(-errno)

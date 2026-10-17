@@ -24,7 +24,9 @@ kind: "package-library"
 
 `@deepseek-ai/node-addon-system/flock` 导出 `tryLockExclusive(fd): Promise<void>`。在调用完成前保持描述符打开。获取操作使用非阻塞独占 flock；发生竞争时，返回的 Promise 会以 `EAGAIN` 或 `EWOULDBLOCK` 拒绝，关闭该打开文件描述的最后一个描述符即释放锁。参见[入口 README](packages/entry/README.zh.md)。
 
-导入任一入口都不会加载 addon。Landlock 可执行文件缺失时探测为不可用；flock 绑定缺失时拒绝获取。两条路径都不会进行编译，也不会静默允许不受支持的行为。
+鸿蒙 ARM64 还提供 `@deepseek-ai/node-addon-system/exclusive-file`，用于同步排他创建普通文件。描述符所有权、临时信号掩码及失败语义由[入口 README](packages/entry/README.zh.md)定义。
+
+导入任何能力入口都不会加载 addon。Landlock 可执行文件缺失时探测为不可用；原生绑定缺失时在调用处失败。所有路径都不会进行编译，也不会静默允许不受支持的行为。
 
 ## Support
 

@@ -82,7 +82,10 @@ for (const name of readdirSync(join(root, 'packages')).sort()) {
     const pending = join(dirname(output), `.${basename(output)}.${randomUUID()}.pending`)
     try {
       const compiled = join(temporary, basename(output))
-      const result = spawnSync(compiler, [...flags, '-o', compiled, join(root, source)], { stdio: 'inherit' })
+      const extraSources = platform === 'openharmony' && binary.kind === 'node-api'
+        ? ['-pthread', join(root, 'packages/entry/src/exclusive-file.c')]
+        : []
+      const result = spawnSync(compiler, [...flags, '-o', compiled, join(root, source), ...extraSources], { stdio: 'inherit' })
       if (result.error) throw result.error
       if (result.status !== 0) throw new Error(`build: ${compiler} failed for ${binary.path}`)
       let payload = compiled

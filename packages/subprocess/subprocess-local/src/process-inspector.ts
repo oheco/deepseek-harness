@@ -2,8 +2,11 @@
 
 import { closeSync, openSync, readFileSync, readdirSync, readlinkSync, readSync, statSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
+import { createLazyRequire } from '@deepseek-ai/dsh-lazy-require'
 import type { SubprocessTerminalSignal } from '@deepseek-ai/dsh-subprocess'
 import { createWindowsProcessInspector } from './windows-inspector.ts'
+
+const requireKoffi = createLazyRequire<typeof import('koffi')['default']>('koffi', import.meta.url)
 
 /** PID plus start identity, preventing teardown escalation after PID reuse. */
 export interface ProcessIdentity {
@@ -56,7 +59,13 @@ export interface ProcessSnapshot {
 
 /** Injectable OS process operations used by one local PTY session. */
 export interface ProcessInspector {
-  foregroundPgid(shellPid: number): number | undefined
+  /**
+   * Read the terminal's foreground process group.
+   * @param shellPid - terminal shell process identifier.
+   * @param terminalFd - PTY master descriptor; required on HarmonyOS and ignored elsewhere.
+   * @returns the group, or undefined when unavailable, including a missing HarmonyOS descriptor.
+   */
+  foregroundPgid(shellPid: number, terminalFd?: number): number | undefined
   /**
    * Report whether the foreground group waits on the terminal shell's stdin.
    *
@@ -109,6 +118,12 @@ export interface ProcessInspectorInternals {
   close(fd: number): void
   exec(file: string, args: string[]): string
   kill(pid: number, signal: NodeJS.Signals): void
+  /**
+   * Query the native foreground group when overriding HarmonyOS terminal inspection.
+   * @param fd - PTY master descriptor.
+   * @returns the group, or a nonpositive native failure result.
+   */
+  terminalForegroundPgid?(this: void, fd: number): number
 }
 
 /* v8 ignore start -- thin OS bindings; injected logic is unit-tested and real platform composition exercises them. */
@@ -485,9 +500,19 @@ class LinuxProcessInspector extends PosixProcessInspector {
 
 }
 
-// HarmonyOS exposes proc identities and foreground groups, but not Linux's
-// per-thread syscall records. Prompt markers and idle bounds remain available.
+// HarmonyOS redacts proc foreground groups and has no Linux per-thread syscall
+// records. The PTY descriptor supplies the group; input waits remain unverified.
 class HarmonyProcessInspector extends LinuxProcessInspector {
+  private queryForegroundPgid: ((fd: number) => number) | undefined
+
+  override foregroundPgid(_shellPid: number, terminalFd?: number): number | undefined {
+    if (terminalFd === undefined) return undefined
+    this.queryForegroundPgid ??= this.internals.terminalForegroundPgid
+      ?? requireKoffi().load(null).func('int tcgetpgrp(int fd)') as (fd: number) => number
+    const pgid = this.queryForegroundPgid(terminalFd)
+    return pgid > 0 ? pgid : undefined
+  }
+
   override isStdinWaiting(_pgid: number, _shellPid: number): boolean {
     return false
   }

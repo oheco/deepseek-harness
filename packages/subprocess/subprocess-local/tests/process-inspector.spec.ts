@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   createProcessInspector,
   linuxProcessGroupHasLiveMembers,
@@ -26,11 +26,19 @@ function stat(
 describe('HarmonyOS process inspection', () => {
   it('retains proc identities and PID-reuse protection without claiming syscall readiness', () => {
     const fake = fakeInternals()
-    fake.files.set('/proc/100/stat', stat(100, 100, 100, 101, '500'))
+    fake.files.set('/proc/100/stat', stat(100, 100, 100, 0, '500'))
     fake.files.set('/proc/101/stat', stat(101, 101, 100, 101, '501', 100))
     fake.dirs.set('/proc', ['100', '101'])
+    const queryForeground = vi.fn((_fd: number) => 101)
+    fake.internals.terminalForegroundPgid = queryForeground
     const inspector = createProcessInspector('openharmony', 'arm64', fake.internals)
-    expect(inspector.foregroundPgid(100)).toBe(101)
+    expect(inspector.foregroundPgid(100)).toBeUndefined()
+    expect(queryForeground).not.toHaveBeenCalled()
+    expect(inspector.foregroundPgid(100, 9)).toBe(101)
+    expect(queryForeground).toHaveBeenCalledExactlyOnceWith(9)
+    queryForeground.mockReturnValueOnce(0).mockReturnValueOnce(-1)
+    expect(inspector.foregroundPgid(100, 9)).toBeUndefined()
+    expect(inspector.foregroundPgid(100, 9)).toBeUndefined()
     expect(inspector.isStdinWaiting(101, 100)).toBe(false)
     expect(inspector.snapshot().tree(100)).toEqual([{ pid: 101, started: '501' }, { pid: 100, started: '500' }])
     expect(inspector.isAlive({ pid: 101, started: '501' })).toBe(true)

@@ -14,7 +14,10 @@ import {
 } from '../src/spawn.ts'
 import type { SubprocessHandle, SubprocessOutputReader } from '@deepseek-ai/dsh-subprocess'
 import { MAX_TIMER_DELAY_MS } from '@deepseek-ai/dsh-timeout'
+import * as exclusiveFile from '@deepseek-ai/node-addon-system/exclusive-file'
 import { waitWithAbort } from '../src/managed-owner.ts'
+
+const hostPlatform: string = process.platform
 
 vi.mock('node:child_process', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:child_process')>()
@@ -104,6 +107,20 @@ vi.mock('node:fs', async (importOriginal) => {
       }
       return actual.writeSync(...args)
     },
+  }
+})
+
+vi.mock('@deepseek-ai/node-addon-system/exclusive-file', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@deepseek-ai/node-addon-system/exclusive-file')>()
+  return {
+    ...actual,
+    openExclusive: vi.fn((path: string, mode: number): number => {
+      if (failNextOpen.value) {
+        failNextOpen.value = false
+        throw Object.assign(new Error('simulated EEXIST on open'), { code: 'EEXIST' })
+      }
+      return actual.openExclusive(path, mode)
+    }),
   }
 })
 
@@ -703,6 +720,37 @@ describe('OutputCollector', () => {
     expect(collector.finalize()).toEqual({ text: 'bbbb', truncated: true })
   })
 
+  it.runIf(hostPlatform === 'openharmony')('escalates an unknown signal mask without removing the failed creation', () => {
+    vi.mocked(exclusiveFile.openExclusive).mockImplementationOnce((path) => {
+      writeFileSync(path, 'uncertain creation')
+      throw new exclusiveFile.ExclusiveFileSignalMaskError(5, path, 'restore', 0)
+    })
+    const { options, failures } = spillOptions(100)
+    const collector = new OutputCollector(4, 'unknown-mask', options)
+    collector.push(Buffer.from('aaaa'))
+    unlinked.length = 0
+    expect(() => { collector.push(Buffer.from('bbbb')) }).toThrow(exclusiveFile.ExclusiveFileSignalMaskError)
+    expect(failures).toHaveLength(1)
+    const error = failures[0]!.error
+    if (!(error instanceof exclusiveFile.ExclusiveFileSignalMaskError)) throw new Error('missing signal-mask failure')
+    expect(error.phase).toBe('restore')
+    expect(readFileSync(error.path, 'utf8')).toBe('uncertain creation')
+    expect(unlinked).toEqual([])
+  })
+
+  it.runIf(hostPlatform === 'openharmony')('keeps collecting after signal-mask setup fails before creation', () => {
+    vi.mocked(exclusiveFile.openExclusive).mockImplementationOnce((path) => {
+      throw new exclusiveFile.ExclusiveFileSignalMaskError(1, path, 'block', 0)
+    })
+    const { options, failures } = spillOptions(100)
+    const collector = new OutputCollector(4, 'mask-block', options)
+    collector.push(Buffer.from('aaaa'))
+    expect(() => { collector.push(Buffer.from('bbbb')) }).not.toThrow()
+    collector.push(Buffer.from('cc'))
+    expect(failures).toHaveLength(1)
+    expect(collector.finalize()).toEqual({ text: 'bbcc', truncated: true })
+  })
+
   it('contains a reporter that throws and keeps collecting', () => {
     const stderr = vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
     try {
@@ -722,6 +770,18 @@ describe('OutputCollector', () => {
 })
 
 describe('logSpillFailure', () => {
+  it('reports uncertain signal state and restart without claiming tail-only recovery', () => {
+    const lines: unknown[][] = []
+    const error = new exclusiveFile.ExclusiveFileSignalMaskError(5, '/test/unknown-creation', 'restore', 0)
+    const report = logSpillFailure({ error: (...detail: unknown[]) => { lines.push(detail) } }, 'test owner')
+    report(error, 'stdout')
+    expect(lines).toHaveLength(1)
+    expect(lines[0]![0]).toContain('thread signal mask is unknown')
+    expect(lines[0]![0]).toContain('Restart the host')
+    expect(lines[0]![0]).not.toContain('keeps only the in-memory tail')
+    expect(lines[0]![1]).toBe(error)
+  })
+
   it('names the removed directory only for ENOENT and appends the error for every code', () => {
     const lines: unknown[][] = []
     const report = logSpillFailure({ error: (...detail: unknown[]) => { lines.push(detail) } }, 'test owner')

@@ -18,6 +18,10 @@ const pluginName = 'profile-resolution-plugin'
 const sourceProbeName = 'source-probe'
 const externalName = 'profile-resolution-external'
 const externalLeafName = 'profile-resolution-external-leaf'
+// Real providers for the module-singleton and runtime-scheduler assertions.
+const runtimePlugins = [
+  'agent', 'session', 'llm', 'system-prompt', 'tools', 'session-projection', 'agent-loop',
+].map(name => ({ id: name, name: `@deepseek-ai/dsh-${name}` }))
 const marker = 'DSH_PROFILE_RESOLUTION '
 
 interface ResolutionEvidence {
@@ -75,9 +79,10 @@ export function testProfileResolution(mode: ExampleMode): void {
       const sourceDevLeaf = join(sourcePackageDir, 'node_modules', leafName)
       const exports = { import: './index.mjs', require: './index.cjs' }
       await writePackage(bundleDir, {
-        name: bundleName, version: '1.0.0', dependencies: { [bridgeName]: '*' },
+        name: bundleName, version: '1.0.0',
+        dependencies: { [bridgeName]: '*', ...Object.fromEntries(runtimePlugins.map(plugin => [plugin.name, '*'])) },
         dsh: { bundle: { patch: './cordis.patch.yml' } },
-      }, { 'cordis.patch.yml': '[]' })
+      }, { 'cordis.patch.yml': JSON.stringify([{ insert: runtimePlugins }]) })
       await writePackage(bridgeDir, {
         name: bridgeName, version: '1.0.0', exports, dependencies: { [leafName]: '*' },
       }, {
@@ -178,7 +183,7 @@ export function testProfileResolution(mode: ExampleMode): void {
       // The probe imports from the profile, where the bundle's transitive dependencies need fallback.
       await writePackage(profileDir, {
         name: 'resolution-profile', private: true, dependencies: { [bundleName]: '*', [pluginName]: '*' },
-        dsh: { profile: { bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-headless', bundleName] } },
+        dsh: { profile: { bundles: [bundleName] } },
       }, {
         'probe.mjs': [
           "import { createRequire } from 'node:module'",
@@ -224,9 +229,6 @@ export function testProfileResolution(mode: ExampleMode): void {
           '}',
         ].join('\n'),
         'cordis.patch.yml': JSON.stringify([
-          { id: 'headless-startup', disabled: true },
-          { id: 'headless-runner', disabled: true },
-          { id: 'llm-deepseek', disabled: true },
           { insert: [
             { id: 'external-plugin', name: pluginName },
             { id: 'resolution-probe', name: join(profileDir, 'probe.mjs') },
@@ -249,10 +251,12 @@ export function testProfileResolution(mode: ExampleMode): void {
         env: {
           DSH_HOME: home, DSH_AGENTS_HOME: join(root, 'agents'), DSH_TELEMETRY_DISABLED: '1',
           NODE_OPTIONS: undefined, TSX_TSCONFIG_PATH: undefined,
+          // tsx disk-cache I/O dominates cold source loading on HarmonyOS.
+          TSX_DISABLE_CACHE: mode === 'src' && (process.platform as string) === 'openharmony' ? '1' : undefined,
         },
       })
       const result = await execa(launch.command, launch.args, {
-        cwd: repoRoot, env: launch.env, input: '', timeout: processTimeoutMs,
+        cwd: root, env: launch.env, input: '', timeout: processTimeoutMs,
         killSignal: 'SIGKILL', reject: false,
       })
       const diagnostic = `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`

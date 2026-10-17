@@ -24,7 +24,9 @@ The [flock behavior contract](docs/flock-contract.md) maps descriptor, process, 
 
 `@deepseek-ai/node-addon-system/flock` exports `tryLockExclusive(fd): Promise<void>`. Keep the descriptor open until completion. Acquisition uses nonblocking exclusive flock; contention rejects with `EAGAIN` or `EWOULDBLOCK`, and closing the final descriptor for the open file description releases the lock. See the [entry README](packages/entry/README.md).
 
-Importing either entry does not load an addon. A missing Landlock executable probes unusable; a missing flock binding rejects acquisition. Neither path compiles or silently grants unsupported behavior.
+HarmonyOS ARM64 additionally provides `@deepseek-ai/node-addon-system/exclusive-file` for synchronous exclusive creation of regular files. Its descriptor ownership, scoped signal mask and failure semantics belong to the [entry README](packages/entry/README.md).
+
+Importing any capability entry does not load an addon. A missing Landlock executable probes unusable; missing native bindings fail when called. No path compiles or silently grants unsupported behavior.
 
 ## Support
 

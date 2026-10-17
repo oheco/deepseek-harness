@@ -136,6 +136,12 @@ export class LocalTerminalHandle implements SubprocessTerminalHandle {
     return !this.exited
   }
 
+  private get terminalFd(): number | undefined {
+    if (this.exited) return undefined
+    const terminal = this.terminal
+    return 'fd' in terminal && typeof terminal.fd === 'number' ? terminal.fd : undefined
+  }
+
   // node-pty writes synchronously; the seam returns a promise for remote transports.
   // oxlint-disable-next-line typescript/require-await -- Preserve promise rejection semantics at the async provider contract.
   async write(data: string): Promise<void> {
@@ -154,7 +160,7 @@ export class LocalTerminalHandle implements SubprocessTerminalHandle {
   // oxlint-disable-next-line typescript/require-await -- Preserve promise rejection semantics at the async provider contract.
   async inspectForeground(): Promise<SubprocessTerminalForeground | undefined> {
     this.descendants(this.inspector.snapshot())
-    const processGroupId = this.inspector.foregroundPgid(this.pid)
+    const processGroupId = this.inspector.foregroundPgid(this.pid, this.terminalFd)
     if (processGroupId === undefined) return undefined
     return {
       processGroupId,
@@ -179,7 +185,7 @@ export class LocalTerminalHandle implements SubprocessTerminalHandle {
           state = observed.session(this.pid).some(member => observed.alive(member)) ? 'busy' : 'idle'
         }
         else if (observed.complete === true && root?.started === this.rootIdentity?.started && root !== undefined) {
-          const foreground = this.inspector.foregroundPgid(this.pid)
+          const foreground = this.inspector.foregroundPgid(this.pid, this.terminalFd)
           state = foreground === undefined ? 'unknown' : foreground === this.pid ? shell.state : 'busy'
           if (state === 'idle' && this.managedOwner !== undefined) {
             const tasks = this.managedOwner.inspectTaskCount?.()

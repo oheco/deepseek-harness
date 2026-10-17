@@ -97,11 +97,12 @@ describe('maintained repository reference policy', () => {
     expect(scanRepositoryReferences(fixture.root)).toHaveLength(4)
   })
 
-  it('permits immutable source commits in exactly the two OHOS machine records', (test) => {
+  it('permits immutable metadata in the reviewed machine input records', (test) => {
     const fixture = repository(test)
     const records = {
       'ohos/release.json': { upstream_commit: fixture.commit },
       'ohos/app-migration.json': { source_head: fixture.commit, destination_upstream_head: fixture.commit },
+      'python/sdk/uv.lock': { source_commit: fixture.commit },
     }
     for (const [file, record] of Object.entries(records)) {
       const source = JSON.stringify(record, null, 2)
@@ -120,6 +121,9 @@ describe('maintained repository reference policy', () => {
       'ohos/app/app-migration.json',
       'ohos/other.json',
       'ohos/README.md',
+      'python/sdk/uv.lock.md',
+      'python/sdk/uv.lock.bak',
+      'python/uv.lock',
     ]
     const prohibited = JSON.stringify({ source_commit: fixture.commit, source_url: organizationUrl }, null, 2)
     for (const file of neighbors) fixture.write(file, prohibited)

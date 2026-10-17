@@ -2,6 +2,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'no
 import { provideWorkingDirectoryFixture, unsupportedInbox } from '@deepseek-ai/dsh-agent-loop-testkit'
 import { spawnSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
+import { createRequire } from 'node:module'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
@@ -39,10 +40,27 @@ describe.skipIf(!existsSync('/usr/bin/zsh'))('terminal-bash real zsh', () => {
 
 const roots: string[] = []
 const contexts: Context[] = []
+const fixturePidFiles: string[] = []
 
 afterEach(async () => {
-  for (const ctx of contexts.splice(0)) await ctx.fiber.dispose()
+  const disposed = await Promise.allSettled(contexts.splice(0).map(ctx => ctx.fiber.dispose()))
+  const stopped = await Promise.allSettled(fixturePidFiles.splice(0).map(async (pidFile) => {
+    if (!existsSync(pidFile)) return
+    const pid = Number(readFileSync(pidFile, 'utf8'))
+    expect(Number.isSafeInteger(pid) && pid > 0, `invalid fixture PID in ${pidFile}`).toBe(true)
+    try {
+      process.kill(pid, 'SIGKILL')
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ESRCH') throw error
+    }
+    await expect.poll(() => processIsRunning(pid), { timeout: 2_000 }).toBe(false)
+  }))
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true })
+  const failures: unknown[] = []
+  for (const result of [...disposed, ...stopped]) {
+    if (result.status === 'rejected') failures.push(result.reason)
+  }
+  if (failures.length > 0) throw new AggregateError(failures, 'terminal fixture cleanup failed')
 })
 
 class PassthroughSandbox extends SandboxProvider {
@@ -73,7 +91,7 @@ function stubAgent(ctx: Context, rawId: string): Agent {
 async function harness(
   mode: 'danger-full-access' | 'workspace-write',
   timing: { idleSilenceMs?: number; handoffGraceMs?: number; timeoutMs?: number } = {},
-  dialect: 'bash' | 'zsh' | 'pwsh' = 'bash',
+  dialect: 'bash' | 'zsh' | 'pwsh' = (process.platform as string) === 'openharmony' ? 'zsh' : 'bash',
 ) {
   const root = mkdtempSync(join(tmpdir(), 'dsh-pty-local-'))
   roots.push(root)
@@ -132,7 +150,7 @@ function processIsRunning(pid: number): boolean {
   } catch (_missingProcess) {
     return false
   }
-  if (process.platform !== 'linux') return true
+  if (process.platform !== 'linux' && (process.platform as string) !== 'openharmony') return true
   try {
     const stat = readFileSync(`/proc/${pid}/stat`, 'utf8')
     const state = stat.slice(stat.lastIndexOf(')') + 2).split(/\s+/, 1)[0]
@@ -140,6 +158,24 @@ function processIsRunning(pid: number): boolean {
   } catch (_unreadableProcEntry) {
     return false
   }
+}
+
+function pidFileDiagnostics(pidFile: string, viewport: string): string {
+  const pids = [...viewport.matchAll(/\[\d+\]\s+(\d+)/g)].flatMap(([, pid]) => pid === undefined ? [] : [pid])
+  const native = spawnSync('python3', ['-c', [
+    'import json, os, sys',
+    'path = sys.argv[1]',
+    'result = {"exists": os.path.exists(path)}',
+    'if result["exists"]:',
+    '    with open(path, "rb") as stream: result["bytes"] = stream.read(256).hex()',
+    '    result["size"] = os.stat(path).st_size',
+    'for pid in sys.argv[2:]:',
+    '    try:',
+    '        with open("/proc/" + pid + "/stat") as stream: result[pid] = stream.read()',
+    '    except OSError as error: result[pid] = str(error)',
+    'print(json.dumps(result))',
+  ].join('\n'), pidFile, ...pids], { encoding: 'utf8', timeout: 1_000 })
+  return `viewport=${JSON.stringify(viewport)}\nnative=${native.stdout}\nstderr=${native.stderr}\nerror=${String(native.error)}`
 }
 
 function canReadLinuxProcessSyscall(pid: number): boolean {
@@ -191,7 +227,8 @@ describe.skipIf(process.platform === 'win32')('terminal-bash real shell', () => 
     const override = ctx.terminals.startSend(agent, created.sessionId, { text: 'PS1=broken-prompt', submit: true })
     expect((await override.done).waitReason).toBe('stdin_read')
 
-    const after = ctx.terminals.startSend(agent, created.sessionId, { text: 'printf "healed=[%s]\\n" "$PS1"', submit: true })
+    const prompt = (process.platform as string) === 'openharmony' ? '${(%)PS1}' : '$PS1'
+    const after = ctx.terminals.startSend(agent, created.sessionId, { text: `printf "healed=[%s]\\n" "${prompt}"`, submit: true })
     const result = await after.done
     expect(result.waitReason).toBe('stdin_read')
     expect(result.viewport).toContain('healed=[dsh> ]')
@@ -227,7 +264,7 @@ describe.skipIf(process.platform === 'win32')('terminal-bash real shell', () => 
     const { ctx, root, agent, fiber, sandbox } = await harness('workspace-write')
     const created = await ctx.terminals.spawn(agent, { type: 'shell' })
     expect(sandbox.calls).toEqual([{
-      argv: ['/bin/bash', '--noprofile', '--norc', '-i'],
+      argv: (process.platform as string) === 'openharmony' ? ['/usr/bin/zsh', '-f', '-i'] : ['/bin/bash', '--noprofile', '--norc', '-i'],
       policy: { mode: 'workspace-write', workspaceRoot: root, sessionId: 'agent-workspace-write' },
     }])
     await fiber.dispose()
@@ -237,22 +274,54 @@ describe.skipIf(process.platform === 'win32')('terminal-bash real shell', () => 
   }, 10_000)
 
   it('signals a foreground command and kills a TERM-ignoring background descendant', async () => {
-    const { ctx, agent } = await harness('danger-full-access')
+    const { ctx, root, agent } = await harness('danger-full-access')
+    const foregroundScript = join(root, 'foreground.cjs')
+    const foregroundPidFile = join(root, 'foreground.pid')
+    const backgroundPidFile = join(root, 'background.pid')
+    fixturePidFiles.push(foregroundPidFile, backgroundPidFile)
+    const requireSubprocess = createRequire(createRequire(import.meta.url).resolve('@deepseek-ai/dsh-subprocess-local/package.json'))
+    writeFileSync(foregroundScript, [
+      'const { writeFileSync, writeSync } = require("node:fs")',
+      `const koffi = require(${JSON.stringify(requireSubprocess.resolve('koffi'))})`,
+      'const tcgetpgrp = koffi.load(null).func("int tcgetpgrp(int fd)")',
+      'writeFileSync(process.argv[2], String(process.pid))',
+      'process.on("SIGINT", () => { writeSync(1, "FOREGROUND_SIGINT\\n"); process.exit(0) })',
+      'function ready() {',
+      '  if (tcgetpgrp(0) !== process.pid) return setTimeout(ready, 10)',
+      '  writeSync(1, "FOREGROUND_READY\\n")',
+      '}',
+      'ready()',
+      'setInterval(() => {}, 60_000)',
+      '',
+    ].join('\n'))
     const created = await ctx.terminals.spawn(agent, { type: 'shell' })
+    const read = () => ctx.terminals.read(agent, created.sessionId, { offset: 0, count: 100 }).text
 
-    const foreground = ctx.terminals.startSend(agent, created.sessionId, { text: 'sleep 60', submit: true })
-    await new Promise(resolve => setTimeout(resolve, 50))
-    expect((await ctx.terminals.signal(agent, created.sessionId, 'SIGINT')).delivered).toBe(true)
+    const foreground = ctx.terminals.startSend(agent, created.sessionId, {
+      text: `"${process.execPath}" "${foregroundScript}" "${foregroundPidFile}"`, submit: true,
+    })
+    // Scrollback also observes readiness if the silence tier already settled the send.
+    await expect.poll(read, { timeout: 2_000 }).toContain('FOREGROUND_READY')
+    const foregroundPid = Number(readFileSync(foregroundPidFile, 'utf8'))
+    expect(await ctx.terminals.signal(agent, created.sessionId, 'SIGINT')).toEqual({
+      delivered: true, targetPgid: foregroundPid,
+    })
     expectReadyForNextSend((await foreground.done).waitReason)
+    await expect.poll(read, { timeout: 2_000 }).toContain('FOREGROUND_SIGINT')
 
     const background = ctx.terminals.startSend(agent, created.sessionId, {
-      text: 'sh -c \'trap "" TERM; sleep 60\' & echo CHILD=$!',
+      text: `sh -c 'trap "" TERM; printf "%s" "$$" > "$1"; exec sleep 60' dsh "${backgroundPidFile}" &`,
       submit: true,
     })
-    const output = (await background.done).viewport
-    const child = /CHILD=(\d+)/.exec(output)?.[1]
-    expect(child).toBeDefined()
-    const pid = Number(child)
+    const backgroundResult = await background.done
+    // The PID file is written after TERM is ignored; exec preserves that disposition.
+    try {
+      await expect.poll(() => existsSync(backgroundPidFile) && readFileSync(backgroundPidFile, 'utf8'),
+        { timeout: 2_000 }).toMatch(/^\d+$/)
+    } catch (error) {
+      throw new Error(`${JSON.stringify(backgroundResult)}\n${pidFileDiagnostics(backgroundPidFile, read())}`, { cause: error })
+    }
+    const pid = Number(readFileSync(backgroundPidFile, 'utf8'))
     expect(processIsRunning(pid)).toBe(true)
     await ctx.terminals.kill(agent, created.sessionId)
     // Linux can retain a stopped descendant as a zombie until its parent reaps it.
@@ -278,7 +347,8 @@ describe.skipIf(process.platform === 'win32')('terminal-bash real shell', () => 
         await new Promise(resolve => setTimeout(resolve, 10))
       }
       expect(existsSync(pidFile), ctx.terminals.read(agent, created.sessionId, { offset: 0, count: 100 }).text).toBe(true)
-      expect(childPid).toBeGreaterThan(0)
+      expect(childPid, childPid > 0 ? undefined
+        : pidFileDiagnostics(pidFile, ctx.terminals.read(agent, created.sessionId, { offset: 0, count: 100 }).text)).toBeGreaterThan(0)
       pid = childPid
       expect(() => process.kill(childPid, 0)).not.toThrow()
       await ctx.terminals.startSend(agent, created.sessionId, { text: 'exit', submit: true }).done
@@ -301,17 +371,36 @@ describe.skipIf(process.platform === 'win32')('terminal-bash real shell', () => 
   }, 10_000)
 
   it('cancels a slow-starting raw-mode foreground process with a real SIGINT', async () => {
-    const { ctx, agent } = await harness('danger-full-access', {
+    const { ctx, root, agent } = await harness('danger-full-access', {
       idleSilenceMs: 10_000,
       timeoutMs: 15_000,
     })
+    const script = join(root, 'raw-foreground.py')
+    const pidFile = join(root, 'raw-foreground.pid')
+    fixturePidFiles.push(pidFile)
+    writeFileSync(script, [
+      'import os, signal, sys, termios, time',
+      'with open(sys.argv[1], "w") as pid_file: pid_file.write(str(os.getpid()))',
+      'def interrupted(*_):',
+      '    print("SIGINT_SEEN", flush=True)',
+      '    sys.exit(0)',
+      'signal.signal(signal.SIGINT, interrupted)',
+      'attrs = termios.tcgetattr(0)',
+      'attrs[3] &= ~termios.ISIG',
+      'termios.tcsetattr(0, termios.TCSANOW, attrs)',
+      'time.sleep(2.1)',
+      'while os.tcgetpgrp(0) != os.getpgrp(): time.sleep(0.01)',
+      'assert not termios.tcgetattr(0)[3] & termios.ISIG',
+      'print("RAW_READY", flush=True)',
+      'time.sleep(60)',
+      '',
+    ].join('\n'))
     const created = await ctx.terminals.spawn(agent, { type: 'shell' })
     const controller = new AbortController()
     const ready = 'RAW_READY'
-    // Delay readiness beyond the shared harness's short send bound so this
-    // process test owns enough slack for loaded macOS startup and shell echo.
-    // The interactive shell echoes the command, so only child output may contain the readiness marker.
-    const command = 'python3 -c \'import signal,sys,termios,time; signal.signal(signal.SIGINT, lambda *_: (print("SIGINT_SEEN", flush=True), sys.exit(0))); attrs=termios.tcgetattr(0); attrs[3] &= ~termios.ISIG; termios.tcsetattr(0, termios.TCSANOW, attrs); time.sleep(2.1); print("RAW_" + "READY", flush=True); time.sleep(60)\''
+    // Slow readiness must remain beyond the shared harness's short send bound.
+    // Only child output contains the marker; the shell echoes a script path.
+    const command = `python3 "${script}" "${pidFile}"`
     expect(command).not.toContain(ready)
     const foreground = ctx.terminals.startSend(agent, created.sessionId, {
       text: command,
@@ -322,6 +411,8 @@ describe.skipIf(process.platform === 'win32')('terminal-bash real shell', () => 
     controller.abort()
     const result = await foreground.done
     expectReadyForNextSend(result.waitReason)
+    expect(result.viewport).toContain('SIGINT_SEEN')
+    expect(processIsRunning(Number(readFileSync(pidFile, 'utf8')))).toBe(false)
     const afterReady = 'AFTER_SIGINT'
     const afterCommand = 'printf "AFTER_%s\\n" SIGINT'
     expect(afterCommand).not.toContain(afterReady)

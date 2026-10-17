@@ -6,9 +6,10 @@
  */
 
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
-import { afterAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import type { CollectedOutput, ShellExecSpec, ShellExecution, ShellRunResult } from '@deepseek-ai/dsh-shell'
 import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
@@ -32,6 +33,13 @@ function start(x: { execute(spec: ShellExecSpec): Promise<ShellExecution> }, spe
 
 
 const spillDir = mkdtempSync(join(tmpdir(), 'dsh-bash-sandbox-spec-'))
+const contexts: Context[] = []
+const hostShellArgv = (process.platform as string) === 'openharmony' ? ['/usr/bin/zsh', '-f', '-c'] : ['bash', '-c']
+const hasBash = spawnSync('bash', ['--version'], { stdio: 'ignore' }).status === 0
+
+afterEach(async () => {
+  await Promise.all(contexts.splice(0).map(ctx => ctx.fiber.dispose()))
+})
 
 afterAll(() => {
   rmSync(spillDir, { recursive: true, force: true })
@@ -77,6 +85,7 @@ async function setup(
     }
   }
   const ctx = new Context()
+  contexts.push(ctx)
   await ctx.plugin(SessionProjectionRegistry)
   await ctx.plugin(FakeSandboxProvider)
   await ctx.plugin(SandboxPolicyService, {
@@ -205,30 +214,31 @@ describe('the provider hand-off', () => {
       await entered.promise
       expect(published).toBe(false)
       expect(spawn).not.toHaveBeenCalled()
-      response.resolve(passthrough(['bash', '-c', 'printf ready']))
+      response.resolve(passthrough([...hostShellArgv, 'printf ready']))
       const process = await pending
       await process.done
       expect(process.readOutput().delta).toBe('ready')
       expect(spawn).toHaveBeenCalledOnce()
     } finally {
-      response.resolve(passthrough(['bash', '-c', 'printf ready']))
+      response.resolve(passthrough([...hostShellArgv, 'printf ready']))
+      await pending.catch(() => {})
       await ctx.fiber.dispose()
     }
   })
 
-  it('hands the provider the exact bash argv and the per-call policy, and runs the returned argv', async () => {
+  it('hands the provider the exact configured shell argv and the per-call policy, and runs the returned argv', async () => {
     const { bash, calls } = await setup()
     const result = await run(bash, bash.resolve({ command: 'echo \'a b\' "c\'d"' }))
     expect(result.stdout.text).toBe('a b c\'d\n')
     expect(result.sandbox).toEqual({ mode: 'read-only', denied: false, enforcement: 'full' })
     expect(calls).toEqual([{
-      argv: ['bash', '-c', 'echo \'a b\' "c\'d"'],
+      argv: [...hostShellArgv, 'echo \'a b\' "c\'d"'],
       policy: { mode: 'read-only', workspaceRoot: resolve(process.cwd()) },
     }])
   })
 
   it('hands the provider\'s returned argv directly to ctx.subprocess.spawn', async () => {
-    const returnedArgv = ['env', 'DSH_WRAP=1', 'bash', '-c', 'printf "%s" "$DSH_WRAP"']
+    const returnedArgv = ['env', 'DSH_WRAP=1', ...hostShellArgv, 'printf "%s" "$DSH_WRAP"']
     const { ctx, bash } = await setup({}, () => ({ argv: returnedArgv, enforcement: 'full', denialSignatures: UNIX_SIGNATURES, runnerFailureRules: RUNNER_FAILURE }))
     const spawn = vi.spyOn(ctx.subprocess, 'spawn')
     const result = await run(bash, bash.resolve({ command: 'printf "%s" "$DSH_WRAP"' }))
@@ -238,7 +248,7 @@ describe('the provider hand-off', () => {
     expect(result.sandbox).toEqual({ mode: 'read-only', denied: false, enforcement: 'full' })
   })
 
-  it('starts a non-Bash runner before the confined inner Bash evaluates BASH_ENV', async () => {
+  it.skipIf(!hasBash)('starts a non-Bash runner before the confined inner Bash evaluates BASH_ENV', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'dsh-bash-env-order-'))
     const hook = join(dir, 'hook.sh')
     const order = join(dir, 'order.txt')
@@ -250,7 +260,7 @@ describe('the provider hand-off', () => {
       'const child = spawnSync(process.argv[1], process.argv.slice(2), { env: process.env, stdio: "inherit" });',
       'process.exit(child.status ?? 125);',
     ].join('')
-    const { bash } = await setup({}, argv => ({
+    const { ctx, bash } = await setup({ shellPath: 'bash', shellArgs: ['-c'] }, argv => ({
       argv: [process.execPath, '-e', runnerScript, ...argv],
       enforcement: 'full',
       denialSignatures: UNIX_SIGNATURES,
@@ -266,6 +276,7 @@ describe('the provider hand-off', () => {
       expect(result.exitCode).toBe(0)
       expect(readFileSync(order, 'utf8')).toBe('runner\nhook\n')
     } finally {
+      await ctx.fiber.dispose()
       rmSync(dir, { recursive: true, force: true })
     }
   })

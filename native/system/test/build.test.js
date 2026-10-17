@@ -41,6 +41,11 @@ for (const failure of ['none', 'compile', 'strip', 'sign', 'copy']) {
         assert.equal(command, { sign: 'binary-sign-tool', strip: 'llvm-objcopy', compile: 'clang' }[step]);
         const dest = step === 'strip' ? args.at(-1) : args[args.indexOf(step === 'sign' ? '-outFile' : '-o') + 1];
         assert.equal(path.dirname(path.dirname(dest)), process.env.TMPDIR);
+        if (step === 'compile') {
+          assert.ok(args.includes('-pthread'));
+          assert.equal(args.filter(arg => arg.endsWith('/exclusive-file.c')).length, 1);
+          assert.equal(args.filter(arg => arg.endsWith('/flock.c')).length, 1);
+        }
         if (step === 'strip') {
           assert.equal(args[0], '--remove-section=.codesign');
           assert.equal(fs.readFileSync(args[1], 'utf8'), 'compiled');
