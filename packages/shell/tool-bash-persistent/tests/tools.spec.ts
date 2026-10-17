@@ -122,7 +122,9 @@ class StubPtySession implements TerminalBackendSession {
 
   startSend(request: TerminalSendRequest): TerminalSendOperation {
     this.sends += 1
-    if (request.text.startsWith('stty -echo')) {
+    // HarmonyOS suppresses echo through the zsh startup command instead of `stty`.
+    const isEchoSuppression = request.text.startsWith('stty -echo') || request.text.startsWith('unsetopt ZLE;')
+    if (isEchoSuppression) {
       if (this.mode === 'init-exit') {
         this.statusValue = { kind: 'exited', exitCode: 1, signal: null }
         return this.operation(Promise.resolve(this.result('', 'session_exit')))

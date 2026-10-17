@@ -32,6 +32,7 @@ import {
   type Profile,
   type RuntimeResolution,
 } from '../src/index.ts'
+import { requireNodeInternal } from './node-internals.ts'
 import { installRuntimeInterception } from '../src/profile-resolution/resolver.ts'
 
 const tempRoots: string[] = []
@@ -98,9 +99,7 @@ function stageProfile(home: string, name: string, bundleAnchor: string): Profile
 async function importFromResolution(
   resolution: RuntimeResolution, specifier: string,
 ): Promise<Record<string, unknown>> {
-  const addon = createRequire(import.meta.url)('node-addon-require-builtin') as {
-    requireBuiltin(id: string): unknown
-  }
+  const addon = { requireBuiltin: requireNodeInternal }
   const loader = addon.requireBuiltin('internal/modules/esm/loader') as {
     getOrInitializeCascadedLoader(): {
       import(specifier: string, parent: string, attributes: ImportAttributes): Promise<Record<string, unknown>>

@@ -1,0 +1,1209 @@
+import webview from '@ohos.web.webview';
+import pasteboard from '@ohos.pasteboard';
+import { ConnectionHome, ConnectionHomeController } from './ConnectionHome';
+import common from '@ohos.app.ability.common';
+import { RuntimeDefaults } from '../config/RuntimeDefaults';
+import { APP_FOREGROUND_EVENT, APP_BACKGROUND_EVENT } from '../launcher/AppActivity';
+import { WebConnection, WebConnectionState } from '../launcher/WebConnection';
+import { ConnectionProfile } from '../launcher/ConnectionProfile';
+import { WEB_VIEW_ACTIVE_EVENT } from '../launcher/WebOrientation';
+import { leavesWebView, openOutside } from '../launcher/ExternalLink';
+import { loopbackOrigin } from '../launcher/RunLogUrl';
+import { prepareConnectionCookies } from '../launcher/ConnectionCookies';
+import { connectionDiagnostic, connectionDiagnosticFailure } from '../launcher/ConnectionDiagnostics';
+import { WEB_CONNECTION_DIAGNOSTIC_SCRIPT, recordWebConnectionDiagnostic } from '../launcher/WebConnectionDiagnostics';
+
+import { KeyCode } from '@ohos.multimodalInput.keyCode';
+import { CONTEXT_CAPTURE_SCRIPT, ContextSnapshot, contextSnapshotScript, contextTarget } from '../launcher/ContextActions';
+import { viewInFileManager, PathActionResult } from '../launcher/PathActions';
+import ConfigurationConstant from '@ohos.app.ability.ConfigurationConstant';
+import { OverlayPalette, overlayPaletteScript, parseOverlayPalette } from '../launcher/OverlayAppearance';
+
+/** AppStorage key written by EntryAbility when the system colour mode changes. */
+const COLOR_MODE_KEY = 'dshColorMode';
+/**
+ * The page only ever talks to 127.0.0.1, but ArkWeb reports `navigator.onLine`
+ * as false while it is still resolving system network state. The Harness client
+ * reads that flag at boot and parks in its disconnected state — recoverable only
+ * through its own reconnect control — so the local page would sit "disconnected"
+ * until the user clicks it. This script runs before any page script and reports
+ * the connection the page actually uses, and it keeps a transient system offline
+ * event from parking a loopback connection.
+ */
+const LOCAL_CONNECTION_SCRIPT: string =
+  'try {' +
+  '  Object.defineProperty(navigator, "onLine", { configurable: true, get: function () { return true; } });' +
+  '  window.addEventListener("offline", function (event) { event.stopImmediatePropagation(); }, true);' +
+  '} catch (error) { /* an engine that refuses the override keeps its own state */ }';
+
+@Entry
+@Component
+struct Index {
+  private homeController: ConnectionHomeController = new ConnectionHomeController();
+  private remote: boolean = false;
+  private remoteTimer: number = -1;
+  private closingWeb: boolean = false;
+  private activityContext: common.UIAbilityContext | undefined = undefined;
+  private activeConnection: ConnectionProfile | undefined = undefined;
+  private rendererAlive: boolean = true;
+  private currentWebAddress: string = '';
+  private initialAuthentication: boolean = false;
+  private webPreparationGeneration: number = -1;
+  private initialBlankGeneration: number = -1;
+  private cookiesPreparedGeneration: number = -1;
+  private navigationGeneration: number = -1;
+  private webPreparation: Promise<void> = Promise.resolve();
+  private detachedWork: Promise<void> = Promise.resolve();
+  private closeWork: Promise<void> | undefined = undefined;
+  private prepareWork: Promise<boolean> | undefined = undefined;
+  private preparingConfiguration: string = '';
+  private retainedConfiguration: string = '';
+  @State private retainedConnectionId: string = '';
+  @State private webVisible: boolean = false;
+  @State private connectionState: WebConnectionState = WebConnectionState.Connected;
+  private webConnection: WebConnection = new WebConnection((state: WebConnectionState, recovered: boolean) =>
+    this.connectionChanged(state, recovered));
+  private appForeground: () => void = () => {
+    connectionDiagnostic('index.foreground', { generation: this.webGeneration, visible: this.webVisible });
+    this.resumeWeb().catch((error: Error) => {
+      connectionDiagnosticFailure('index.foreground_failed', error, { generation: this.webGeneration });
+    });
+  };
+  private appBackground: () => void = () => {
+    connectionDiagnostic('index.background', { generation: this.webGeneration, visible: this.webVisible });
+    clearInterval(this.remoteTimer);
+    this.webConnection.background();
+  };
+  // Bound only so a system theme change re-renders this page: the colours below
+  // are $r() resources, and ArkUI re-resolves them on that re-render.
+  @StorageProp(COLOR_MODE_KEY) private colorMode: number = -1;
+  @State private webUrl: string = '';
+  @State private webOrigin: string = '';
+  @State private webGeneration: number = 0;
+  @State private pageLoaded: boolean = false;
+  @State private webError: Resource | undefined = undefined;
+  // The blank component binds the controller before authentication. Its paint
+  // cannot remove the cover; completion at the connection origin does.
+  @State private webPainted: boolean = false;
+  private controller: webview.WebviewController = new webview.WebviewController();
+  // ArkWeb may report one navigation through more than one callback; the second
+  // report of the same address must not open a second browser window.
+  private handedOff: string = '';
+  private handedOffAt: number = 0;
+  @State private searchVisible: boolean = false;
+  @State private searchText: string = '';
+  @State private searchCount: number = 0;
+  @State private searchIndex: number = 0;
+  @State private menuVisible: boolean = false;
+  @State private menuText: string = '';
+  @State private menuLink: string = '';
+  @State private menuPath: string = '';
+  @State private menuX: number = 0;
+  @State private menuY: number = 0;
+  @State private viewportWidth: number = 800;
+  @State private viewportHeight: number = 600;
+  private menuResult: WebContextMenuResult | undefined = undefined;
+  private menuRequest: number = 0;
+  private nativeSelection: boolean = false;
+  private searchTimer: number = -1;
+  @State private overlayPalette: OverlayPalette | undefined = undefined;
+  @State private hoveredAction: string = '';
+  @State private searchX: number = 0;
+  @State private searchY: number = 12;
+  private searchMoved: boolean = false;
+  private dragStartX: number = 0;
+  private dragStartY: number = 0;
+  private paletteTimer: number = -1;
+  private paletteReading: boolean = false;
+  private attached: boolean = false;
+  private diagnosticPhase: number = 0;
+  private diagnosticPhaseStarted: number = 0;
+  private diagnosticTimer: number = -1;
+  private diagnosticControllerAttached: boolean = false;
+
+  /** A watchdog observes stalled stages without cancelling, retrying or changing the page. */
+  private observeWebPhase(phase: number): void {
+    clearInterval(this.diagnosticTimer);
+    this.diagnosticPhase = phase;
+    this.diagnosticPhaseStarted = Date.now();
+    const generation = this.webGeneration;
+    connectionDiagnostic('index.phase', { generation: generation, phase: phase, remote: this.remote,
+      attached: this.diagnosticControllerAttached, visible: this.webVisible });
+    if (phase >= 1 && phase <= 3) {
+      this.diagnosticTimer = setInterval(() => {
+        if (generation === this.webGeneration && this.attached && this.diagnosticPhase === phase) {
+          connectionDiagnostic('index.phase_pending', { generation: generation, phase: phase,
+            elapsedMs: Date.now() - this.diagnosticPhaseStarted, attached: this.diagnosticControllerAttached,
+            visible: this.webVisible, remote: this.remote });
+        }
+      }, 5000);
+    }
+  }
+
+  private diagnosticAddressKind(address: string): number {
+    if (address === 'about:blank') { return 0; }
+    return loopbackOrigin(address) === this.webOrigin ? 1 : 2;
+  }
+
+  private updateWebOrientation(active: boolean): void {
+    try {
+      (this.getUIContext().getHostContext() as common.UIAbilityContext).eventHub.emit(WEB_VIEW_ACTIVE_EVENT, active);
+    } catch (error) {
+      // A detached ability owns its remaining window cleanup.
+    }
+  }
+
+  aboutToAppear(): void {
+    connectionDiagnostic('index.appeared', { generation: this.webGeneration, visible: this.webVisible });
+    this.attached = true;
+    this.updateWebOrientation(this.webVisible && this.webUrl !== '');
+    try {
+      this.activityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
+      this.activityContext.eventHub.on(APP_FOREGROUND_EVENT, this.appForeground);
+      this.activityContext.eventHub.on(APP_BACKGROUND_EVENT, this.appBackground);
+    } catch (error) {
+      // A detached context cannot deliver App activity; the page remains reachable through Back.
+    }
+    if (this.activeConnection && this.webVisible && this.webUrl !== '') {
+      this.reattachWeb().catch((error: Error) => {
+        // A reattached renderer can retry on its next foreground event.
+      });
+    }
+  }
+
+  aboutToDisappear(): void {
+    connectionDiagnostic('index.disappeared', { generation: this.webGeneration, visible: this.webVisible });
+    clearInterval(this.diagnosticTimer);
+    clearTimeout(this.searchTimer);
+    clearTimeout(this.paletteTimer);
+    clearInterval(this.remoteTimer);
+    this.updateWebOrientation(false);
+    this.attached = false;
+    this.dismissMenu();
+    const context = this.activityContext;
+    this.activityContext = undefined;
+    if (context) {
+      try {
+        context.eventHub.off(APP_FOREGROUND_EVENT, this.appForeground);
+      } catch (error) {
+        // A destroyed ability may already have removed its activity listeners.
+      }
+      try {
+        context.eventHub.off(APP_BACKGROUND_EVENT, this.appBackground);
+      } catch (error) {
+        // Native cleanup must continue even when the context no longer accepts listener removal.
+      }
+    }
+    this.webConnection.background();
+    this.detachedWork = this.closeWork ?? Promise.resolve();
+  }
+
+  private async reattachWeb(): Promise<void> {
+    const generation = this.webGeneration;
+    await this.detachedWork;
+    if (!this.attached || this.closingWeb || generation !== this.webGeneration || !this.activeConnection) {
+      return;
+    }
+    await this.resumeWeb();
+  }
+
+  private startRemotePolling(): void {
+    clearInterval(this.remoteTimer);
+    if (this.attached && this.webVisible && this.remote && this.webUrl !== '' && !this.closingWeb) {
+      this.remoteTimer = setInterval(() => this.checkRemote(), 2000);
+    }
+  }
+
+  private async resumeWeb(verifyEndpoint: boolean = true): Promise<void> {
+    if (!this.attached || !this.webVisible || this.closingWeb || this.webUrl === '') {
+      return;
+    }
+    this.startRemotePolling();
+    await this.webConnection.foregrounded(verifyEndpoint);
+  }
+
+  /** Names and preferred ports preserve a live page; a new managed login or legacy bearer requires new ownership. */
+  private connectionConfiguration(connection: ConnectionProfile): string {
+    return JSON.stringify([connection.id, connection.mode, connection.port, connection.token,
+      connection.serviceUrl, connection.account, connection.brokerId, connection.peerPassword,
+      connection.authSessionId, connection.authSessionId === '' ? connection.accessToken : '']);
+  }
+
+  /** Home joins preparation before any new probe or mapping; repeated selections share their pending operation. */
+  private prepareConnection(connection: ConnectionProfile): Promise<boolean> {
+    connectionDiagnostic('index.prepare_requested', { generation: this.webGeneration,
+      remote: connection.mode === 'remote', visible: this.webVisible, phase: this.closingWeb ? 1 : 0 });
+    const configuration = this.connectionConfiguration(connection);
+    if (this.prepareWork && this.preparingConfiguration === configuration) {
+      return this.prepareWork;
+    }
+    const work = this.finishConnectionPreparation(configuration, this.prepareWork);
+    this.prepareWork = work;
+    this.preparingConfiguration = configuration;
+    work.then(() => this.finishPreparing(work), () => this.finishPreparing(work));
+    return work;
+  }
+
+  private finishPreparing(work: Promise<boolean>): void {
+    if (this.prepareWork === work) {
+      this.prepareWork = undefined;
+      this.preparingConfiguration = '';
+    }
+  }
+
+  private async finishConnectionPreparation(configuration: string,
+    previous: Promise<boolean> | undefined): Promise<boolean> {
+    if (previous) {
+      connectionDiagnostic('index.prepare_wait_previous', { generation: this.webGeneration });
+      await previous;
+    }
+    if (this.closeWork) {
+      connectionDiagnostic('index.prepare_wait_close', { generation: this.webGeneration });
+      await this.closeWork;
+    }
+    if (!this.attached) {
+      throw new Error('Connection page is detached');
+    }
+    if (this.webUrl !== '' && !this.closingWeb && this.connectionState !== WebConnectionState.AuthenticationRequired &&
+      configuration === this.retainedConfiguration) {
+      connectionDiagnostic('index.prepare_retained', { generation: this.webGeneration, attached: this.rendererAlive });
+      this.webVisible = true;
+      this.updateWebOrientation(true);
+      this.resumeWeb(!this.rendererAlive).catch((error: Error) => {
+        connectionDiagnosticFailure('index.retained_resume_failed', error, { generation: this.webGeneration });
+      });
+      return true;
+    }
+    await this.closeWeb();
+    connectionDiagnostic('index.prepare_new', { generation: this.webGeneration });
+    return false;
+  }
+
+  /** Soft return keeps the controller, document, history, authentication and SDK map attached. */
+  private hideWeb(): void {
+    connectionDiagnostic('index.hide_requested', { generation: this.webGeneration, visible: this.webVisible });
+    if (!this.webVisible) {
+      return;
+    }
+    this.webVisible = false;
+    this.dismissMenu();
+    clearInterval(this.remoteTimer);
+    clearTimeout(this.paletteTimer);
+    clearTimeout(this.searchTimer);
+    this.webConnection.background();
+    this.updateWebOrientation(false);
+  }
+
+  private disconnectConnection(id: string): Promise<void> {
+    return id === this.retainedConnectionId || this.closingWeb ? this.closeWeb() : Promise.resolve();
+  }
+
+  private connectionMessage(): Resource {
+    return this.connectionState === WebConnectionState.AuthenticationRequired ?
+      $r('app.string.broker_login_expired') : $r('app.string.connection_disconnected');
+  }
+
+  private retryConnection(): Promise<void> {
+    return this.resumeWeb();
+  }
+
+  private returnFromConnection(): void {
+    if (this.connectionState === WebConnectionState.AuthenticationRequired) {
+      this.closeWeb().catch((error: Error) => this.notify($r('app.string.web_action_failed')));
+    } else {
+      this.hideWeb();
+    }
+  }
+
+  private connectionChanged(state: WebConnectionState, recovered: boolean): void {
+    if (!this.attached || this.closingWeb || this.webUrl === '') {
+      return;
+    }
+    this.connectionState = state;
+    if (!recovered) {
+      return;
+    }
+    if (!this.rendererAlive) {
+      this.controller = new webview.WebviewController();
+      this.webUrl = this.currentWebAddress;
+      this.webGeneration += 1;
+      this.pageLoaded = false;
+      this.webPainted = false;
+      this.webError = undefined;
+      this.rendererAlive = true;
+      this.diagnosticControllerAttached = false;
+      connectionDiagnostic('index.renderer_recreated', { generation: this.webGeneration });
+      this.observeWebPhase(1);
+      return;
+    }
+    this.controller.runJavaScript('window.dispatchEvent(new Event("online"));').catch((error: Error) => {
+      // A renderer not ready for online notification keeps its own WebSocket reconnect behavior.
+    });
+  }
+
+  /** The connection flow has authenticated this address before transferring its mapping. */
+  private openWeb(address: string, remote: boolean, connection: ConnectionProfile): boolean {
+    const origin = loopbackOrigin(address);
+    if (origin === '' || this.closingWeb || this.webUrl !== '') {
+      connectionDiagnostic('index.open_refused', { generation: this.webGeneration,
+        phase: origin === '' ? 1 : this.closingWeb ? 2 : 3, remote: remote });
+      return false;
+    }
+    connectionDiagnostic('index.controller_create_begin', { generation: this.webGeneration + 1, remote: remote });
+    const controller = new webview.WebviewController();
+    this.webConnection.activate(connection, origin);
+    this.dismissMenu();
+    this.searchVisible = false;
+    this.remote = remote;
+    this.webUrl = address;
+    this.webOrigin = origin;
+    this.webGeneration += 1;
+    this.overlayPalette = undefined;
+    this.pageLoaded = false;
+    this.webPainted = false;
+    this.webError = undefined;
+    this.controller = controller;
+    this.rendererAlive = true;
+    this.currentWebAddress = address;
+    this.initialAuthentication = true;
+    this.activeConnection = connection;
+    this.connectionState = WebConnectionState.Connected;
+    this.retainedConfiguration = this.connectionConfiguration(connection);
+    this.retainedConnectionId = connection.id;
+    this.webVisible = true;
+    this.diagnosticControllerAttached = false;
+    connectionDiagnostic('index.controller_created', { generation: this.webGeneration, remote: remote });
+    this.observeWebPhase(1);
+    this.startRemotePolling();
+    this.updateWebOrientation(true);
+    return true;
+  }
+
+  /** Cookie preparation joins attachment; navigation also requires this generation's initial blank completion. */
+  private prepareAndLoad(generation: number): Promise<void> {
+    connectionDiagnostic('index.load_preparation_requested', { generation: generation,
+      current: generation === this.webGeneration, attached: this.attached, visible: this.webVisible,
+      phase: this.diagnosticPhase });
+    if (!this.attached || this.closingWeb || !this.rendererAlive || this.webError !== undefined ||
+      this.webUrl === '' || generation !== this.webGeneration) {
+      connectionDiagnostic('index.load_preparation_skipped', { generation: generation,
+        current: generation === this.webGeneration, attached: this.attached, phase: this.closingWeb ? 1 : 0 });
+      return Promise.resolve();
+    }
+    if (this.webPreparationGeneration === generation) {
+      connectionDiagnostic('index.load_preparation_joined', { generation: generation });
+      this.loadPreparedWeb(generation);
+      return this.webPreparation;
+    }
+    const controller = this.controller;
+    const origin = this.webOrigin;
+    const address = this.webUrl;
+    const authenticate = this.initialAuthentication;
+    const current: () => boolean = () => this.attached && !this.closingWeb && this.rendererAlive &&
+      generation === this.webGeneration && controller === this.controller &&
+      origin === this.webOrigin && address === this.webUrl && this.webError === undefined;
+    this.webPreparationGeneration = generation;
+    const work: Promise<void> = (async () => {
+      try {
+        if (authenticate) {
+          this.observeWebPhase(2);
+          if (!await prepareConnectionCookies(origin, current, generation)) {
+            connectionDiagnostic('index.cookie_preparation_cancelled', { generation: generation });
+            return;
+          }
+        }
+        if (!current()) {
+          connectionDiagnostic('index.navigation_cancelled', { generation: generation });
+          return;
+        }
+        this.cookiesPreparedGeneration = generation;
+        if (this.initialBlankGeneration !== generation) {
+          this.observeWebPhase(1);
+        }
+        this.loadPreparedWeb(generation);
+      } catch (error) {
+        connectionDiagnosticFailure('index.load_preparation_failed', error, { generation: generation,
+          current: current(), phase: 2 });
+        if (current()) {
+          this.observeWebPhase(4);
+          this.webError = $r('app.string.connection_cookies_failed');
+          this.pageLoaded = false;
+          this.webPainted = false;
+          this.dismissMenu();
+          this.searchVisible = false;
+        }
+      } finally {
+        if (this.cookiesPreparedGeneration !== generation && this.webPreparationGeneration === generation &&
+          generation === this.webGeneration &&
+          controller === this.controller && this.webError === undefined) {
+          this.webPreparationGeneration = -1;
+        }
+      }
+    })();
+    this.webPreparation = work;
+    return work;
+  }
+
+  /** Initial blank completion and cookie preparation may arrive in either order; issue one navigation per owner. */
+  private loadPreparedWeb(generation: number): void {
+    if (!this.attached || this.closingWeb || !this.rendererAlive || this.webError !== undefined ||
+      this.webUrl === '' || generation !== this.webGeneration || this.initialBlankGeneration !== generation ||
+      this.cookiesPreparedGeneration !== generation || this.navigationGeneration === generation) {
+      return;
+    }
+    this.navigationGeneration = generation;
+    try {
+      this.observeWebPhase(3);
+      connectionDiagnostic('index.load_url_begin', { generation: generation, initialAuthentication: this.initialAuthentication });
+      this.controller.loadUrl(this.webUrl);
+      connectionDiagnostic('index.load_url_accepted', { generation: generation });
+      this.initialAuthentication = false;
+    } catch (error) {
+      connectionDiagnosticFailure('index.load_preparation_failed', error, { generation: generation,
+        current: generation === this.webGeneration, phase: 3 });
+      this.observeWebPhase(4);
+      this.webError = $r('app.string.web_load_failed');
+      this.pageLoaded = false;
+      this.webPainted = false;
+      this.dismissMenu();
+      this.searchVisible = false;
+    }
+  }
+
+  /** Keep a main-page failure visible even when ArkWeb later reports paint or load completion. */
+  private showWebError(generation: number, request: WebResourceRequest, message: Resource, http: boolean): void {
+    if (!this.attached || this.closingWeb || generation !== this.webGeneration ||
+      !request.isMainFrame() || loopbackOrigin(request.getRequestUrl()) !== this.webOrigin) {
+      return;
+    }
+    if (this.webError === undefined || http) {
+      this.webError = message;
+    }
+    this.pageLoaded = false;
+    this.webPainted = false;
+    this.dismissMenu();
+    this.searchVisible = false;
+  }
+
+  private async checkRemote(): Promise<void> {
+    if (this.attached && this.webVisible && this.remote && !this.closingWeb) {
+      await this.webConnection.check();
+    }
+  }
+
+  private closeWeb(): Promise<void> {
+    connectionDiagnostic('index.close_requested', { generation: this.webGeneration, remote: this.remote,
+      visible: this.webVisible, phase: this.closingWeb ? 1 : 0 });
+    if (this.closeWork) {
+      connectionDiagnostic('index.close_joined', { generation: this.webGeneration });
+      return this.closeWork;
+    }
+    if (this.webUrl === '' && !this.closingWeb) {
+      connectionDiagnostic('index.close_empty', { generation: this.webGeneration });
+      return Promise.resolve();
+    }
+    this.closingWeb = true;
+    this.dismissMenu();
+    clearInterval(this.remoteTimer);
+    clearTimeout(this.searchTimer);
+    clearTimeout(this.paletteTimer);
+    this.searchVisible = false;
+    const work = this.finishWebClose();
+    this.closeWork = work;
+    work.then(() => this.finishClosingWeb(work), () => this.finishClosingWeb(work));
+    return work;
+  }
+
+  private finishClosingWeb(work: Promise<void>): void {
+    if (this.closeWork === work) {
+      this.closeWork = undefined;
+    }
+  }
+
+  private async finishWebClose(): Promise<void> {
+    const started = Date.now();
+    const generation = this.webGeneration;
+    connectionDiagnostic('index.close_begin', { generation: generation, remote: this.remote });
+    clearInterval(this.diagnosticTimer);
+    this.diagnosticPhase = 0;
+    this.diagnosticControllerAttached = false;
+    const cleanup: Promise<void> = this.webConnection.close();
+    this.webVisible = false;
+    this.retainedConnectionId = '';
+    this.retainedConfiguration = '';
+    this.remote = false;
+    this.activeConnection = undefined;
+    this.currentWebAddress = '';
+    this.initialAuthentication = false;
+    this.webGeneration += 1;
+    this.webUrl = '';
+    this.updateWebOrientation(false);
+    this.webOrigin = '';
+    this.pageLoaded = false;
+    this.webPainted = false;
+    this.webError = undefined;
+    this.overlayPalette = undefined;
+    connectionDiagnostic('index.web_removed_requested', { generation: generation });
+    try {
+      await cleanup;
+      this.closingWeb = false;
+      connectionDiagnostic('index.close_complete', { generation: generation, elapsedMs: Date.now() - started });
+    } catch (error) {
+      connectionDiagnosticFailure('index.close_failed', error, { generation: generation, elapsedMs: Date.now() - started });
+      throw error as Error;
+    }
+  }
+
+  /**
+   * Sends one address out of the app. ArkWeb decides synchronously whether a
+   * navigation continues, so the request is issued here and a refusal is
+   * reported through the notice instead of the return value.
+   */
+  private handOff(url: string): void {
+    const now = Date.now();
+    if (url === this.handedOff && now - this.handedOffAt < 1000) {
+      return;
+    }
+    this.handedOff = url;
+    this.handedOffAt = now;
+    const ability = getContext(this) as common.UIAbilityContext;
+    openOutside(ability, url).then((opened: boolean) => {
+      if (!opened) {
+        this.notify($r('app.string.external_failed'));
+      }
+    });
+  }
+
+  /** Transient feedback uses a platform toast, never a persistent WebView overlay. */
+  private notify(message: Resource): void {
+    if (!this.attached) {
+      return;
+    }
+    try {
+      this.getUIContext().getPromptAction().showToast({ message: message, duration: 3000, bottom: 24 });
+    } catch (_) {
+      // An ability going into the background cannot show a toast.
+    }
+  }
+
+  private palette(): OverlayPalette {
+    return this.overlayPalette || new OverlayPalette(this.colorMode === ConfigurationConstant.ColorMode.COLOR_MODE_DARK);
+  }
+
+  /** Poll only while native overlays are open, so an in-page theme switch is reflected too. */
+  private async refreshOverlayPalette(): Promise<void> {
+    clearTimeout(this.paletteTimer);
+    if (!this.attached || !this.webVisible || this.webUrl === '' || this.paletteReading) {
+      return;
+    }
+    this.paletteReading = true;
+    const generation = this.webGeneration;
+    try {
+      const raw = await this.controller.runJavaScript(overlayPaletteScript(this.webOrigin));
+      const palette = parseOverlayPalette(raw);
+      if (palette && this.attached && generation === this.webGeneration) {
+        this.overlayPalette = palette;
+      }
+    } catch (_) {
+      // Unavailable page colors fall back to the system theme.
+    } finally {
+      this.paletteReading = false;
+      if (this.attached && this.webVisible && (this.searchVisible || this.menuVisible)) {
+        this.paletteTimer = setTimeout(() => this.refreshOverlayPalette(), 400);
+      }
+    }
+  }
+
+  private findWidth(): number {
+    return Math.max(0, Math.min(440, this.viewportWidth - 24));
+  }
+
+  private placeSearch(): void {
+    const maxX = Math.max(0, this.viewportWidth - this.findWidth() - 12);
+    this.searchX = this.searchMoved ? Math.max(0, Math.min(this.searchX, maxX)) : maxX;
+    this.searchY = Math.max(0, Math.min(this.searchY, this.viewportHeight - 60));
+  }
+
+  private allowSearchDrag(event: BaseGestureEvent): GestureJudgeResult {
+    if (event.fingerList.length === 0) {
+      return GestureJudgeResult.REJECT;
+    }
+    const pan = event as GestureEvent;
+    const x = event.fingerList[0].localX - pan.offsetX;
+    const y = event.fingerList[0].localY - pan.offsetY;
+    const width = this.findWidth();
+    // The 48vp row has 8vp padding, a 16vp grip, a flexible input, a 60vp
+    // counter, and three 28vp buttons separated by 6vp gaps. Controls never drag.
+    const input = x >= 30 && x < width - 176;
+    const buttons = (x >= width - 104 && x < width - 76) ||
+      (x >= width - 70 && x < width - 42) || (x >= width - 36 && x < width - 8);
+    return y >= 8 && y < 40 && (input || buttons) ? GestureJudgeResult.REJECT : GestureJudgeResult.CONTINUE;
+  }
+
+  private focusElement(id: string): void {
+    try {
+      this.getUIContext().getFocusController().requestFocus(id);
+    } catch (_) {
+      // A component removed during navigation cannot take focus.
+    }
+  }
+
+  private showSearch(): void {
+    this.dismissMenu();
+    if (this.searchVisible) {
+      this.focusElement('dsh-find');
+    }
+    this.placeSearch();
+    this.searchVisible = true;
+    this.refreshOverlayPalette();
+  }
+
+  private hideSearch(): void {
+    this.searchVisible = false;
+    clearTimeout(this.searchTimer);
+    this.searchCount = 0;
+    this.searchIndex = 0;
+    try {
+      this.controller.clearMatches();
+    } catch (_) {
+      // A renderer that has exited no longer owns any highlights.
+    }
+    this.focusElement('dsh-web');
+  }
+
+  private searchChanged(value: string): void {
+    this.searchText = value;
+    clearTimeout(this.searchTimer);
+    this.searchCount = 0;
+    this.searchIndex = 0;
+    this.searchTimer = setTimeout(() => {
+      try {
+        if (this.searchText === '') {
+          this.controller.clearMatches();
+        } else {
+          this.controller.searchAllAsync(this.searchText);
+        }
+      } catch (_) {
+        this.notify($r('app.string.web_action_failed'));
+      }
+    }, 120);
+  }
+
+  private nextMatch(forward: boolean): void {
+    if (this.searchText === '') {
+      return;
+    }
+    try {
+      this.controller.searchNext(forward);
+    } catch (_) {
+      this.notify($r('app.string.web_action_failed'));
+    }
+  }
+
+  private webKey(event: KeyEvent, fromFind: boolean = false): boolean {
+    const ctrl = event.getModifierKeyState ? event.getModifierKeyState(['Ctrl']) : false;
+    const shift = event.getModifierKeyState ? event.getModifierKeyState(['Shift']) : false;
+    const leave = ctrl && shift && event.keyCode === KeyCode.KEYCODE_L && this.webVisible;
+    const find = ctrl && event.keyCode === KeyCode.KEYCODE_F && this.webVisible;
+    const escape = this.webVisible && event.keyCode === KeyCode.KEYCODE_ESCAPE && (this.menuVisible || this.searchVisible);
+    const enter = this.webVisible && fromFind && this.searchVisible && event.keyCode === KeyCode.KEYCODE_ENTER;
+    if (!leave && !find && !escape && !enter) {
+      return false;
+    }
+    if (event.type === KeyType.Down) {
+      if (leave) {
+        this.hideWeb();
+      } else if (find) {
+        this.showSearch();
+      } else if (escape) {
+        if (this.menuVisible) {
+          this.dismissMenu();
+        } else {
+          this.hideSearch();
+        }
+      } else {
+        const shift = event.getModifierKeyState ? event.getModifierKeyState(['Shift']) : false;
+        this.nextMatch(!shift);
+      }
+    }
+    return true;
+  }
+
+  private dismissMenu(): void {
+    this.menuRequest += 1;
+    this.menuVisible = false;
+    this.hoveredAction = '';
+    if (this.menuResult) {
+      try {
+        this.menuResult.closeContextMenu();
+      } catch (_) {
+        // The renderer may already have dismissed this menu during navigation.
+      }
+      this.menuResult = undefined;
+    }
+  }
+
+  private showContext(event: OnContextMenuShowEvent): boolean {
+    this.dismissMenu();
+    this.menuResult = event.result;
+    if (event.param.getInputFieldType() === ContextMenuInputFieldType.Password) {
+      this.dismissMenu();
+      return true;
+    }
+    const selection = event.param.getSelectionText() || '';
+    this.nativeSelection = selection.trim() !== '';
+    this.menuText = this.nativeSelection ? selection : '';
+    const target = contextTarget(this.menuText || event.param.getLinkUrl() || '', RuntimeDefaults.homeDir);
+    this.menuLink = target.link;
+    this.menuPath = this.remote ? '' : target.path;
+    if (!this.menuText) {
+      this.menuText = this.menuLink;
+    }
+    this.menuX = this.getUIContext().px2vp(event.param.x());
+    this.menuY = this.getUIContext().px2vp(event.param.y());
+    // Do not create an empty overlay while the DOM lookup is pending.
+    this.resolveContext(this.menuRequest);
+    return true;
+  }
+
+  private async resolveContext(request: number): Promise<void> {
+    try {
+      const raw = await this.controller.runJavaScript(contextSnapshotScript(this.webOrigin));
+      if (request !== this.menuRequest || !raw || this.nativeSelection || this.menuLink !== '') {
+        return;
+      }
+      const decoded: string = raw.startsWith('"') ? JSON.parse(raw) as string : raw;
+      const snapshot = JSON.parse(decoded) as ContextSnapshot;
+      if (typeof snapshot.selection !== 'string' || typeof snapshot.candidate !== 'string' ||
+        typeof snapshot.link !== 'string' || typeof snapshot.time !== 'number' ||
+        Date.now() - snapshot.time > 2000 || snapshot.time > Date.now() + 1000) {
+        return;
+      }
+      const selected = snapshot.selection.trim() !== '' ? snapshot.selection : '';
+      const value = selected || snapshot.link || snapshot.candidate;
+      if (value.length > 8192) {
+        return;
+      }
+      const parsed = contextTarget(value, RuntimeDefaults.homeDir);
+      this.menuText = selected || parsed.link || parsed.path;
+      this.menuLink = parsed.link;
+      this.menuPath = this.remote ? '' : parsed.path;
+    } catch (_) {
+      // Unsupported document surfaces keep only the native selection/link data.
+    } finally {
+      if (request === this.menuRequest) {
+        if (this.menuText.trim() === '') {
+          this.dismissMenu();
+        } else {
+          const rows = 1 + (this.menuLink !== '' ? 1 : 0) + (this.menuPath !== '' ? 1 : 0);
+          this.menuX = Math.max(0, Math.min(this.menuX, this.viewportWidth - 244));
+          this.menuY = Math.max(0, Math.min(this.menuY, this.viewportHeight - rows * 40 - 12));
+          await this.refreshOverlayPalette();
+          if (request === this.menuRequest) {
+            this.menuVisible = true;
+            this.refreshOverlayPalette();
+          }
+        }
+      }
+    }
+  }
+
+  private async copyContext(): Promise<void> {
+    const text = this.menuText;
+    const native = this.nativeSelection;
+    const result = this.menuResult;
+    if (native && result) {
+      this.menuResult = undefined;
+      this.menuVisible = false;
+      this.menuRequest += 1;
+      try {
+        result.copy();
+      } catch (_) {
+        this.notify($r('app.string.web_action_failed'));
+      }
+      return;
+    }
+    this.dismissMenu();
+    try {
+      await pasteboard.getSystemPasteboard().setData(pasteboard.createData(pasteboard.MIMETYPE_TEXT_PLAIN, text));
+    } catch (_) {
+      this.notify($r('app.string.web_action_failed'));
+    }
+  }
+
+  private async viewContextPath(): Promise<void> {
+    const path = this.menuPath;
+    this.dismissMenu();
+    const result = await viewInFileManager(getContext(this) as common.UIAbilityContext, path);
+    if (!result.opened) {
+      this.notify(this.pathError(result));
+    }
+  }
+
+  private pathError(result: PathActionResult): Resource {
+    switch (result.reason) {
+      case 'access-denied': return $r('app.string.path_access_denied');
+      case 'no-handler': return $r('app.string.path_no_handler');
+      case 'not-found': return $r('app.string.path_not_found');
+      case 'invalid-path': return $r('app.string.path_invalid');
+      case 'unsupported-path': return $r('app.string.path_unsupported');
+      default: return $r('app.string.path_open_failed');
+    }
+  }
+
+  onBackPress(): boolean {
+    if (!this.webVisible) {
+      return this.homeController.back();
+    }
+    if (this.menuVisible) {
+      this.dismissMenu();
+      return true;
+    }
+    if (this.searchVisible) {
+      this.hideSearch();
+      return true;
+    }
+    if (this.webUrl === '') {
+      return this.homeController.back();
+    }
+    try {
+      if (this.pageLoaded && this.controller.accessBackward()) {
+        const history = this.controller.getBackForwardEntries();
+        const previous = history.currentIndex - 1;
+        const address = previous >= 0 ? history.getItemAtIndex(previous).historyUrl : '';
+        connectionDiagnostic('index.back_history', { generation: this.webGeneration,
+          count: history.size, status: history.currentIndex, phase: this.diagnosticAddressKind(address) });
+        // The controller's bootstrap blank page is not an application destination.
+        if (loopbackOrigin(address) === this.webOrigin) {
+          this.controller.backward();
+          return true;
+        }
+      }
+    } catch (error) {
+      connectionDiagnosticFailure('index.back_history_failed', error as Error, { generation: this.webGeneration });
+      // A detached renderer has no history; Back still returns to saved connections.
+    }
+    connectionDiagnostic('index.back_to_connections', { generation: this.webGeneration });
+    this.hideWeb();
+    return true;
+  }
+
+  private overlayAction(action: string): void {
+    switch (action) {
+      case 'previous': this.nextMatch(false); break;
+      case 'next': this.nextMatch(true); break;
+      case 'close': this.hideSearch(); break;
+      case 'copy': this.copyContext(); break;
+      case 'files': this.viewContextPath(); break;
+      case 'browser': {
+        const link = this.menuLink;
+        this.dismissMenu();
+        this.handOff(link);
+        break;
+      }
+    }
+  }
+
+  @Builder
+  private connectionStatus() {
+    Column() {
+      if (this.connectionState === WebConnectionState.Recovering) {
+        Row({ space: 8 }) {
+          LoadingProgress().width(20).height(20).color(this.palette().accent)
+            .accessibilityText($r('app.string.reconnecting'))
+          Text($r('app.string.reconnecting')).fontSize(14).fontColor(this.palette().text)
+        }.padding(12).borderRadius(12).backgroundColor(this.palette().surface)
+          .hitTestBehavior(HitTestMode.None)
+      } else {
+        Column({ space: 10 }) {
+          Text(this.connectionMessage()).fontSize(14).fontColor(this.palette().text)
+            .textAlign(TextAlign.Center)
+          Row({ space: 8 }) {
+            if (this.connectionState === WebConnectionState.Disconnected) {
+              Button($r('app.string.retry_connection')).fontSize(14).height(36)
+                .onClick(() => {
+                  this.retryConnection().catch((error: Error) => this.notify($r('app.string.web_action_failed')));
+                })
+            }
+            Button($r('app.string.web_return_connections')).fontSize(14).height(36)
+              .onClick(() => this.returnFromConnection())
+          }
+        }.padding(12).constraintSize({ maxWidth: 480 }).borderRadius(12)
+          .backgroundColor(this.palette().surface)
+          .border({ width: 0.5, color: this.palette().border })
+      }
+    }.width('100%').position({ x: 0, y: 12 }).alignItems(HorizontalAlign.Center)
+      .hitTestBehavior(this.connectionState === WebConnectionState.Recovering ? HitTestMode.None : HitTestMode.Transparent)
+  }
+
+  @Builder
+  private findButton(symbol: string, label: Resource, action: string) {
+    Button({ type: ButtonType.Normal }) {
+      Text(symbol).fontSize(18).fontColor(this.palette().text)
+    }.width(28).height(28).borderRadius(8).padding(0)
+    .backgroundColor(this.hoveredAction === action ? this.palette().hover : Color.Transparent)
+    .stateEffect(false).hoverEffect(HoverEffect.None).accessibilityText(label)
+    .onHover((hovered: boolean) => this.hoveredAction = hovered ? action : '')
+    .onClick(() => this.overlayAction(action))
+  }
+
+  @Builder
+  private findBar() {
+    Row({ space: 6 }) {
+      Text('⠿').width(16).fontSize(18).fontColor(this.palette().muted)
+        .accessibilityText($r('app.string.find_drag'))
+      TextInput({ text: this.searchText, placeholder: $r('app.string.find_placeholder') })
+        .id('dsh-find').layoutWeight(1).height(32).fontSize(14)
+        .padding({ left: 10, right: 10 }).borderRadius(8)
+        .fontColor(this.palette().text).placeholderColor(this.palette().muted)
+        .caretColor(this.palette().accent).backgroundColor(this.palette().input)
+        .border({ width: 0.5, color: this.palette().border })
+        .onChange((value: string) => this.searchChanged(value))
+        .onKeyPreIme((event: KeyEvent) => this.webKey(event, true))
+        .onAppear(() => {
+          this.focusElement('dsh-find');
+          this.searchChanged(this.searchText);
+        })
+      Text(this.searchIndex.toString() + ' / ' + this.searchCount.toString())
+        .width(60).textAlign(TextAlign.Center).fontSize(12).fontColor(this.palette().muted)
+      this.findButton('↑', $r('app.string.find_previous'), 'previous')
+      this.findButton('↓', $r('app.string.find_next'), 'next')
+      this.findButton('×', $r('app.string.find_close'), 'close')
+    }.width(this.findWidth()).height(48).padding(8)
+    .backgroundColor(this.palette().surface).borderRadius(12)
+    .border({ width: 0.5, color: this.palette().border })
+    .shadow({ radius: 20, color: this.palette().shadow, offsetY: 6 })
+    .position({ x: this.searchX, y: this.searchY })
+    .gesture(PanGesture({ direction: PanDirection.All, distance: 4 }).tag('dsh-find-drag')
+      .onActionStart(() => {
+        this.dragStartX = this.searchX;
+        this.dragStartY = this.searchY;
+        this.searchMoved = true;
+      })
+      .onActionUpdate((event: GestureEvent) => {
+        this.searchX = this.dragStartX + event.offsetX;
+        this.searchY = this.dragStartY + event.offsetY;
+        this.placeSearch();
+      }))
+    .onGestureJudgeBegin((info: GestureInfo, event: BaseGestureEvent) =>
+      info.tag === 'dsh-find-drag' ? this.allowSearchDrag(event) : GestureJudgeResult.CONTINUE)
+  }
+
+  @Builder
+  private menuItem(label: Resource, action: string) {
+    Button({ type: ButtonType.Normal }) {
+      Row() {
+        Text(label).fontSize(14).fontColor(this.palette().text).textAlign(TextAlign.Start).layoutWeight(1)
+      }.width('100%').justifyContent(FlexAlign.Start)
+    }.width('100%').height(40).padding({ left: 10, right: 10 }).borderRadius(10)
+    .backgroundColor(this.hoveredAction === action ? this.palette().hover : Color.Transparent)
+    .stateEffect(false).hoverEffect(HoverEffect.None)
+    .onHover((hovered: boolean) => this.hoveredAction = hovered ? action : '')
+    .onClick(() => this.overlayAction(action))
+  }
+
+  @Builder
+  private contextMenu() {
+    Stack({ alignContent: Alignment.TopStart }) {
+      Column() {}.width('100%').height('100%').onClick(() => this.dismissMenu())
+      Column() {
+        this.menuItem($r('app.string.context_copy'), 'copy')
+        if (this.menuLink !== '') {
+          this.menuItem($r('app.string.context_browser'), 'browser')
+        }
+        if (this.menuPath !== '') {
+          this.menuItem($r('app.string.context_files'), 'files')
+        }
+      }.width(Math.min(240, this.viewportWidth)).padding(4).borderRadius(20)
+      .backgroundColor(this.palette().surface).border({ width: 0.5, color: this.palette().border })
+      .shadow({ radius: 24, color: this.palette().shadow, offsetY: 8 })
+      .position({ x: this.menuX, y: this.menuY })
+    }.width('100%').height('100%')
+    .onKeyPreIme((event: KeyEvent) => this.webKey(event))
+  }
+
+  build() {
+    Stack() {
+      Column() {}.width('100%').height('100%').backgroundColor($r('app.color.background'))
+        .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
+        .hitTestBehavior(HitTestMode.None)
+      if (this.webUrl !== '') {
+        ForEach([this.webGeneration], (generation: number) => {
+          Web({ src: 'about:blank', controller: this.controller })
+            .onControllerAttached(() => {
+              connectionDiagnostic('index.controller_attached', { generation: generation, current: generation === this.webGeneration });
+              if (generation === this.webGeneration) { this.diagnosticControllerAttached = true; }
+              return this.prepareAndLoad(generation);
+            })
+            .javaScriptAccess(true)
+            .domStorageAccess(true)
+            .fileAccess(false)
+            .mixedMode(MixedMode.None)
+            // Gesture zoom is off: the page is an application surface, and a
+            // pinch would only desynchronise it from its own layout.
+            .zoomAccess(false)
+            // Windows are never created here, so every popup request is answered
+            // with a controller that refuses one; the address is then routed below.
+            .multiWindowAccess(true)
+            .allowWindowOpenMethod(true)
+            // ArkWeb disables page dark mode unless asked; without this the page
+            // keeps its light `prefers-color-scheme` while the window goes dark.
+            .darkMode(WebDarkMode.Auto)
+            // The component's own background also covers the not-yet-painted surface.
+            .backgroundColor($r('app.color.panel'))
+            .id('dsh-web')
+            .onInterceptKeyEvent((event: KeyEvent) => this.webKey(event))
+            .onContextMenuShow((event) => this.showContext(event))
+            .onSearchResultReceive((event) => {
+              if (generation === this.webGeneration && this.searchVisible && this.searchText !== '') {
+                this.searchCount = event.numberOfMatches;
+                this.searchIndex = event.numberOfMatches > 0 ? event.activeMatchOrdinal + 1 : 0;
+              }
+            })
+            .javaScriptOnDocumentStart([
+              { script: WEB_CONNECTION_DIAGNOSTIC_SCRIPT, scriptRules: ['*'] },
+              { script: LOCAL_CONNECTION_SCRIPT, scriptRules: ['*'] },
+              { script: CONTEXT_CAPTURE_SCRIPT, scriptRules: ['*'] }
+            ])
+            .onHttpErrorReceive((event) => {
+              if (event) {
+                connectionDiagnostic('index.http_error', { generation: generation, current: generation === this.webGeneration,
+                  status: event.response.getResponseCode(), phase: event.request.isMainFrame() ? 1 : 0 });
+                if (generation === this.webGeneration && event.request.isMainFrame() &&
+                  loopbackOrigin(event.request.getRequestUrl()) === this.webOrigin) { this.observeWebPhase(4); }
+                this.showWebError(generation, event.request,
+                  $r('app.string.web_http_error', event.response.getResponseCode()), true);
+              }
+            })
+            .onErrorReceive((event) => {
+              if (event) {
+                connectionDiagnostic('index.network_error', { generation: generation, current: generation === this.webGeneration,
+                  code: event.error.getErrorCode(), phase: event.request.isMainFrame() ? 1 : 0 });
+                if (generation === this.webGeneration && event.request.isMainFrame() &&
+                  loopbackOrigin(event.request.getRequestUrl()) === this.webOrigin) { this.observeWebPhase(4); }
+                this.showWebError(generation, event.request,
+                  $r('app.string.web_network_error', event.error.getErrorCode()), false);
+              }
+            })
+            .onConsole((event) => {
+              if (event) { recordWebConnectionDiagnostic(event.message.getMessage(), generation, generation === this.webGeneration); }
+              return true;
+            })
+            // The renderer waits for this answer, so the refusal is sent before
+            // anything else: a page must never block on a window that cannot exist.
+            .onWindowNew((event) => {
+              event.handler.setWebController(null);
+              if (generation === this.webGeneration && leavesWebView(event.targetUrl, this.webOrigin)) {
+                this.handOff(event.targetUrl);
+              }
+            })
+            .onLoadIntercept((event) => {
+              if (!event || generation !== this.webGeneration) {
+                return false;
+              }
+              const url = event.data.getRequestUrl();
+              if (!event.data.isMainFrame() || !leavesWebView(url, this.webOrigin)) {
+                return false;
+              }
+              this.handOff(url);
+              return true;
+            })
+            .onOverrideUrlLoading((request) => {
+              if (generation !== this.webGeneration || !request.isMainFrame()) {
+                return false;
+              }
+              const url = request.getRequestUrl();
+              if (!leavesWebView(url, this.webOrigin)) {
+                return false;
+              }
+              this.handOff(url);
+              return true;
+            })
+            .onPageBegin((event) => {
+              if (event) { connectionDiagnostic('index.page_begin', { generation: generation,
+                current: generation === this.webGeneration, phase: this.diagnosticAddressKind(event.url) }); }
+              if (event && generation === this.webGeneration && loopbackOrigin(event.url) === this.webOrigin) {
+                this.dismissMenu();
+              }
+            })
+            .onPageEnd((event) => {
+              if (event) { connectionDiagnostic('index.page_end', { generation: generation,
+                current: generation === this.webGeneration, phase: this.diagnosticAddressKind(event.url) }); }
+              if (event && event.url === 'about:blank' && generation === this.webGeneration &&
+                !this.closingWeb && this.rendererAlive && this.webUrl !== '' && this.webError === undefined &&
+                this.initialBlankGeneration !== generation && this.navigationGeneration !== generation) {
+                this.initialBlankGeneration = generation;
+                this.loadPreparedWeb(generation);
+              }
+              if (event && generation === this.webGeneration && this.webError === undefined &&
+                loopbackOrigin(event.url) === this.webOrigin) {
+                this.currentWebAddress = event.url;
+                this.pageLoaded = true;
+                this.webPainted = true;
+                connectionDiagnostic('index.page_ready', { generation: generation,
+                  elapsedMs: Date.now() - this.diagnosticPhaseStarted });
+                this.observeWebPhase(0);
+                this.refreshOverlayPalette();
+              }
+            })
+            .onRenderExited((event) => {
+              connectionDiagnostic('index.renderer_exited', { generation: generation,
+                current: generation === this.webGeneration, code: event?.renderExitReason });
+              if (generation === this.webGeneration) {
+                this.observeWebPhase(5);
+                this.rendererAlive = false;
+                this.webConnection.disconnected();
+              }
+            })
+            .width('100%').height('100%')
+            .visibility(this.webVisible ? Visibility.Visible : Visibility.Hidden)
+        }, (generation: number) => generation.toString())
+      }
+      ConnectionHome({ controller: this.homeController, retainedConnectionId: this.retainedConnectionId,
+        onPrepare: (connection: ConnectionProfile) => this.prepareConnection(connection),
+        onDisconnect: (id: string) => this.disconnectConnection(id),
+        onOpen: (address: string, remote: boolean, connection: ConnectionProfile) =>
+          this.openWeb(address, remote, connection) })
+        .visibility(this.webVisible ? Visibility.Hidden : Visibility.Visible)
+      if (this.webVisible && this.webError !== undefined) {
+        Column({ space: 16 }) {
+          Text($r('app.string.web_load_error_title')).fontSize(20).fontWeight(FontWeight.Medium)
+            .fontColor($r('app.color.ink')).textAlign(TextAlign.Center)
+          Text(this.webError).fontSize(15).fontColor($r('app.color.ink')).textAlign(TextAlign.Center)
+          Button($r('app.string.web_return_connections')).height(48)
+            .onClick(() => { this.hideWeb(); })
+          Button($r('app.string.disconnect_connection')).height(48)
+            .onClick(() => {
+              this.disconnectConnection(this.retainedConnectionId)
+                .catch((error: Error) => this.notify($r('app.string.web_action_failed')));
+            })
+        }.width('100%').height('100%').padding(24).justifyContent(FlexAlign.Center)
+        .backgroundColor($r('app.color.panel'))
+      } else if (this.webVisible && !this.webPainted && !this.pageLoaded) {
+        Column({ space: 16 }) {
+          LoadingProgress().width(28).height(28).color($r('app.color.accent'))
+          Text($r('app.string.opening')).fontSize(15).fontColor($r('app.color.ink'))
+        }.width('100%').height('100%').justifyContent(FlexAlign.Center)
+        .backgroundColor($r('app.color.panel'))
+      }
+      if (this.webVisible && this.connectionState !== WebConnectionState.Connected) {
+        this.connectionStatus()
+      }
+      if (this.searchVisible && this.webVisible) {
+        this.findBar()
+      }
+      if (this.menuVisible && this.webVisible) {
+        this.contextMenu()
+      }
+    }.width('100%').height('100%').backgroundColor($r('app.color.panel'))
+    .onKeyPreIme((event: KeyEvent) => this.webKey(event))
+    .onAreaChange((_, area: Area) => {
+      this.viewportWidth = Number(area.width);
+      this.viewportHeight = Number(area.height);
+      this.placeSearch();
+      if (this.menuVisible) {
+        this.dismissMenu();
+      }
+    })
+  }
+}

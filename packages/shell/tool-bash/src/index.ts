@@ -88,7 +88,9 @@ function validateBashArgs(args: BashToolArgs, effectiveMode: SandboxMode | undef
 }
 
 function bashDescription(): string {
-  return 'Execute a bash command (`bash -c`) and return its stdout/stderr. '
+  return ((process.platform as string) === 'openharmony'
+    ? 'Execute a zsh command (`/usr/bin/zsh -f -c`) and return its stdout/stderr. Use zsh syntax. '
+    : 'Execute a bash command (`bash -c`) and return its stdout/stderr. ')
     + 'Each call runs in a fresh shell; pass `workdir` instead of using `cd`. '
     + `Managed \`$${DSH_ENV_PREFIX}*\` variables expose current harness environment facts. `
     + 'Long output is truncated to its tail; the full output is saved to a file whose path is reported when available. '
@@ -376,7 +378,7 @@ export function apply(ctx: Context, config: Config = {}): void {
             + '5-10 words (shown in the UI). Examples: "ls" → "List files in current directory"; '
             + '"git status" → "Show working tree status"; "npm install" → "Install package dependencies".',
         },
-        command: { type: 'string', required: true, description: 'The bash command to execute.' },
+        command: { type: 'string', required: true, description: (process.platform as string) === 'openharmony' ? 'The zsh command to execute.' : 'The bash command to execute.' },
         timeoutMs: {
           type: 'number',
           description: promote

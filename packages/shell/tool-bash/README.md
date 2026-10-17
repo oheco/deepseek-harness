@@ -29,6 +29,8 @@ New commands start in the Session's current working directory. Relative `workdir
 
 Load this plugin in any composition where the agent should run bash commands: it registers the `bash` tool once an executor provider and the `dsh-shell-env` registry are mounted, and stays pending until the `tools`, `shell`, `systemPrompt`, and `shellEnv` services exist.
 
+On HarmonyOS, the tool name remains `bash` for protocol compatibility, while its description and command parameter request zsh syntax. The local executor defaults to `/usr/bin/zsh`; Bash-only syntax is not translated.
+
 ### Minimal configuration
 
 The common path is an executor provider, the environment registry, and this tool; add the job runtime when the agent may run commands in the background.

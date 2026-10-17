@@ -33,6 +33,8 @@ kind: "package-library"
 
 ### 启动应用
 
+在鸿蒙上，Node 必须以显式 `--expose-internals` 参数启动，使 profile 解析无需原生 addon 即可加载 Node 内部模块；缺少该参数时，启动会明确报错。
+
 你把配置文件交给入口，进程就会启动整个应用：加载环境层、应用 patch 与 profile、启动每个插件，并在应用运行后返回。在回放模式下，它会启动同级的 `cordis.snapshot.yml` 替代文件，使已记录的会话能够原样复现。最小的入口只需两次调用：
 
 ```text

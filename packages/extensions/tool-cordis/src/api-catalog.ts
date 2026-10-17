@@ -801,7 +801,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: 'authenticatedUrl(baseUrl: string): string',
-        description: 'Add the fresh process token to an ordinary Web application URL.',
+        description: 'Add the configured or process-random launch token to a Web application URL.',
         parameters: [{ name: 'baseUrl', description: 'clean application URL whose authority and mount are preserved.' }],
         returns: 'tokenized URL for initial login; a mount proxy strips its prefix before {@link authorizeIndex}.',
       },
@@ -2719,7 +2719,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         signature: '@Remote async openSettingsDocument(signal: AbortSignal): Promise<SettingsDocumentOpenValue>',
         description: 'Materialize the provider-owned settings document and open it in a native text editor.',
         parameters: [{ name: 'signal', description: 'caller lifetime; abort terminates preparation or the native command.' }],
-        returns: 'confirmation after the native opener accepts the document.',
+        returns: 'native-open confirmation, or the provider-owned path when no native opener is available.',
         throws: ['RemoteError when no document exists, preparation fails, or opening fails.'],
       },
     ],
@@ -7563,7 +7563,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SettingsDocumentOpenValue',
-    declaration: 'export interface SettingsDocumentOpenValue {\n    readonly opened: true;\n}',
+    declaration: 'export type SettingsDocumentOpenValue = {\n    readonly opened: true;\n} | {\n    readonly opened: false;\n    readonly path: string;\n};',
   },
   {
     name: 'SettingsNamespace',

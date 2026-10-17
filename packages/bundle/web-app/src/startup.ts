@@ -1,7 +1,7 @@
 /**
  * The web app's command-line provider: it parses the `dsh --profile web` flag
- * family (`--host`, `--port`, `--public-url`, `--trusted-host`, `--no-open`, TLS)
- * and its `--help` text, then provides the immutable values as
+ * family (`--host`, `--port`, `--token`, `--public-url`, `--trusted-host`,
+ * `--no-open`, TLS) and its `--help` text, then provides the immutable values as
  * {@link WEB_STARTUP_SERVICE}. Ordinary rows inject that service before
  * reading it from lazy config.
  * @module @deepseek-ai/dsh-web-app/startup
@@ -30,6 +30,8 @@ export interface WebStartupValues {
   host?: string
   /** `--port`, absent when the invocation did not name one. */
   port?: number
+  /** `--token`, absent when this invocation uses the random launch token. */
+  token?: string
   /**
    * `--public-url`, absent when not specified: the advertised HTTP(S) root.
    * See [public deployments](../README.md#public-deployments).
@@ -46,6 +48,7 @@ interface WebOptions {
   host?: string
   open: boolean
   port?: string
+  token?: string
   publicUrl?: string
   trustedHost?: string[]
   tlsCert?: string
@@ -64,6 +67,7 @@ function webCommand(): Command {
     .option('--host <host>', 'bind address: one concrete IPv4 or IPv6 literal of a local interface; wildcard addresses are rejected')
     .option('--no-open', 'do not open the Web UI in the default browser')
     .option('--port <port>', 'listen port; pass 0 to let the OS pick a free one')
+    .option('--token <token>', 'fixed launch token for browser login and API connections; omitted generates a random token')
     .option('--public-url <url>', 'advertise this HTTP(S) root in the printed, opened, runtime-context, and DSH_WEB_URL forms; grants no trust')
     .option('--trusted-host <authority...>', 'extra authority the /api browser-trust fence accepts (host or host:port; repeatable)')
     .option('--tls-cert <file>', 'PEM server certificate chain; requires --tls-key')
@@ -84,8 +88,8 @@ Examples:
 /**
  * Parse and provide the Web invocation as an ordinary Cordis service. The
  * command's action publishes the flags this invocation named. Invalid flags,
- * including an unpaired TLS certificate or key, are usage errors; rejection
- * and `--help` provide no service.
+ * including an empty token or an unpaired TLS certificate or key, are usage
+ * errors; rejection and `--help` provide no service.
  * @param ctx - plugin context carrying the command line.
  */
 export function apply(ctx: Context): void {
@@ -98,6 +102,7 @@ export function apply(ctx: Context): void {
     if (options.port !== undefined && !/^\d+$/.test(options.port)) {
       program.error(`error: --port must be a number, got ${JSON.stringify(options.port)}`)
     }
+    if (options.token === '') program.error('error: --token must not be empty')
     let tls: TlsConfig | undefined
     if (options.tlsCert !== undefined && options.tlsKey !== undefined) {
       tls = { certFile: options.tlsCert, keyFile: options.tlsKey }
@@ -113,6 +118,7 @@ export function apply(ctx: Context): void {
     }
     ctx.provide(WEB_STARTUP_SERVICE, {
       openBrowser: options.open,
+      ...options.token !== undefined && { token: options.token },
       ...options.host !== undefined && { host: options.host },
       ...options.port !== undefined && { port: Number(options.port) },
       ...options.publicUrl !== undefined && { publicUrl: options.publicUrl },

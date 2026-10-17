@@ -132,6 +132,19 @@ describe('GeneralSection', () => {
 })
 
 describe('SettingsDocumentAction', () => {
+  it('shows a copyable provider path when the Host has no native opener', async () => {
+    const controller = derivedDocumentStore({ settings: {
+      describe: () => Promise.resolve({ ok: true, value: { writable: true, hasDocument: true, namespaces: [] } }),
+      openSettingsDocument: () => Promise.resolve({ ok: true, value: { opened: false, path: '/private/cordis.patch.yml' } }),
+    } })
+    render(<SettingsDocumentAction {...kit} t={t} controller={controller} useSnapshot={bindSnapshotSelector(controller.store)} />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Open configuration file' }))
+    expect((await screen.findByRole('dialog')).textContent).toContain('/private/cordis.patch.yml')
+    expect(screen.getByRole('button', { name: 'Copy path' })).toBeTruthy()
+    fireEvent.click(screen.getAllByRole('button', { name: 'Close' }).at(-1)!)
+    await waitFor(() => { expect(screen.queryByRole('dialog')).toBeNull() })
+  })
+
   it('appears only for a file-backed provider and requests its Host-owned document', async () => {
     const openDocument = vi.fn(() => Promise.resolve({
       ok: true as const, value: { opened: true as const },

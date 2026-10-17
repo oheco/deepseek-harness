@@ -8,6 +8,13 @@
 
 *.pdf binary
 
+# Keep original broker SDK and hashed dependency payload bytes unchanged.
+ohos/app/entry/src/main/cpp/broker_sdk/** -text -whitespace
+ohos/app/entry/src/main/cpp/tpr/broker-native-arm64/** -text -whitespace
+ohos/app/entry/src/main/cpp/tpr/licenses/** -text -whitespace
+ohos/app/entry/src/main/cpp/tpr/broker-LICENSE -text -whitespace
+ohos/app/validation/broker-sdk-0.4.0/sdk-build.log -text -whitespace
+
 # The persistence catalog is the readable projection of these generated schemas.
 docs/persistence-schema.json linguist-generated=true
 docs/persistence-changes/*.schema.json linguist-generated=true

@@ -14,13 +14,15 @@ export interface SettingsDocumentState {
   opening: boolean
   /** Last metadata/native-open diagnostic; UI exposes only localized copy. */
   error: string | null
+  /** Provider-owned path revealed when the Host has no native opener. */
+  revealedPath: string | null
 }
 
 /** Derives local-document availability from the shared mirror and invokes the pathless Host-owned open operation. */
 export class SettingsDocumentStore {
   /** uSES-safe state source shared by the registered header action. */
   readonly store: SnapshotStore<SettingsDocumentState> = createSnapshotStore({
-    status: 'idle', opening: false, error: null,
+    status: 'idle', opening: false, error: null, revealedPath: null,
   })
 
   private following: (() => void) | undefined
@@ -60,16 +62,25 @@ export class SettingsDocumentStore {
     this.store.update((state) => {
       state.opening = true
       state.error = null
+      state.revealedPath = null
     })
     try {
       const result = await this.ctx.remote.settings.openSettingsDocument()
       if (!result.ok) {
         const { message } = result.error
         this.store.update((state) => { state.error = message })
+      } else if (!result.value.opened) {
+        const { path } = result.value
+        this.store.update((state) => { state.revealedPath = path })
       }
     } finally {
       this.store.update((state) => { state.opening = false })
     }
+  }
+
+  /** Dismiss the provider-owned path dialog. */
+  dismissPath(): void {
+    this.store.update((state) => { state.revealedPath = null })
   }
 
   /** Stop following the mirror. */

@@ -64,6 +64,7 @@ export const apply = ctx => globalThis.__webStartupApply(ctx)
     '    openBrowser: !!js ctx.webStartup.openBrowser',
     '    port: !!js ctx.webStartup.port ?? 3080',
     '    publicUrl: !!js ctx.webStartup.publicUrl',
+    '    token: !!js ctx.webStartup.token',
     '    trustedHosts: !!js ctx.webStartup.trustedHosts',
     '    tls: !!js ctx.webStartup.tls',
     '- id: provider',
@@ -99,6 +100,8 @@ describe('web command-line provider', () => {
       '--host', '127.0.0.1',
       '--no-open',
       '--port', '8080',
+      '--token', 'fixed +/&?=%令牌',
+      '--public-url', 'https://web.example/ui/',
       '--trusted-host', 'lab.internal', 'lab-2.internal',
       '--trusted-host', '10.0.0.9',
       '--tls-cert', 'fullchain.pem',
@@ -108,6 +111,8 @@ describe('web command-line provider', () => {
       host: '127.0.0.1',
       openBrowser: false,
       port: 8080,
+      token: 'fixed +/&?=%令牌',
+      publicUrl: 'https://web.example/ui/',
       trustedHosts: ['lab.internal', 'lab-2.internal', '10.0.0.9'],
       tls: { certFile: 'fullchain.pem', keyFile: 'private-key.pem' },
     })
@@ -142,9 +147,22 @@ describe('web command-line provider', () => {
     expect(observed.out).toContain('--no-open')
     expect(observed.out).toContain('--public-url')
     expect(observed.out).toContain('--trusted-host')
+    expect(observed.out).toContain('--token <token>')
     expect(values).toBeUndefined()
     expect(observed.readerConfig).toBeUndefined()
     expect(observed.exits).toEqual([0])
+  })
+
+  it.each([
+    { args: ['--token', ''], error: '--token must not be empty' },
+    { args: ['--token='], error: '--token must not be empty' },
+    { args: ['--token'], error: 'argument missing' },
+  ])('rejects invalid token arguments $args before the consumer activates', async ({ args, error }) => {
+    const { values, observed } = await bootProvider(args)
+    expect(observed.out).toContain(error)
+    expect(values).toBeUndefined()
+    expect(observed.readerConfig).toBeUndefined()
+    expect(observed.exits).toEqual([1])
   })
 
   it('rejects a non-numeric port before the consumer activates', async () => {

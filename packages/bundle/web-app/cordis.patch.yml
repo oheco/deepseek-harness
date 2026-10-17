@@ -235,6 +235,7 @@
       name: '@deepseek-ai/dsh-client-connection'
       inject: [webStartup]
       config:
+        token: !!js ctx.webStartup.token
         # Keep invocation authorities (each --trusted-host value) when adding
         # deployment values, for example: ['app.internal', ...ctx.webStartup.trustedHosts].
         # The listener's bind IP is accepted separately from this list.
@@ -286,6 +287,7 @@
 
     - id: office-to-pdf
       name: '@deepseek-ai/dsh-office-to-pdf'
+      disabled: !!js process.platform === 'openharmony'
 
     # The right Sidebar's document tab: bounded file reads with selectable
     # Markdown, code, HTML, PDF, Office, and plain-text renderers.

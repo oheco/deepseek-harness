@@ -49,7 +49,7 @@ describe('settings Remote', () => {
   it('opens the profile patch and contains opener failure and cancellation', async () => {
     const { ctx, profile } = await configurationFixture()
     const openTextFile = vi.fn(async (_path: string, _signal: AbortSignal) => {})
-    const controller = new SettingsController(ctx, { openTextFile })
+    const controller = new SettingsController(ctx, { canOpenPath: () => true, openTextFile })
     const abort = new AbortController()
     await controller.openSettingsDocument(abort.signal)
     expect(openTextFile).toHaveBeenCalledWith(profile.patchPath, abort.signal)
@@ -59,12 +59,21 @@ describe('settings Remote', () => {
     await expect(controller.openSettingsDocument(abort.signal)).rejects.toMatchObject({ code: 'gateway/cancelled' })
   })
 
+  it('reveals only the prepared profile path when native opening is unavailable', async () => {
+    const { ctx, profile } = await configurationFixture({ hmr: false })
+    const openTextFile = vi.fn(async (_path: string, _signal: AbortSignal) => {})
+    const controller = new SettingsController(ctx, { canOpenPath: () => false, openTextFile })
+    await expect(controller.openSettingsDocument(new AbortController().signal))
+      .resolves.toEqual({ opened: false, path: profile.patchPath })
+    expect(openTextFile).not.toHaveBeenCalled()
+  })
+
   it('does not open a patch cancelled while preparation is pending', async () => {
     const { ctx } = await configurationFixture()
     const prepared = Promise.withResolvers<string>()
     vi.spyOn(ctx.settings, 'prepareDocument').mockReturnValue(prepared.promise)
     const openTextFile = vi.fn(async (_path: string, _signal: AbortSignal) => {})
-    const controller = new SettingsController(ctx, { openTextFile })
+    const controller = new SettingsController(ctx, { canOpenPath: () => true, openTextFile })
     const abort = new AbortController()
     const opening = controller.openSettingsDocument(abort.signal)
     abort.abort()
@@ -93,7 +102,7 @@ it('reports a form removed after its write committed', async () => {
 it('classifies document preparation failures and cancellation during opening', async () => {
   const { ctx } = await configurationFixture({ hmr: false })
   let abort = new AbortController()
-  const controller = new SettingsController(ctx, { openTextFile: async () => {
+  const controller = new SettingsController(ctx, { canOpenPath: () => true, openTextFile: async () => {
     abort.abort(); throw new Error('opening cancelled')
   } })
   const prepare = vi.spyOn(ctx.settings, 'prepareDocument')

@@ -30,6 +30,8 @@ Use client resources when a component knows live data only by URL address, such 
 
 Nothing needs configuration to mount: the plugin provides `ctx.resources` and contributes the `resource` root keyed hook through `ctx.slots.provideRoot`, so every slot component receives it whatever its scope.
 
+Protocol lookup reads the resource authority directly and lower-cases it, independent of ArkWeb's non-special URL parsing. Empty authorities, userinfo, ports, brackets, whitespace, and forbidden host characters do not select a provider.
+
 <a id="read-a-resource"></a>
 ### Read a resource
 

@@ -122,7 +122,7 @@ Host service backing the generated `ctx.remote.settings` namespace. Every remote
 /**
  * Materialize the provider-owned settings document and open it in a native text editor.
  * @param signal - caller lifetime; abort terminates preparation or the native command.
- * @returns confirmation after the native opener accepts the document.
+ * @returns native-open confirmation, or the provider-owned path when no native opener is available.
  * @throws RemoteError when no document exists, preparation fails, or opening fails.
  */
 @Remote async openSettingsDocument(signal: AbortSignal): Promise<SettingsDocumentOpenValue>

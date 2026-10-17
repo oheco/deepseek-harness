@@ -1,0 +1,73 @@
+{
+  "devices": [
+    {
+      "target": "192.168.1.160:34835",
+      "installCommand": [
+        "/storage/Users/currentUser/.oheco/bin/hdc",
+        "-t",
+        "192.168.1.160:34835",
+        "install",
+        "-r",
+        "/data/storage/el2/base/haps/entry/cache/dsh-broker-sdk4-app-build-cjbq6s0g/artifacts/DSHApp-0.2.0-broker-sdk-0.4.0-signed.hap"
+      ],
+      "installExitCode": 0,
+      "installSucceeded": true,
+      "installOutput": "[Info]App install path:/data/storage/el2/base/haps/entry/cache/dsh-broker-sdk4-app-build-cjbq6s0g/artifacts/DSHApp-0.2.0-broker-sdk-0.4.0-signed.hap msg:install bundle successfully. \nAppMod finish",
+      "launchPerformed": false,
+      "uiActionsPerformed": false,
+      "bundleName": "org.oheco.deepseekharness",
+      "versionName": "0.2.0-rc.2-ohos.1",
+      "versionCode": 1000002,
+      "compatibleVersion": 23,
+      "targetVersion": 26,
+      "updateTime": 1791170692322,
+      "moduleDeviceTypes": [
+        {
+          "moduleName": "entry",
+          "deviceTypes": [
+            "default",
+            "2in1"
+          ]
+        }
+      ],
+      "deviceType": "2in1",
+      "apiVersion": 26
+    },
+    {
+      "target": "192.168.1.191:41339",
+      "installCommand": [
+        "/storage/Users/currentUser/.oheco/bin/hdc",
+        "-t",
+        "192.168.1.191:41339",
+        "install",
+        "-r",
+        "/data/storage/el2/base/haps/entry/cache/dsh-broker-sdk4-app-build-cjbq6s0g/artifacts/DSHApp-0.2.0-broker-sdk-0.4.0-signed.hap"
+      ],
+      "installExitCode": 0,
+      "installSucceeded": true,
+      "installOutput": "[Info]App install path:/data/storage/el2/base/haps/entry/cache/dsh-broker-sdk4-app-build-cjbq6s0g/artifacts/DSHApp-0.2.0-broker-sdk-0.4.0-signed.hap msg:install bundle successfully. \nAppMod finish",
+      "launchPerformed": false,
+      "uiActionsPerformed": false,
+      "bundleName": "org.oheco.deepseekharness",
+      "versionName": "0.2.0-rc.2-ohos.1",
+      "versionCode": 1000002,
+      "compatibleVersion": 23,
+      "targetVersion": 26,
+      "updateTime": 1791170694628,
+      "moduleDeviceTypes": [
+        {
+          "moduleName": "entry",
+          "deviceTypes": [
+            "default",
+            "2in1"
+          ]
+        }
+      ],
+      "deviceType": "phone",
+      "apiVersion": 26
+    }
+  ],
+  "bothInstallSucceeded": true,
+  "userRequestedNoStart": true,
+  "observedAt": "2026-10-05T03:24:55.651053+00:00"
+}

@@ -115,6 +115,9 @@ export function resolveExampleLaunch(options: ExampleLaunchOptions): ExampleLaun
   // send a fixture-server request to a proxy that cannot resolve the fixture host. `undefined`
   // removes the name from the child rather than setting it empty.
   const env: NodeJS.ProcessEnv = { ...clearedProxyEnv(), ...options.env }
+  // HarmonyOS has no native require-builtin addon, so a real dsh resolves Node
+  // internals through this flag; the shipped launcher passes it the same way.
+  const loaderFlags = (process.platform as string) === 'openharmony' ? ['--expose-internals'] : []
 
   if (mode === 'src') {
     if (options.tsconfigPath === undefined) {
@@ -124,10 +127,10 @@ export function resolveExampleLaunch(options: ExampleLaunchOptions): ExampleLaun
       ? import.meta.resolve('tsx/esm')
       : import.meta.resolve('tsx')
     env.TSX_TSCONFIG_PATH = options.tsconfigPath
-    return { command: process.execPath, args: ['--import', tsxLoader, options.srcBin, ...configArgs], env }
+    return { command: process.execPath, args: [...loaderFlags, '--import', tsxLoader, options.srcBin, ...configArgs], env }
   }
 
-  return { command: process.execPath, args: [options.libBin ?? toLibBin(options.srcBin), ...configArgs], env }
+  return { command: process.execPath, args: [...loaderFlags, options.libBin ?? toLibBin(options.srcBin), ...configArgs], env }
 }
 
 /** Inputs every real-Loader example smoke supplies. */

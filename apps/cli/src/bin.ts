@@ -1,11 +1,14 @@
 #!/usr/bin/env node
 /**
- * Command-line entry for dsh.
+ * Command-line entry for dsh. The version flag reports the CLI package release;
+ * startup diagnostics retain the app-boot runtime compatibility version.
  * @module @deepseek-ai/dsh/bin
  */
 
 /* v8 ignore file -- built-bin acceptance exercises this self-executing dispatch. */
 
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { getDshRuntimeVersion, loadLayeredEnv, StartupError } from '@deepseek-ai/dsh-app-boot'
 import { resolveDshHome } from '@deepseek-ai/dsh-home-paths'
 import { parseDshArgs } from './args.ts'
@@ -24,9 +27,11 @@ export type RunCliOptions = Pick<RunProfileOptions, 'packageManager'> & {
  * @returns a promise that settles when the selected command mode finishes.
  */
 export async function runCli(options: RunCliOptions = {}): Promise<void> {
-  const version = getDshRuntimeVersion()
+  const { version: releaseVersion } = JSON.parse(
+    readFileSync(fileURLToPath(new URL('../package.json', import.meta.url)), 'utf8'),
+  ) as { version: string }
   const { manageDesktopProfile, ...profileOptions } = options
-  const invocation = parseDshArgs(process.argv.slice(2), version, manageDesktopProfile)
+  const invocation = parseDshArgs(process.argv.slice(2), releaseVersion, manageDesktopProfile)
 
   switch (invocation.mode) {
     case 'profile': {
@@ -42,7 +47,9 @@ export async function runCli(options: RunCliOptions = {}): Promise<void> {
         })
       } catch (error) {
         if (!(error instanceof StartupError)) throw error
-        await reportStartupFailure(error, { home: resolveDshHome(), version, profile: invocation.profile })
+        await reportStartupFailure(error, {
+          home: resolveDshHome(), version: getDshRuntimeVersion(), profile: invocation.profile,
+        })
         process.exit(1)
       }
       break

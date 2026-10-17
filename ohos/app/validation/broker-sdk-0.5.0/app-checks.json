@@ -1,0 +1,47 @@
+{
+  "appTests": {
+    "passed": 163,
+    "failed": 0,
+    "log": "app-tests.log"
+  },
+  "nativeIntegration": {
+    "exitCode": 0,
+    "log": "native-final.log"
+  },
+  "arktsSemantic": {
+    "errors": 0
+  },
+  "projectExport": {
+    "exitCode": 0,
+    "verifiedFiles": 411,
+    "log": "final-project-export.log"
+  },
+  "completeDocSync": {
+    "passed": false,
+    "log": "doc-sync.log",
+    "stoppedAfterFailures": true,
+    "failures": [
+      "unchanged packages/bundle/web-app/tests/document-preview.spec.ts type errors",
+      "pnpm dependencies purge aborted without TTY"
+    ]
+  },
+  "upgradeGuideAndNamedTranslationPair": {
+    "passed": true
+  },
+  "computerInstallation": {
+    "passed": true,
+    "launchPerformed": false
+  },
+  "phoneInstallation": {
+    "passed": true,
+    "launchPerformed": false,
+    "uiActionsPerformed": false,
+    "receipt": "installation-phone.json"
+  },
+  "finalOhosReferenceAndUpgradeGuidePairs": {
+    "passed": true,
+    "pairCount": 4,
+    "command": "node --import tsx/esm scripts/verify-translation-pairing.ts ohos/README.md ohos/app/README.md ohos/app/entry/src/main/cpp/broker/README.md docs/upgrade-guide/v0.2.0-rc.2/ohos-app-login/guide.md"
+  },
+  "runtimeOrBrokerProductionModified": false
+}

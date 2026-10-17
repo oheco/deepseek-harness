@@ -1,0 +1,12 @@
+{
+  "version": "0.2.1-rc.2-ohos.1",
+  "upstream_version": "0.2.1-rc.2",
+  "upstream_commit": "687f282e8625c6b8d11ff58211a90524be2e4317",
+  "dependencies": {
+    "node-pty": "1.2.0-beta.15-ohos.1",
+    "koffi": "3.1.1-ohos.1",
+    "sharp": "0.35.5-ohos.1",
+    "@vscode/ripgrep": "1.18.0-ohos.2"
+  },
+  "source_lock_sha256": "a6910cd8df25066c35ae1b0ae192005966a057e118b34f4688999bb055252e89"
+}

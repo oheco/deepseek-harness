@@ -9,7 +9,7 @@
 
 import { Context } from '@deepseek-ai/cordis'
 import {
-  openNativeTextFile,
+  canOpenNativePath, openNativeTextFile,
 } from '@deepseek-ai/dsh-native-command'
 import type { SettingsDescriptor, SettingsPathOp, SettingsForms } from '@deepseek-ai/dsh-settings'
 import type {
@@ -33,6 +33,8 @@ function isAborted(signal: AbortSignal): boolean {
 
 /** Host integrations replaceable by direct unit tests. */
 export interface SettingsControllerInternals {
+  /** Whether this host can hand a path to a native application. */
+  readonly canOpenPath?: () => boolean
   /** Host text-editor integration used to open the settings document. */
   readonly openTextFile?: (path: string, signal: AbortSignal) => Promise<void>
 }
@@ -74,6 +76,7 @@ declare module '@deepseek-ai/cordis' {
  * `settings/conflict` or `settings/rejected` with the service's message.
  */
 export class SettingsController extends TypertRemoteService {
+  private readonly canOpenPath: () => boolean
   private readonly openTextFile: (path: string, signal: AbortSignal) => Promise<void>
 
   /**
@@ -84,6 +87,7 @@ export class SettingsController extends TypertRemoteService {
    */
   constructor(ctx: Context, internals: SettingsControllerInternals = {}) {
     super(ctx, 'settingsController', { namespace: 'settings' })
+    this.canOpenPath = internals.canOpenPath ?? canOpenNativePath
     this.openTextFile = internals.openTextFile ?? openNativeTextFile
     ctx.plugin(CredentialsController)
   }
@@ -160,7 +164,7 @@ export class SettingsController extends TypertRemoteService {
   /**
    * Materialize the provider-owned settings document and open it in a native text editor.
    * @param signal - caller lifetime; abort terminates preparation or the native command.
-   * @returns confirmation after the native opener accepts the document.
+   * @returns native-open confirmation, or the provider-owned path when no native opener is available.
    * @throws RemoteError when no document exists, preparation fails, or opening fails.
    */
   @Remote
@@ -175,6 +179,7 @@ export class SettingsController extends TypertRemoteService {
       throw new RemoteError('gateway/internal', `settings document preparation failed: ${messageOf(error)}`, {}, { cause: error })
     }
     if (isAborted(signal)) throw new RemoteError('gateway/cancelled', 'settings document open was aborted', {})
+    if (!this.canOpenPath()) return { opened: false, path }
     try {
       await this.openTextFile(path, signal)
       return { opened: true }

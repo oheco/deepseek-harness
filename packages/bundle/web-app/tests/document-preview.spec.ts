@@ -41,7 +41,7 @@ it('loads the shipped Office rows with separately patched settings and authorize
   const providerConfig = { maxInputBytes: 4096, maxConcurrentConversions: 1, fontFallbacks: [['Missing Serif', 'Available Serif']] }
   const clientConfig = DocumentPreview.Config({ office: { maxCachedEntries: 3, maxCachedBytes: 8192 } })
   const configured = applyEntryPatches(rows, [
-    { id: 'office-to-pdf', config: providerConfig },
+    { id: 'office-to-pdf', disabled: false, config: providerConfig },
     { id: 'ui-sidebar-documentpreview', config: clientConfig },
   ], (message) => { throw new Error(message) })
   expect(configured.find(row => row.id === 'ui-sidebar-documentpreview')!.config).toEqual(clientConfig)
@@ -130,4 +130,54 @@ it('loads the shipped Office rows with separately patched settings and authorize
       .rejects.toMatchObject({ code: 'workspace-file/not-regular-file' })
   }
   expect(render).toHaveBeenCalledOnce()
+})
+
+it('applies the shipped Office platform gate while retaining document preview configuration', async () => {
+  const directory = await realpath(await mkdtemp(join(tmpdir(), 'dsh-web-office-platform-')))
+  const ctx = new Context()
+  onTestFinished(async () => {
+    try { await ctx.fiber.dispose() }
+    finally { vi.restoreAllMocks(); await rm(directory, { recursive: true, force: true }) }
+  })
+  const rows = loadOverlayPatches('web-office-platform-test', fileURLToPath(new URL('../cordis.patch.yml', import.meta.url)))
+    .flatMap(patch => patch.insert ?? []).filter(row => row.id === 'office-to-pdf' || row.id === 'ui-sidebar-documentpreview')
+  expect(rows.map(row => row.id)).toEqual(['office-to-pdf', 'ui-sidebar-documentpreview'])
+  const configPath = join(directory, 'cordis.yml')
+  await writeFile(configPath, JSON.stringify(rows))
+  kit.create.mockReset()
+  ctx.baseUrl = pathToFileURL(directory).href + '/'
+  await ctx.plugin(Loader)
+  ctx.loader.builtins.include = Include
+  const internal = ctx.loader.internal
+  if (internal === undefined) throw new Error('Expected the Node Loader internals')
+  const originalImport: (...args: Parameters<typeof internal.import>) => Promise<unknown> = internal.import.bind(internal)
+  const imports = vi.spyOn(internal, 'import').mockImplementation(async (
+    specifier: string, parent: string, attributes: ImportAttributes,
+  ) => {
+    if (specifier === '@deepseek-ai/dsh-office-to-pdf') return OfficeToPdf
+    if (specifier === '@deepseek-ai/dsh-client-ui-sidebar-documentpreview') return DocumentPreview
+    return originalImport(specifier, parent, attributes)
+  })
+  await ctx.loader.create({ name: 'cordis:include', config: { path: pathToFileURL(configPath).href } })
+  await ctx.loader.await()
+  const entries = new Map([...ctx.loader.entries()].map(entry => [entry.options.id, entry]))
+  const unsupported = (process.platform as string) === 'openharmony'
+  const office = entries.get('office-to-pdf')!
+  expect(office.disabled).toBe(unsupported)
+  if (unsupported) {
+    expect(ctx.get('officeToPdf')).toBeUndefined()
+    expect(imports.mock.calls.some(([specifier]) => specifier === '@deepseek-ai/dsh-office-to-pdf')).toBe(false)
+  } else {
+    await office.fiber!.await()
+    expect(ctx.get('officeToPdf')).toBeDefined()
+  }
+  const preview = entries.get('ui-sidebar-documentpreview')!
+  expect(preview.disabled).toBe(false)
+  await preview.fiber!.await()
+  const injections: IndexInjection[] = []
+  ctx.emit('webserver/index-inject', injections)
+  expect(injections).toEqual([
+    { kind: 'global', name: '__DSH_DOCUMENT_PREVIEW_CONFIG__', value: DocumentPreview.Config({}) },
+  ])
+  expect(kit.create).not.toHaveBeenCalled()
 })

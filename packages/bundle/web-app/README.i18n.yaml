@@ -2,6 +2,7 @@
 # section, a hash of its English and Chinese blocks outside code blocks and generated regions.
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/bundle/web-app/README.md
+# Pending: re-record the merged bilingual text after workspace dependencies are installed.
 /:
   en: af2e4e5296596e8f
   zh: 70c0b5ac93209d00

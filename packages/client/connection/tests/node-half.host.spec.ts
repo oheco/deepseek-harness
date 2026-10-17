@@ -12,6 +12,7 @@ import type { IndexInjection, WebServer, WebRoute, WebUpgradeRoute } from '@deep
 import {
   API_PATH,
   RpcId,
+  Config,
   apply,
   inject,
   type ClientRequest,
@@ -137,6 +138,25 @@ function browserCookie(connection: HostConnectionHandle, authority: string): str
 }
 
 describe('connection node half', () => {
+  it('validates the optional launch token through Cordis configuration', async () => {
+    expect(new Config({}).token).toBeUndefined()
+    expect(new Config({ token: ' +/&?=%令牌 ' }).token).toBe(' +/&?=%令牌 ')
+    expect(() => new Config({ token: '' })).toThrow()
+    const { connection, dispose } = await mounted({ token: 'configured +/&?=%令牌' })
+    try {
+      expect(new URL(connection.authenticatedUrl('http://127.0.0.1:45678')).searchParams.get('token'))
+        .toBe('configured +/&?=%令牌')
+      const cookie = browserCookie(connection, '127.0.0.1:45678')
+      expect(connection.requestRejection({ headers: {
+        host: '127.0.0.1:45678', origin: 'http://127.0.0.1:45678', cookie,
+      } })).toBeUndefined()
+      expect(connection.requestRejection({ headers: {
+        host: '127.0.0.1:3080', origin: 'http://127.0.0.1:45678', cookie,
+      } })).toBe(403)
+      expect(connection.requestRejection({ headers: { host: '127.0.0.1:3080', cookie } })).toBe(401)
+    } finally { await dispose() }
+  })
+
   it('runs request admission after authentication and removes it with its owning fiber', async () => {
     const { ctx, routes, connection, dispose } = await mounted()
     let admitted = 0
@@ -851,8 +871,9 @@ describe('operator-scoped connect', () => {
     } finally { vi.useRealTimers(); await host.dispose() }
   })
 
-  it('preserves browser tabs and restart recovery without resurrecting API operators', async () => {
-    const host = await mounted()
+  it.each([undefined, 'fixed +/&?=%#令牌🔐 '])('preserves browser restart recovery without resurrecting API operators (token: %j)', async (token) => {
+    const config = token === undefined ? undefined : { token }
+    const host = await mounted(config)
     const browser = { cookie: browserCookie(host.connection, 'localhost') }
     const api = await connect(host)
     const browserPeer = admitted(host.connection, browser.cookie)
@@ -873,8 +894,11 @@ describe('operator-scoped connect', () => {
       await host.dispose()
       expect(cleanup).toHaveBeenCalledOnce()
       expect(host.connection.admit(request)).toEqual({ rejection: 401 })
-      const restarted = await mounted(undefined, 'http:', host.ctx.credentials)
+      const restarted = await mounted(config, 'http:', host.ctx.credentials)
       try {
+        if (token !== undefined) {
+          expect(new URL(restarted.connection.authenticatedUrl('http://localhost')).searchParams.get('token')).toBe(token)
+        }
         expect(admitted(restarted.connection, browser.cookie)).toBe(restarted.connection.browserPeer)
         expect(admitted(restarted.connection, browser.cookie)).not.toBe(browserPeer)
         expect(restarted.connection.admit(fakeRequest({ host: 'localhost', cookie: api.cookie }))).toEqual({ rejection: 401 })

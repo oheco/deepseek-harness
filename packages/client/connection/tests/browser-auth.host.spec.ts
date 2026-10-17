@@ -56,8 +56,9 @@ function createAuth(
   store: RecordCredentials,
   maxAgeDays = 30,
   processOwner: object = {},
+  token?: string,
 ): Promise<BrowserAuth> {
-  return BrowserAuth.create(processOwner, credentials(store), maxAgeDays)
+  return BrowserAuth.create(processOwner, credentials(store), maxAgeDays, token)
 }
 
 function request(url: string, authority = '127.0.0.1:3080', init?: {
@@ -93,6 +94,38 @@ afterEach(() => {
 })
 
 describe('API credentials', () => {
+  it.each([false, true])('exchanges a fixed token without confusing browser and API credentials (TLS: %s)', async (secure) => {
+    const auth = await createAuth(new RecordCredentials(), 30, {}, 'fixed +/&?=%#令牌🔐 ')
+    const authority = 'gateway.example:8443'
+    const mounted = new URL(auth.authenticatedUrl(`https://${authority}/tools/dsh/`))
+    const target = new URL('connect', mounted)
+    target.search = mounted.search
+    const publish = vi.fn(() => 'fixed-token-api' as PeerId)
+    const res = response()
+    // A prefix-stripping proxy preserves the browser's authority and removes only the mount.
+    auth.authorizeConnect(request(`/connect${target.search}`, authority), res.value, secure, publish)
+    expect(publish).toHaveBeenCalledExactlyOnceWith('none')
+    expect(res.state).toMatchObject({ status: 302, headers: { location: './api/remote.mux' } })
+    expect(new URL(res.state.headers!.location!, target).pathname).toBe('/tools/dsh/api/remote.mux')
+    const setCookie = res.state.headers?.['set-cookie']
+    if (setCookie === undefined) throw new Error('fixed token exchange did not set an API cookie')
+    expect(setCookie.endsWith('; Secure')).toBe(secure)
+    const cookie = setCookie.split(';', 1)[0]!
+    expect(auth.authenticateApi(request('/', authority, { cookie }), secure)).toBe('fixed-token-api')
+    expect(auth.isAuthenticated(request('/', authority, { cookie }), secure)).toBe(false)
+    expect(auth.authenticateApi(request('/', authority, { cookie }), !secure)).toBeUndefined()
+    expect(auth.authenticateApi(request('/', 'gateway.example:8444', { cookie }), secure)).toBeUndefined()
+    const browser = exchange(auth, authority, secure).cookie
+    expect(browser.split('=', 1)[0]).toBe(cookie.split('=', 1)[0])
+    expect(auth.authenticateApi(request('/', authority, { cookie: browser }), secure)).toBeUndefined()
+    const wrong = response()
+    publish.mockClear()
+    auth.authorizeConnect(request('/connect?token=wrong', authority), wrong.value, secure, publish)
+    expect(wrong.state.status).toBe(401)
+    expect(wrong.state.headers?.['set-cookie']).toBeUndefined()
+    expect(publish).not.toHaveBeenCalled()
+  })
+
   it('refuses a request without a URL before publishing an API operator', async () => {
     const auth = await createAuth(new RecordCredentials())
     const publish = vi.fn(() => 'api-operator' as PeerId)
@@ -235,6 +268,41 @@ describe('BrowserAuth', () => {
     const tlsName = tls.cookie.slice(0, tls.cookie.indexOf('='))
     const plainValue = plain.cookie.slice(plain.cookie.indexOf('=') + 1)
     expect(restarted.isAuthenticated(request('/', authority, { cookie: `${tlsName}=${plainValue}` }), true)).toBe(false)
+  })
+
+  it.each(['fixed-token', ' +/&?=%#令牌🔐 '])('uses the explicit token %j across starts and reloads', async (token) => {
+    const store = new RecordCredentials()
+    const processOwner = {}
+    const random = await createAuth(store, 30, processOwner)
+    const priorCookie = exchange(random).cookie
+    const persisted = store.record
+    const first = await createAuth(store, 30, processOwner, token)
+    const login = exchange(first)
+    expect(new URL(login.launchUrl).searchParams.get('token')).toBe(token)
+    expect(login.state.status).toBe(303)
+    expect(first.isAuthenticated(request('/', '127.0.0.1:3080', { cookie: priorCookie }))).toBe(true)
+    expect(store.record).toBe(persisted)
+
+    for (const owner of [processOwner, {}]) {
+      const reloaded = await createAuth(store, 30, owner, token)
+      expect(reloaded.authenticatedUrl('http://127.0.0.1:3080')).toBe(login.launchUrl)
+      expect(reloaded.isAuthenticated(request('/', '127.0.0.1:3080', { cookie: login.cookie }))).toBe(true)
+      const wrong = response()
+      expect(reloaded.authorizeIndex(request('/?token=wrong'), wrong.value)).toBe(false)
+      expect(wrong.state.status).toBe(401)
+    }
+    const changed = await createAuth(store, 30, {}, 'replacement')
+    expect(changed.isAuthenticated(request('/', '127.0.0.1:3080', { cookie: login.cookie }))).toBe(true)
+    expect(store.record).toBe(persisted)
+    const omitted = await createAuth(store, 30, processOwner)
+    expect(omitted.authenticatedUrl('http://127.0.0.1:3080'))
+      .toBe(random.authenticatedUrl('http://127.0.0.1:3080'))
+  })
+
+  it('rejects an explicit empty token before writing credentials', async () => {
+    const store = new RecordCredentials()
+    await expect(createAuth(store, 30, {}, '')).rejects.toThrow('token must not be empty')
+    expect(store.modifies).toBe(0)
   })
 
   it('preserves the caller authority and mount while adding only this process token', async () => {

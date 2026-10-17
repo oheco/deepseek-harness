@@ -49,7 +49,7 @@ The General section holds the built-in Coding Tools and Current version rows alo
 
 ### Opening the configuration file
 
-On a loopback browser, the shell renders **Open configuration file** only when the Host confirms that a provider-owned local document can be prepared. The action opens that document in the native text editor (bypassing the browser file association on macOS). Remote browsers never register this native-open action, including on configured public deployments; their preferences persist through the Host settings service.
+On a loopback browser, the shell renders **Open configuration file** only when the Host confirms that a provider-owned local document can be prepared. The action opens that document in the native text editor (bypassing the browser file association on macOS). On hosts without a native opener, including HarmonyOS, it instead shows the provider-owned path in a dialog with a copy control. Remote browsers never register this native-open action, including on configured public deployments; their preferences persist through the Host settings service.
 
 ### Onboarding steps
 

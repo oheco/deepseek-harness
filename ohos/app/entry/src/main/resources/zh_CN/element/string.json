@@ -1,0 +1,400 @@
+{
+  "string": [
+    { "name": "diagnostics_title", "value": "诊断日志" },
+    { "name": "diagnostics_refresh", "value": "刷新" },
+    { "name": "diagnostics_copy", "value": "复制日志" },
+    { "name": "diagnostics_hint", "value": "此处显示最近的日志，复制包含全部保留记录（最多 2 MiB）。日志不包含凭据、地址和会话内容。" },
+    { "name": "diagnostics_empty", "value": "暂无诊断记录。" },
+    { "name": "diagnostics_read_failed", "value": "无法读取诊断日志文件，请返回后重新打开此页重试。" },
+    { "name": "diagnostics_copied", "value": "诊断日志已复制。" },
+    { "name": "diagnostics_copy_failed", "value": "无法复制日志，请再次点击“复制日志”重试。" },
+    {
+      "name": "ability_description",
+      "value": "管理本地和远程 DeepSeek Harness 连接。"
+    },
+    {
+      "name": "opening",
+      "value": "正在打开工作空间…"
+    },
+    {
+      "name": "connection_cookies_failed",
+      "value": "无法准备网页登录，请返回连接列表重试。"
+    },
+    {
+      "name": "web_load_failed",
+      "value": "无法加载网页，请返回连接列表重试。"
+    },
+    {
+      "name": "web_load_error_title",
+      "value": "无法打开此页面"
+    },
+    {
+      "name": "web_http_error",
+      "value": "服务返回 HTTP %1$d，请返回连接列表重试。"
+    },
+    {
+      "name": "web_network_error",
+      "value": "网页加载失败（错误 %1$d），请返回连接列表重试。"
+    },
+    {
+      "name": "web_return_connections",
+      "value": "返回连接列表"
+    },
+    {
+      "name": "external_failed",
+      "value": "设备上没有能打开该链接的应用。"
+    },
+    {
+      "name": "find_placeholder",
+      "value": "在页面中搜索"
+    },
+    {
+      "name": "find_previous",
+      "value": "上一个匹配（Shift+Enter）"
+    },
+    {
+      "name": "find_next",
+      "value": "下一个匹配（Enter）"
+    },
+    {
+      "name": "find_close",
+      "value": "关闭搜索（Esc）"
+    },
+    {
+      "name": "context_copy",
+      "value": "复制"
+    },
+    {
+      "name": "context_browser",
+      "value": "通过浏览器打开"
+    },
+    {
+      "name": "context_files",
+      "value": "在文件管理中查看"
+    },
+    {
+      "name": "find_drag",
+      "value": "拖拽背景移动搜索框"
+    },
+    {
+      "name": "path_access_denied",
+      "value": "系统拒绝访问此路径或启动文件管理器。"
+    },
+    {
+      "name": "path_no_handler",
+      "value": "系统文件管理器不可用。"
+    },
+    {
+      "name": "path_not_found",
+      "value": "文件或文件夹不存在。"
+    },
+    {
+      "name": "path_invalid",
+      "value": "这不是完整的用户目录路径，带省略号的路径不能打开。"
+    },
+    {
+      "name": "path_unsupported",
+      "value": "此路径是符号链接，或不是此操作支持的普通文件。"
+    },
+    {
+      "name": "web_action_failed",
+      "value": "操作未成功，请在页面就绪后重试。"
+    },
+    {
+      "name": "path_open_failed",
+      "value": "无法在文件管理中查看此位置，你仍可复制路径。"
+    },
+    {
+      "name": "dismiss",
+      "value": "知道了"
+    },
+    {
+      "name": "connections_title",
+      "value": "连接"
+    },
+    {
+      "name": "connections_loading",
+      "value": "正在读取已保存的连接…"
+    },
+    {
+      "name": "connections_hint",
+      "value": "选择连接进入 DSH。系统返回或 Ctrl+Shift+L 可返回此页。"
+    },
+    {
+      "name": "connections_load_failed",
+      "value": "无法读取已保存的连接，请重试后再进行修改。"
+    },
+    {
+      "name": "connections_empty",
+      "value": "还没有连接"
+    },
+    {
+      "name": "connections_empty_hint",
+      "value": "点击下方 +，添加本地或远程连接。"
+    },
+    {
+      "name": "add_connection",
+      "value": "添加连接"
+    },
+    {
+      "name": "edit_connection",
+      "value": "编辑"
+    },
+    {
+      "name": "configure_connection",
+      "value": "配置连接"
+    },
+    {
+      "name": "choose_mode_hint",
+      "value": "选择 DSH 所在的位置。"
+    },
+    {
+      "name": "mode_local",
+      "value": "本地模式"
+    },
+    {
+      "name": "mode_remote",
+      "value": "远程模式"
+    },
+    {
+      "name": "local_hint",
+      "value": "连接本机正在运行的 DSH，端口和 token 应与 dsh web 启动参数一致。"
+    },
+    {
+      "name": "remote_login",
+      "value": "登录 broker 服务"
+    },
+    {
+      "name": "remote_login_hint",
+      "value": "登录服务，选择在线 broker，然后配置 DSH 连接。"
+    },
+    {
+      "name": "edit_connection_hint",
+      "value": "可以修改名称和连接配置。"
+    },
+    {
+      "name": "connection_name",
+      "value": "连接名称"
+    },
+    {
+      "name": "name_required",
+      "value": "请输入连接名称。"
+    },
+    {
+      "name": "port_invalid",
+      "value": "请输入 1 至 65535 之间的端口号。"
+    },
+    {
+      "name": "local_port",
+      "value": "本地 DSH 端口"
+    },
+    {
+      "name": "remote_port",
+      "value": "远端 DSH 端口"
+    },
+    {
+      "name": "dsh_token",
+      "value": "DSH token"
+    },
+    {
+      "name": "token_required",
+      "value": "请输入 DSH token。"
+    },
+    {
+      "name": "remote_config_required",
+      "value": "请登录、选择 broker，并输入 broker 连接密码。"
+    },
+    {
+      "name": "connection_invalid",
+      "value": "请检查连接名称、凭据和配置是否完整。"
+    },
+    {
+      "name": "connection_saved",
+      "value": "连接已保存。"
+    },
+    {
+      "name": "connection_deleted",
+      "value": "连接已删除。"
+    },
+    {
+      "name": "connection_save_failed",
+      "value": "连接未能保存，原连接列表已保留。"
+    },
+    {
+      "name": "service_address",
+      "value": "服务地址"
+    },
+    {
+      "name": "service_address_hint",
+      "value": "填写你自己的 broker 服务 HTTPS 地址。"
+    },
+    {
+      "name": "broker_account",
+      "value": "账号"
+    },
+    {
+      "name": "broker_password",
+      "value": "账号密码"
+    },
+    {
+      "name": "broker_login",
+      "value": "登录"
+    },
+    {
+      "name": "login_required",
+      "value": "请输入有效的服务地址、账号和密码。"
+    },
+    {
+      "name": "broker_logging_in",
+      "value": "正在登录并读取 broker 列表…"
+    },
+    {
+      "name": "broker_login_failed",
+      "value": "登录失败，请检查服务地址、证书、账号和密码。"
+    },
+    {
+      "name": "broker_login_expired",
+      "value": "broker 登录已失效，请重新登录后继续。"
+    },
+    {
+      "name": "ca_system_trust",
+      "value": "服务证书必须受系统信任，证书链和域名均需验证通过。"
+    },
+    {
+      "name": "choose_broker",
+      "value": "选择 broker"
+    },
+    {
+      "name": "brokers_hint",
+      "value": "选择在线 broker 继续。"
+    },
+    {
+      "name": "brokers_empty",
+      "value": "此账号下暂无在线 broker。"
+    },
+    {
+      "name": "broker_online",
+      "value": "在线"
+    },
+    {
+      "name": "broker_offline",
+      "value": "离线"
+    },
+    {
+      "name": "refresh_brokers",
+      "value": "刷新 broker 列表"
+    },
+    {
+      "name": "change_broker",
+      "value": "更换 broker"
+    },
+    {
+      "name": "remote_config_hint",
+      "value": "输入 broker 连接密码、远端 DSH 端口和 token。"
+    },
+    {
+      "name": "peer_password",
+      "value": "broker 连接密码"
+    },
+    {
+      "name": "peer_password_hint",
+      "value": "填写该 broker 配置的连接密码，与服务账号密码、DSH token 分开。"
+    },
+    {
+      "name": "test_connection",
+      "value": "测试连接"
+    },
+    {
+      "name": "save_connection",
+      "value": "保存"
+    },
+    {
+      "name": "delete_connection",
+      "value": "删除连接"
+    },
+    {
+      "name": "connection_test_ok",
+      "value": "连接成功，已通过 DSH 鉴权并访问首页。"
+    },
+    {
+      "name": "connection_token_failed",
+      "value": "DSH token 不正确。"
+    },
+    {
+      "name": "connection_forbidden",
+      "value": "DSH 拒绝访问，请检查服务端访问配置。"
+    },
+    {
+      "name": "connection_not_dsh",
+      "value": "此端口未返回 DSH 首页。"
+    },
+    {
+      "name": "connection_unreachable",
+      "value": "无法连接 DSH，请检查端口和服务是否已启动。"
+    },
+    {
+      "name": "broker_connection_failed",
+      "value": "连接失败，请检查 broker、连接密码和 DSH 配置。"
+    },
+    {
+      "name": "web_connection_disconnected",
+      "value": "连接暂不可用，页面保留。"
+    },
+    {
+      "name": "back_connections",
+      "value": "返回"
+    },
+    {
+      "name": "retry",
+      "value": "重试"
+    },
+    {
+      "name": "test_in_progress",
+      "value": "正在测试连接"
+    },
+    {
+      "name": "test_success",
+      "value": "连接测试成功"
+    },
+    {
+      "name": "test_failure",
+      "value": "连接测试失败"
+    },
+    {
+      "name": "local_settings",
+      "value": "本地连接"
+    },
+    {
+      "name": "remote_settings",
+      "value": "远程连接"
+    },
+    {
+      "name": "broker_service",
+      "value": "broker 服务"
+    },
+    {
+      "name": "selected_broker",
+      "value": "已选择的 broker"
+    },
+    {
+      "name": "modify",
+      "value": "修改"
+    },
+    {
+      "name": "reconnecting",
+      "value": "正在重新连接…"
+    },
+    {
+      "name": "connection_disconnected",
+      "value": "已断开连接"
+    },
+    {
+      "name": "retry_connection",
+      "value": "重新连接"
+    },
+    {
+      "name": "disconnect_connection",
+      "value": "断开连接"
+    }
+  ]
+}

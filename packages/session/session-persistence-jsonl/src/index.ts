@@ -44,6 +44,7 @@ import {
 import {
   compressZstdFrame, createZstdFrameDecoder, decompressZstdFrame, decompressZstdPrefix, scanZstdFrames,
 } from './zstd.ts'
+import { publishNewFileOhos } from './ohos.ts'
 import { ensureDurableDirectoryWin32, publishNewFileWin32 } from './win32.ts'
 import { verifyCurrentGenerationInWorker } from './migration-verifier.ts'
 import { prepareCatalogFacts } from './catalog-migration.ts'
@@ -1294,22 +1295,20 @@ class JsonlSessionPersistence extends SessionPersistence {
     await this.syncDirPosix(project)
     await this.rejectExistingLog(finalPath, id)
     const tmp = await this.writeSyncedTempFile(finalPath, content)
-    // Publish via link()+unlink(), NOT rename(): link fails with EEXIST if the
-    // final path already exists, so two processes materializing the same id
-    // concurrently cannot clobber each other. rename() would silently overwrite.
-    let linked = false
+    // HarmonyOS forbids hard links; RENAME_NOREPLACE preserves the same atomic
+    // rejection of a competing writer. Ordinary rename() would overwrite it.
+    let published = false
     try {
-      await link(tmp, finalPath)
-      linked = true
+      if ((process.platform as string) === 'openharmony') await publishNewFileOhos(tmp, finalPath)
+      else await link(tmp, finalPath)
+      published = true
     } finally {
       // Remove an unpublished temp on failure. After publication, defer cleanup
       // until the directory entry is durable so cleanup cannot reject a live log.
       /* v8 ignore next -- link failure is the TOCTOU/IO race guarded above; not reachable in test */
-      if (!linked) await rm(tmp, { force: true })
+      if (!published) await rm(tmp, { force: true })
     }
-    // link() succeeded — the log is published. fsync the directory so the new
-    // entry survives a power loss: the new link is not crash-durable until the
-    // parent directory's metadata is synced.
+    // The log is published; sync the parent directory to make its entry durable.
     await this.syncDirPosix(dir)
     // Best-effort temp cleanup: the log is already published and durable, so a
     // failure to remove the redundant temp hard link must NOT reject the

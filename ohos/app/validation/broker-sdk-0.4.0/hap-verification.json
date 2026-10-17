@@ -1,0 +1,13 @@
+{
+  "artifact": "/data/storage/el2/base/haps/entry/cache/dsh-broker-sdk4-app-build-cjbq6s0g/artifacts/DSHApp-0.2.0-broker-sdk-0.4.0-signed.hap",
+  "bytes": 5232378,
+  "sha256": "c67655692839db123557a00ce537cd95c8bb31cd4152fb1b3bbffca9ef94e43b",
+  "sdkVersion": "0.4.0",
+  "verified": true,
+  "nativeVerificationExitCode": 0,
+  "verifier": "/storage/Users/currentUser/.oheco/packages/ohos-sdk-toolchains/26.0.0.35-Beta/lib/hap-sign-tool",
+  "verifiedAt": "2026-10-05T03:24:49.700354+00:00",
+  "publicKeySha256": "3a969baeaa835f8eab36e8b97f69089815599d3edf5a81af0f6113d1ae5ab504",
+  "matchesOriginalFix2SigningFamily": true,
+  "transientVerificationOutputsRemoved": true
+}

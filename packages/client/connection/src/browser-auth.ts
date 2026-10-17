@@ -58,7 +58,11 @@ function decodeBase64Url(value: string): Buffer | undefined {
   return encodeBase64Url(decoded) === value ? decoded : undefined
 }
 
-function processLaunchToken(owner: object): string {
+function processLaunchToken(owner: object, configuredToken: string | undefined): string {
+  if (configuredToken !== undefined) {
+    if (configuredToken === '') throw new Error('client-connection: token must not be empty')
+    return configuredToken
+  }
   const existing = PROCESS_LAUNCH_TOKENS.get(owner)
   if (existing !== undefined) return existing
   const created = encodeBase64Url(randomBytes(SECRET_BYTES))
@@ -199,20 +203,18 @@ async function initializeSecret(credentials: CredentialProvider): Promise<Buffer
 }
 
 /**
- * Process launch-token exchange and persistent signed-cookie verification.
+ * Configured or process-random launch-token exchange and persistent signed-cookie verification.
  * Connection loads the credential provider's signing secret during activation
  * and retains it for synchronous request authentication.
  */
 export class BrowserAuth {
-  private readonly launchToken: string
   private readonly maxAgeMilliseconds: number
 
   private constructor(
-    processOwner: object,
+    private readonly launchToken: string,
     private readonly secret: Buffer,
     maxAgeDays: number,
   ) {
-    this.launchToken = processLaunchToken(processOwner)
     this.maxAgeMilliseconds = maxAgeDays * DAY_MILLISECONDS
     if (!Number.isSafeInteger(this.maxAgeMilliseconds)
       || !Number.isSafeInteger(Date.now() + this.maxAgeMilliseconds)) {
@@ -226,14 +228,18 @@ export class BrowserAuth {
    * @param processOwner - root application context retaining one token across Connection reloads.
    * @param credentials - persistent credential provider for the Web profile.
    * @param maxAgeDays - positive absolute browser-cookie lifetime in days.
-   * @returns initialized authentication owner with the process owner's launch token.
+   * @param token - fixed launch token; omitted retains the process owner's random token.
+   * @returns authentication owner using the resolved launch token and durable signing secret.
+   * @throws when an explicit token is empty or the credential record is invalid.
    */
   static async create(
     processOwner: object,
     credentials: CredentialProvider,
     maxAgeDays: number,
+    token?: string,
   ): Promise<BrowserAuth> {
-    return new BrowserAuth(processOwner, await initializeSecret(credentials), maxAgeDays)
+    const launchToken = processLaunchToken(processOwner, token)
+    return new BrowserAuth(launchToken, await initializeSecret(credentials), maxAgeDays)
   }
 
   /**

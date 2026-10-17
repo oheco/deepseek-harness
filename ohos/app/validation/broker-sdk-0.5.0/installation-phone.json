@@ -1,0 +1,14 @@
+{
+  "device": "phone",
+  "networkProxyUsed": true,
+  "hapSha256": "b065286dcc8cc587abb61d684bb326d668534fa4027d49caecbea3b0ace4ca10",
+  "launchPerformed": false,
+  "uiActionsPerformed": false,
+  "observedAt": "2026-10-10T02:17:37.705160+00:00",
+  "hdcHandshakeSucceeded": true,
+  "installSucceeded": true,
+  "bundleName": "org.oheco.deepseekharness",
+  "versionName": "0.2.0-rc.2-ohos.2",
+  "versionCode": 1000006,
+  "updateTime": 1791598662075
+}

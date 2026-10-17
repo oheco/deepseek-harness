@@ -1,0 +1,31 @@
+-- The C compiler identification is Clang 15.0.4
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Detecting C compiler ABI info
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /storage/Users/currentUser/.oheco/bin/clang - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+-- Found Threads: TRUE
+-- Configuring done (5.8s)
+-- Generating done (0.0s)
+-- Build files have been written to: /data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.5.0-6gzvx3qu/remote
+[1/13] Building C object CMakeFiles/ob_remote.dir/ob_json.c.obj
+[2/13] Building C object CMakeFiles/ob_remote.dir/ob_remote.c.obj
+[3/13] Building C object CMakeFiles/ob_remote.dir/ob_auth.c.obj
+[4/13] Building C object CMakeFiles/ob_remote.dir/ob_ws.c.obj
+[5/13] Building C object CMakeFiles/ob_remote.dir/peer/crypto.c.obj
+[6/13] Building C object CMakeFiles/ob_remote.dir/ob_api.c.obj
+[7/13] Building C object CMakeFiles/ob_remote.dir/peer/recovery.c.obj
+[8/13] Building C object CMakeFiles/ob_remote.dir/peer/coordinator.c.obj
+[9/13] Building C object CMakeFiles/ob_remote.dir/peer/control.c.obj
+[10/13] Building C object CMakeFiles/ob_remote.dir/peer/engine.c.obj
+[11/13] Building C object CMakeFiles/ob_remote.dir/peer/target.c.obj
+[12/13] Building C object CMakeFiles/ob_remote.dir/peer/mapping.c.obj
+[13/13] Linking C static library libob_remote.a

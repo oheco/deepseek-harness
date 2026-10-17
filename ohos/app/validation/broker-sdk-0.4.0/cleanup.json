@@ -1,0 +1,11 @@
+{
+  "originalSigningDataUnmodified": true,
+  "transientSigningMaterialsRemoved": true,
+  "transientVerificationOutputsRemoved": true,
+  "cachedProjectUnsigned": true,
+  "ownedHvigorCachesRemoved": true,
+  "removedRawPrivateLogs": 4,
+  "removedCredentialCacheFiles": 0,
+  "removedCredentialCachePaths": [],
+  "artifactPreserved": "/data/storage/el2/base/haps/entry/cache/dsh-broker-sdk4-app-build-cjbq6s0g/artifacts/DSHApp-0.2.0-broker-sdk-0.4.0-signed.hap"
+}

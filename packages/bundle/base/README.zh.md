@@ -27,6 +27,8 @@ kind: "package-bundle"
 
 你会自动获得 dsh 核心：随发行版交付的 `web`、`headless`、`sdk` 与 `acp` profile 已包含它，自定义 profile 则把它列为第一个组合包。之后一切无需任何额外配置即可工作。
 
+鸿蒙默认使用 `danger-full-access`，审批策略为 `never`，因为此移植未实现沙箱。命令使用终端应用的权限运行。显式设置的 `DSH_PERMISSION_MODE` 仍然优先；请求不受支持的隔离模式会失败，不会静默改为无隔离执行。鸿蒙默认禁用会话遥测。
+
 ### 最小自定义 profile
 
 要在共享核心之上构建 profile，请创建一个 profile，其 `package.json` 把 `@deepseek-ai/dsh-base` 列在首位：

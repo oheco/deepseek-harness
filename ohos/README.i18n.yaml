@@ -1,0 +1,19 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write ohos/README.md
+/harmonyos-cli-web-and-app-0-2-0-rc-2-ohos-1:
+  en: 6e81e14699d699f7
+  zh: 75ca2ce04fc77175
+/harmonyos-cli-web-and-app-0-2-0-rc-2-ohos-1/scope:
+  en: 4a08017906340fb5
+  zh: 9fd5056d78415bcf
+/harmonyos-cli-web-and-app-0-2-0-rc-2-ohos-1/install-and-run:
+  en: bdff5df9ed8dc035
+  zh: b2919face9754ea6
+/harmonyos-cli-web-and-app-0-2-0-rc-2-ohos-1/reproduce-the-build:
+  en: c194e6fbdb7ac191
+  zh: 43120397129dafcb
+/harmonyos-cli-web-and-app-0-2-0-rc-2-ohos-1/platform-limitations:
+  en: 55a09030c7b1eca3
+  zh: 56f0e3110ad559dc
