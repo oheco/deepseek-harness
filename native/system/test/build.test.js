@@ -8,7 +8,7 @@ import { test } from 'node:test';
 import { pathToFileURL } from 'node:url';
 import ts from 'typescript';
 
-for (const failure of ['none', 'compile', 'sign', 'copy']) {
+for (const failure of ['none', 'compile', 'strip', 'sign', 'copy']) {
   test(`HarmonyOS build publishes atomically and cleans up (${failure})`, (t) => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'system-build-test-'));
     t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
@@ -37,13 +37,17 @@ for (const failure of ['none', 'compile', 'sign', 'copy']) {
       const exists = fs.existsSync;
       fs.existsSync = (name) => String(name).endsWith('/node_api.h') || exists(name);
       cp.spawnSync = (command, args) => {
-        const signing = command === 'binary-sign-tool';
-        assert.equal(command, signing ? 'binary-sign-tool' : 'clang');
-        const dest = args[args.indexOf(signing ? '-outFile' : '-o') + 1];
+        const step = command === 'binary-sign-tool' ? 'sign' : command === 'llvm-objcopy' ? 'strip' : 'compile';
+        assert.equal(command, { sign: 'binary-sign-tool', strip: 'llvm-objcopy', compile: 'clang' }[step]);
+        const dest = step === 'strip' ? args.at(-1) : args[args.indexOf(step === 'sign' ? '-outFile' : '-o') + 1];
         assert.equal(path.dirname(path.dirname(dest)), process.env.TMPDIR);
-        if (signing) assert.equal(fs.readFileSync(args[args.indexOf('-inFile') + 1], 'utf8'), 'compiled');
-        fs.writeFileSync(dest, signing ? 'signed' : 'compiled');
-        return { status: failure === (signing ? 'sign' : 'compile') ? 1 : 0 };
+        if (step === 'strip') {
+          assert.equal(args[0], '--remove-section=.codesign');
+          assert.equal(fs.readFileSync(args[1], 'utf8'), 'compiled');
+        }
+        if (step === 'sign') assert.equal(fs.readFileSync(args[args.indexOf('-inFile') + 1], 'utf8'), 'unsigned');
+        fs.writeFileSync(dest, { compile: 'compiled', strip: 'unsigned', sign: 'signed' }[step]);
+        return { status: failure === step ? 1 : 0 };
       };
       const copy = fs.copyFileSync;
       fs.copyFileSync = (from, to, flags) => {
@@ -73,7 +77,7 @@ for (const failure of ['none', 'compile', 'sign', 'copy']) {
     assert.equal(result.error, undefined);
     assert.equal(result.signal, null);
     assert.equal(result.status, failure === 'none' ? 0 : 1, result.stderr);
-    if (failure !== 'none') assert.match(result.stderr, /clang failed|signing failed|injected copy failure/);
+    if (failure !== 'none') assert.match(result.stderr, /clang failed|signature normalization failed|signing failed|injected copy failure/);
     assert.equal(fs.readFileSync(output, 'utf8'), failure === 'none' ? 'signed' : 'previous');
     assert.deepEqual(fs.readdirSync(temp), []);
     assert.deepEqual(fs.readdirSync(path.dirname(output)), ['system.node']);

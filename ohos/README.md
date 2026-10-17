@@ -25,6 +25,8 @@ Export App `0.2.1-rc.2-ohos.1` with `oo export deepseek-harness@0.2.1-rc.2-ohos.
 
 Requirements: HarmonyOS PC ARM64, Node.js 24 with development headers, Python 3, SDK Clang and llvm-objcopy, oheco Go `1.27.1-ohos.1` and `binary-sign-tool` on PATH. Pinned tools, archives, digests and licenses live under `tpr/ohos-build-tools`, including pnpm. VitePress uses unchanged esbuild-wasm 0.21.5 for its locked 0.21.5 compiler through the local dependency copy; other build tools retain their pinned HarmonyOS/WASM packages. Tool preparation builds the locked oxlint-tsgolint 7.0.2001 backend natively from the complete pinned Go source and dependency archives. Preparation removes any existing signing section from a private output copy before signing it through binary-sign-tool. The input manifest records its filesystem-case adaptation. Preparation leaves TypeScript-Go compiler golden outputs in the verified full archive without unpacking them; source, bundled declarations, diagnostics and vendored dependencies remain in the build workspace. Prefetch the lockfile dependencies through the configured proxy, then build offline; do not reuse another version's node_modules.
 
+Host and Client compilation and bundling use upstream library build steps, with the desktop bundle excluded. Run `build:check` after these artifacts exist to check the aggregate test and script programs.
+
 ```sh
 python3 ohos/prepare-runtime.py
 python3 ohos/update-workspace-lock.py

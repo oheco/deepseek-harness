@@ -22,6 +22,7 @@ This record covers the `0.2.1-rc.2-ohos.1` port. [release.json](release.json) ow
 | Native flock and independent oracle | Pending |
 | App native diagnostics | Two independent C++ logger tests compiled with warnings enabled, stripped of the linker's initial codesign section, signed with binary-sign-tool and executed successfully; temporary inputs cleaned |
 | Native broker localhost suite | Final build/sign/run passed, including expired access, persistent reply loss, durable pending journal, exact restart replay, TLS roots/rejection, cancellation and cookie probe; two overlapping isolated runs passed and altered-journal negative control failed as expected |
+| Broker-to-Web runner | Updated to isolated DSH_021_HOME/PORT and private-copy fixture signature normalization; live mapping check pending |
 | App project export and standalone ArkTS | 22/22 project tests passed; current installed SDK checker reported 0 errors with product API 23 (existing SDK/NAPI/deprecation/permission warnings retained) |
 | Host/Client/Web build and build:check | Pending |
 | Native lint tool build/signing | Go source build passed; revised private-copy signature normalization passed; final AArch64 ELF has one codesign section, 20,997,184 bytes, SHA-256 `f156a3129d524d76b9804a67b571c2c137be273c5561744a2cc38c2943620456`; behavioral lint checks pending |

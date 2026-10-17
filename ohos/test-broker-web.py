@@ -307,7 +307,7 @@ def environment(directory):
            if not key.startswith(('DSH_', 'DEEPSEEK_', 'ANTHROPIC_', 'OPENAI_'))
            and not re.search('KEY|TOKEN|SECRET|PASSWORD', key, re.I)
            and key not in ('NODE_OPTIONS', 'NODE_PATH', 'BROWSER', 'EDITOR', 'VISUAL')}
-    env.update(TMPDIR=str(directory), DSH_020_HOME=str(directory / 'dsh-home'), DSH_020_PORT='0',
+    env.update(TMPDIR=str(directory), DSH_021_HOME=str(directory / 'dsh-home'), DSH_021_PORT='0',
                NO_PROXY='127.0.0.1,localhost', no_proxy='127.0.0.1,localhost')
     return env
 
@@ -315,8 +315,13 @@ def environment(directory):
 def exercise(args, directory, children, result):
     result['phase'] = 'sign-fixture'
     env = environment(directory)
+    unsigned_fixture = directory / 'control-fixture.unsigned'
+    stripper, _log = children.start('strip', ['llvm-objcopy', '--remove-section=.codesign',
+                                              str(args.control_fixture), str(unsigned_fixture)], env)
+    require(wait_exit(stripper, 30, 'fixture signature normalization timed out; check llvm-objcopy') == 0,
+            'fixture signature normalization failed; check the LLVM tools PATH')
     signed_fixture = directory / 'control-fixture'
-    signer, _log = children.start('sign', ['binary-sign-tool', 'sign', '-inFile', str(args.control_fixture),
+    signer, _log = children.start('sign', ['binary-sign-tool', 'sign', '-inFile', str(unsigned_fixture),
                                           '-outFile', str(signed_fixture), '-selfSign', '1'], env)
     require(wait_exit(signer, 30, 'fixture signing timed out; check binary-sign-tool') == 0,
             'fixture signing failed; check binary-sign-tool and the current fixture binary')
@@ -328,7 +333,7 @@ def exercise(args, directory, children, result):
                                         '--port', '0', '--token', token], env)
     web_port = wait_port(web, web_log, WEB_READY, 90,
                          'DSH Web was not ready within 90 seconds; rebuild the independent runtime')
-    require((directory / 'dsh-home').is_dir(), 'launcher did not create isolated DSH_020_HOME state')
+    require((directory / 'dsh-home').is_dir(), 'launcher did not create isolated DSH_021_HOME state')
     result['isolated_web_ready'] = True
 
     result['phase'] = 'control-startup'
