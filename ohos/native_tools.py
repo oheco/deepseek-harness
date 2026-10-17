@@ -178,8 +178,5 @@ def build_tsgolint(package):
                         '-trimpath', '-o', str(binary), './cmd/tsgolint'], cwd=source, env=env, check=True)
     if binary.read_bytes()[:4] != b'\x7fELF':
         raise ValueError('tsgolint native build did not produce an ELF executable')
-    signed = binary.with_name(binary.name + '.signed')
-    subprocess.run(['binary-sign-tool', 'sign', '-inFile', str(binary), '-outFile', str(signed),
-                    '-selfSign', '1'], check=True)
-    os.replace(signed, binary)
+    # The pinned native Go toolchain signs its final link output through binary-sign-tool.
     binary.chmod(0o755)

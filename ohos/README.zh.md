@@ -23,7 +23,7 @@ DSH_HOME="${XDG_CONFIG_HOME:?}/deepseek-harness" dsh web --host 127.0.0.1 --port
 
 ## 重现构建
 
-需要鸿蒙 PC ARM64、Node.js 24 及开发头文件、Python 3、SDK Clang、oheco Go `1.27.1-ohos.1`、PATH 中的 `binary-sign-tool`。固定工具、归档、摘要及许可在 `tpr/ohos-build-tools`，含 pnpm。VitePress 锁定的 0.21.5 编译器在本地依赖副本中接入原样 esbuild-wasm 0.21.5；其他构建工具保留固定的鸿蒙/WASM 包。工具准备阶段从完整固定的 Go 源码及依赖归档原生构建锁定的 oxlint-tsgolint 7.0.2001 后端，再签名私有副本；输入清单记录其文件系统大小写适配。准备阶段不展开 TypeScript-Go 编译器的预期输出，但完整校验归档仍保留这些文件；构建目录保留源码、内嵌声明、诊断和 vendor 依赖。通过配置的代理预取锁定依赖后离线构建，不复用其他版本的 node_modules。
+需要鸿蒙 PC ARM64、Node.js 24 及开发头文件、Python 3、SDK Clang、oheco Go `1.27.1-ohos.1`、PATH 中的 `binary-sign-tool`。固定工具、归档、摘要及许可在 `tpr/ohos-build-tools`，含 pnpm。VitePress 锁定的 0.21.5 编译器在本地依赖副本中接入原样 esbuild-wasm 0.21.5；其他构建工具保留固定的鸿蒙/WASM 包。工具准备阶段从完整固定的 Go 源码及依赖归档原生构建锁定的 oxlint-tsgolint 7.0.2001 后端，由原生 Go 工具链调用 binary-sign-tool 签名输出；输入清单记录其文件系统大小写适配。准备阶段不展开 TypeScript-Go 编译器的预期输出，但完整校验归档仍保留这些文件；构建目录保留源码、内嵌声明、诊断和 vendor 依赖。通过配置的代理预取锁定依赖后离线构建，不复用其他版本的 node_modules。
 
 ```sh
 python3 ohos/prepare-runtime.py
