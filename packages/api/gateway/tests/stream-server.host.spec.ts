@@ -81,6 +81,74 @@ describe('Remote stream mux server carrier lifecycle', () => {
     await vi.waitFor(() => { expect(terminated).toHaveBeenCalledOnce() })
   })
 
+  it('counts incoming Ping frames as liveness while Pong is delayed', async () => {
+    const entry = await startMux(async (_endpoint, _payload, _uplink, _peer, control) => waitForAbort(control.signal), 20)
+    const client = await connect(entry.url, false)
+    const terminated = vi.spyOn(acceptedSocket(entry.mux), 'terminate')
+    const traffic = setInterval(() => { client.ping() }, 5)
+    try {
+      await pings(client, 4)
+      expect(terminated).not.toHaveBeenCalled()
+    } finally {
+      clearInterval(traffic)
+    }
+    await vi.waitFor(() => { expect(terminated).toHaveBeenCalledOnce() })
+  })
+
+  it('preserves Unicode and logical messages across bounded data fragments', async () => {
+    const text = '汉🚀'.repeat(257)
+    const entry = await startMux(async () => (async function *() {
+      yield text
+      yield 'after'
+    })(), 2_000, 262_144, undefined, 32)
+    const client = await connect(entry.url)
+    const sending = vi.spyOn(acceptedSocket(entry.mux), 'send')
+    const received: unknown[] = []
+    const messagesAtPing: number[] = []
+    client.on('ping', () => { messagesAtPing.push(received.length) })
+    client.on('message', (data) => {
+      if (!Buffer.isBuffer(data)) throw new Error('fixture WebSocket did not deliver a Buffer')
+      received.push(JSON.parse(data.toString('utf8')))
+    })
+    client.send(openFrame('fragmented'))
+    await vi.waitFor(() => {
+      expect(received).toEqual([
+        { type: 'item', streamId: 'fragmented', value: text },
+        { type: 'item', streamId: 'fragmented', value: 'after' },
+        { type: 'end', streamId: 'fragmented' },
+      ])
+    })
+    expect(messagesAtPing).toContain(0)
+    const fragments = sending.mock.calls.filter(([data]) => Buffer.isBuffer(data))
+    expect(fragments.length).toBeGreaterThan(3)
+    expect(fragments.every(([data]) => Buffer.isBuffer(data) && data.length <= 32)).toBe(true)
+    expect(fragments[0]?.[1]).toMatchObject({ binary: false, fin: false })
+    expect(fragments.at(-1)?.[1]).toMatchObject({ binary: false, fin: true })
+  })
+
+  it('terminates a peer that stops consuming a fragmented message and returns its iterator', async () => {
+    let returned = false
+    const entry = await startMux(async () => (async function *() {
+      try {
+        yield 'x'.repeat(4 * 1024 * 1024)
+      } finally {
+        returned = true
+      }
+    })(), 20)
+    const client = await connect(entry.url)
+    const terminated = vi.spyOn(acceptedSocket(entry.mux), 'terminate')
+    const closed = once(client, 'close')
+    client.pause()
+    client.send(openFrame('stalled'))
+    try {
+      await vi.waitFor(() => { expect(terminated).toHaveBeenCalledOnce() })
+      await vi.waitFor(() => { expect(returned).toBe(true) })
+    } finally {
+      client.resume()
+    }
+    await closed
+  })
+
   it('counts a downlink write that waited in the send buffer as liveness', async () => {
     const stop = Promise.withResolvers<undefined>()
     const entry = await startMux(async () => steadyItems(stop.promise), 20)
@@ -590,9 +658,10 @@ async function startMux(
   heartbeatIntervalMs = 2_000,
   streamInboxBytes = 262_144,
   peer?: PeerScope,
+  fragmentBytes = 65_536,
 ): Promise<RunningMux> {
   const admitted = peer ?? await fixturePeer()
-  const mux = new RemoteStreamMuxServer(open, mapFailure, heartbeatIntervalMs, streamInboxBytes)
+  const mux = new RemoteStreamMuxServer(open, mapFailure, heartbeatIntervalMs, streamInboxBytes, fragmentBytes)
   const http = createServer()
   http.on('upgrade', (request, socket, head) => { mux.handleUpgrade(request, socket, head, admitted) })
   await new Promise<void>((resolve, reject) => {

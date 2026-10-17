@@ -53,12 +53,14 @@ export class RemoteStreamMuxServer {
    * @param failure - Gateway error-to-wire mapper.
    * @param heartbeatIntervalMs - interval between WebSocket Ping control frames.
    * @param streamInboxBytes - buffered uplink frame bytes one logical stream may hold before it fails.
+   * @param fragmentBytes - maximum payload bytes per outgoing data fragment.
    */
   constructor(
     private readonly open: RemoteStreamOpener,
     private readonly failure: RemoteStreamFailureMapper,
     private readonly heartbeatIntervalMs: number,
     private readonly streamInboxBytes: number,
+    private readonly fragmentBytes: number,
   ) {}
 
   /**
@@ -79,7 +81,7 @@ export class RemoteStreamMuxServer {
       this.startHeartbeat()
       const bound: BoundStreamOpener = (endpoint, payload, uplink, control, window) =>
         this.open(endpoint, payload, uplink, peer, control, window)
-      const connection = new RemoteStreamMuxConnection(websocket, bound, this.failure, this.streamInboxBytes, alive)
+      const connection = new RemoteStreamMuxConnection(websocket, bound, this.failure, this.streamInboxBytes, this.fragmentBytes, alive)
       const done = connection.run().catch((error: unknown) => {
         console.error('[api-gateway] Remote stream connection failed:', error)
       }).then(async () => { await release() }).catch((error: unknown) => {
@@ -144,6 +146,7 @@ class RemoteStreamMuxConnection {
     private readonly open: BoundStreamOpener,
     private readonly failure: RemoteStreamFailureMapper,
     private readonly streamInboxBytes: number,
+    private readonly fragmentBytes: number,
     private readonly alive: () => void,
   ) {}
 
@@ -159,6 +162,7 @@ class RemoteStreamMuxConnection {
       this.socket.once('close', resolve)
       this.socket.once('error', () => { this.socket.terminate() })
       this.socket.on('pong', this.alive)
+      this.socket.on('ping', this.alive)
       this.socket.on('message', (data, isBinary) => {
         this.alive()
         if (isBinary) {
@@ -294,26 +298,45 @@ class RemoteStreamMuxConnection {
     } catch (cause) {
       return Promise.reject(new Error('api gateway: Remote stream item is not JSON serializable', { cause }))
     }
-    const delivery = this.writes.then(() => new Promise<void>((resolve, reject) => {
+    const delivery = this.writes.then(async () => {
+      if (Buffer.byteLength(text) <= this.fragmentBytes) {
+        await this.writeFragment(text, true)
+        return
+      }
+      const bytes = Buffer.from(text)
+      for (let offset = 0; offset < bytes.length; offset += this.fragmentBytes) {
+        const end = Math.min(offset + this.fragmentBytes, bytes.length)
+        await this.writeFragment(bytes.subarray(offset, end), end === bytes.length)
+        // Queue probes between fragments before later data enters the kernel backlog.
+        if (end < bytes.length && this.socket.readyState === WebSocket.OPEN) this.socket.ping()
+      }
+    })
+    this.writes = delivery.catch(() => undefined)
+    return delivery
+  }
+
+  private writeFragment(data: string | Buffer, final: boolean): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
       if (this.socket.readyState !== WebSocket.OPEN) {
         reject(new Error('api gateway: Remote stream socket is closed'))
         return
       }
       let queued = false
-      this.socket.send(text, (error) => {
+      const written = (error?: Error): void => {
         if (error) {
+          // A partial text message cannot carry a later Remote failure safely.
+          if (Buffer.isBuffer(data)) this.socket.terminate()
           reject(error)
           return
         }
         if (queued) this.alive()
         resolve()
-      })
-      // Read after send(): bytes still buffered mean the local send buffer was
-      // full, so their completion requires the peer to acknowledge data.
+      }
+      if (typeof data === 'string') this.socket.send(data, written)
+      else this.socket.send(data, { binary: false, fin: final }, written)
+      // A completed write that waited in the local send buffer proves progress.
       queued = this.socket.bufferedAmount > 0
-    }))
-    this.writes = delivery.catch(() => undefined)
-    return delivery
+    })
   }
 }
 
