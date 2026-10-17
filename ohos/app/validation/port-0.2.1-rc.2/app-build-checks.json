@@ -8,6 +8,7 @@
   "origin_filter_negative_controls": { "mutations_rejected": 2, "production_source_mutated": false },
   "native_logger_tests": { "passed": 2, "compiled_on_host": true, "signed": true, "executed": true, "temporary_inputs_cleaned": true },
   "project_export_tests": { "passed": 22, "failed": 0 },
+  "native_broker_tests": { "final_exit_code": 0, "original_one_shot_reply_loss_failure_reproduced": true, "persistent_loss_and_exact_restart_replay_passed": true, "altered_pending_journal_rejected": true, "overlapping_isolated_processes_passed": 2, "production_source_changed": false, "broker_sdk_changed": false },
   "standalone_arkts": { "exit_code": 0, "reported_errors": 0, "warnings_retained": true, "configured_product_sdk": "6.1.0(23)", "checker_sdk": "command-line-tools 26.0.0.201" },
   "hap_build": {
     "fresh_build": true,
