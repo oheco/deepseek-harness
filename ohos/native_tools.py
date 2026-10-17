@@ -178,5 +178,14 @@ def build_tsgolint(package):
                         '-trimpath', '-o', str(binary), './cmd/tsgolint'], cwd=source, env=env, check=True)
     if binary.read_bytes()[:4] != b'\x7fELF':
         raise ValueError('tsgolint native build did not produce an ELF executable')
-    # The pinned native Go toolchain signs its final link output through binary-sign-tool.
+    # Go and SDK link modes may retain a signing section; normalize only private copies.
+    if binary.is_symlink():
+        raise ValueError('tsgolint build output must be a regular private file')
+    with tempfile.TemporaryDirectory(prefix='tsg-sign-', dir=os.environ['TMPDIR']) as signing:
+        unsigned = Path(signing) / 'unsigned'
+        signed = Path(signing) / 'signed'
+        subprocess.run(['llvm-objcopy', '--remove-section=.codesign', str(binary), str(unsigned)], check=True)
+        subprocess.run(['binary-sign-tool', 'sign', '-inFile', str(unsigned), '-outFile', str(signed),
+                        '-selfSign', '1'], check=True)
+        shutil.copyfile(signed, binary)
     binary.chmod(0o755)

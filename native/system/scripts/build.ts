@@ -87,8 +87,12 @@ for (const name of readdirSync(join(root, 'packages')).sort()) {
       if (result.status !== 0) throw new Error(`build: ${compiler} failed for ${binary.path}`)
       let payload = compiled
       if (platform === 'openharmony') {
+        const unsigned = compiled + '.unsigned'
+        const stripped = spawnSync('llvm-objcopy', ['--remove-section=.codesign', compiled, unsigned], { stdio: 'inherit' })
+        if (stripped.error) throw new Error('build: llvm-objcopy could not run; check the LLVM tools PATH', { cause: stripped.error })
+        if (stripped.status !== 0) throw new Error('build: HarmonyOS addon signature normalization failed')
         payload = compiled + '.signed'
-        const signature = spawnSync('binary-sign-tool', ['sign', '-inFile', compiled, '-outFile', payload, '-selfSign', '1'], { stdio: 'inherit' })
+        const signature = spawnSync('binary-sign-tool', ['sign', '-inFile', unsigned, '-outFile', payload, '-selfSign', '1'], { stdio: 'inherit' })
         if (signature.error) throw new Error('build: binary-sign-tool could not run; check the LLVM tools PATH', { cause: signature.error })
         if (signature.status !== 0) throw new Error('build: HarmonyOS addon signing failed')
       }

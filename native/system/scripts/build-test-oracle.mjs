@@ -26,8 +26,12 @@ for (const variant of variants) {
     if (result.status !== 0) throw new Error(`${compiler} failed to build the flock oracle`);
     if (process.platform === 'openharmony') {
       if (!process.env.XDG_CACHE_HOME) throw new Error('HarmonyOS oracle requires application-private XDG_CACHE_HOME');
+      const unsigned = pending + '.unsigned';
+      const stripped = spawnSync('llvm-objcopy', ['--remove-section=.codesign', pending, unsigned], { stdio: 'inherit' });
+      if (stripped.error) throw stripped.error;
+      if (stripped.status !== 0) throw new Error('HarmonyOS oracle signature normalization failed');
       const signed = pending + '.signed';
-      const signature = spawnSync('binary-sign-tool', ['sign', '-inFile', pending, '-outFile', signed, '-selfSign', '1'], { stdio: 'inherit' });
+      const signature = spawnSync('binary-sign-tool', ['sign', '-inFile', unsigned, '-outFile', signed, '-selfSign', '1'], { stdio: 'inherit' });
       if (signature.error) throw signature.error;
       if (signature.status !== 0) throw new Error('HarmonyOS oracle signing failed');
       // Shared HOME ignores executable chmod; execute the private cached binary.

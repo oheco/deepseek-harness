@@ -34,7 +34,7 @@ Linux x64/arm64 包包含静态 Landlock 可执行文件，以及分别用于 gl
 
 在本目录运行 `pnpm build:ts` 构建入口、`pnpm build:native` 构建当前宿主声明的原生产物、`pnpm build:test-oracle` 构建独立的 flock 系统调用 fixture（测试前置数据）。随后用 `pnpm test` 验证入口、锁、打包及可用的内核行为。Linux 完整构建需要 musl-gcc；macOS 使用 cc。根目录 `pnpm run build:native-system` 只构建源码测试所需的当前宿主 addon。
 
-鸿蒙上使用 Node 24 及其开发头文件，在仓库根目录运行 `node native/system/scripts/build.ts --host-addon-only`。将 `clang` 和 `binary-sign-tool` 加入 PATH（缺失时检查 LLVM 工具目录的 PATH），并将 `TMPDIR` 指向应用私有临时存储。编译与签名目录在成功或失败后均清理；产物先复制到目标旁的唯一 pending 文件再重命名，因此 TMPDIR 与源码位于不同文件系统时也可安全替换。
+鸿蒙上使用 Node 24 及其开发头文件，在仓库根目录运行 `node native/system/scripts/build.ts --host-addon-only`。将 `clang`、`llvm-objcopy` 和 `binary-sign-tool` 加入 PATH（缺失时检查 LLVM 工具目录的 PATH），并将 `TMPDIR` 指向应用私有临时存储。准备阶段先在临时副本中移除 SDK 链接器的初始 codesign 段，再完成最终签名。编译与签名目录在成功或失败后均清理；产物先复制到目标旁的唯一 pending 文件再重命名，因此 TMPDIR 与源码位于不同文件系统时也可安全替换。
 
 鸿蒙锁测试覆盖原生回调、worker、进程以及独立 C oracle。oracle 使用 SDK Clang 构建并由 `binary-sign-tool` 签名，从 `$XDG_CACHE_HOME` 执行，因为共享 HOME 的可执行 chmod 无效。测试临时目录使用 `$TMPDIR`。
 
