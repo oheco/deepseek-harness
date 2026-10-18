@@ -193,7 +193,7 @@ function mount(
   /** Owner share handed to the two composer tool-row seats, per render. */
   const seatOwners: { key: string; owner: unknown }[] = []
   let pickerOwner: unknown
-  const renderSlot = ((key: string, owner: object, opts?: { only?: string; fallback?: ReactNode }) => {
+  const routeSlot = (key: string, owner: object, opts?: { only?: string; fallback?: ReactNode }): ReactNode => {
     slotCalls.push(key)
     if (key === 'conversation.input.model' || key === 'conversation.input.plan') {
       seatOwners.push({ key, owner })
@@ -310,7 +310,8 @@ function mount(
       )
     }
     return <div data-testid={`view-${opts?.only ?? key}`} />
-  }) as ConversationContentProps['renderSlot']
+  }
+  const renderSlot = routeSlot as ConversationContentProps['renderSlot']
   const renderSlotChain = ((_key, _owner, opts) => (
     options.overlayTakeover === true
       ? (
@@ -327,6 +328,7 @@ function mount(
   const renderFactorySlot = ((_name: string, input: ConversationContentInputProps, factoryOptions?: {
     slots?: Record<string, (props: never) => ReactNode>
   }) => {
+    if (_name === 'conversation.header.content') return routeSlot('conversation.header', {})
     const common: ConversationViewsProps = {
       sessionId: SID,
       SessionProvider,
@@ -360,7 +362,7 @@ function mount(
       </FactoryViewsTestContext.Provider>
     )
   }) as ConversationSlotProps['renderFactorySlot']
-  const runtimeProps: PropsRuntime<'main.conversation'> & Pick<ConversationSlotProps, 'SessionProvider'> = {
+  const runtimeProps: PropsRuntime<'main.conversation'> & Pick<ConversationContentProps, 'SessionProvider'> = {
     usePanelInfo: selector => selector({ activePanelId: null }),
     sessionId,
     SessionProvider,
@@ -376,7 +378,7 @@ function mount(
     useInput,
     inputActions,
   }
-  const props: ConversationSlotProps = { ...runtimeProps, renderSlot, renderFactorySlot }
+  const props: ConversationSlotProps = { ...runtimeProps, renderFactorySlot }
   const view = render(<ConversationMainPanel {...props} />)
   return {
     view, store, wiring, sink, retargetWorkspace, session, conversation, slotCalls, lineageOwners, seatOwners, open,

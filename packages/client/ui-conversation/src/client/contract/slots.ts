@@ -299,6 +299,13 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
   }
 
   interface SlotFactoryMap {
+    /** Native navigation, View selection, and contributed header controls for the inherited Session. */
+    'conversation.header.content': {
+      scope: 'session-maybe'
+      children: {
+        'conversation.header': { kind: 'single'; scope: 'session-maybe' }
+      }
+    }
     /** Reusable Conversation content instantiated by presentation hosts. */
     'conversation.content': {
       scope: 'session-maybe'
@@ -528,8 +535,10 @@ export interface HeroBrandMarkOwnerProps {
 /** Full props of the resident optional-Session Conversation shell. */
 export type ConversationSlotProps =
   PropsRuntime<'main.conversation'>
-  & PropsRenderSlots<'conversation.header'>
   & PropsRenderFactories
+
+/** Full props of the reusable native header occurrence. */
+export type ConversationHeaderContentProps = FactoryComponentPropsOf<'conversation.header.content'>
 
 /** Inputs shared by main and embedded Conversation content occurrences. */
 export interface ConversationContentInputProps {

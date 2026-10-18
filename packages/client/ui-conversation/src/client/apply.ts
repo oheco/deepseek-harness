@@ -40,6 +40,7 @@ import { ConversationRoot } from './skeleton/ConversationRoot.tsx'
 import { ConversationContent } from './skeleton/ConversationContent.tsx'
 import { ConversationPanel } from './skeleton/ConversationPanel.tsx'
 import { ConversationHeader } from './skeleton/ConversationHeader.tsx'
+import { ConversationHeaderContent } from './skeleton/ConversationHeaderContent.tsx'
 import { ConversationSession, ConversationSessionHeader } from './skeleton/ConversationSession.tsx'
 import { InputBar } from './skeleton/InputBar.tsx'
 import { todoDockEntry } from './skeleton/TodoPanel.tsx'
@@ -328,10 +329,15 @@ export function apply(ctx: Context, config: Config = Config({})): void {
 
   const registerConversationRoot = () => slots.register({
     name: 'main.conversation',
+  }, ConversationRoot)
+
+  const registerConversationHeaderContent = () => slots.registerFactory({
+    name: 'conversation.header.content',
+    scope: 'session-maybe',
     children: {
       'conversation.header': { kind: 'single', scope: 'session-maybe' },
     },
-  }, ConversationRoot)
+  }, ConversationHeaderContent)
 
   const registerConversationContent = () => slots.registerFactory({
     name: 'conversation.content',
@@ -564,6 +570,7 @@ export function apply(ctx: Context, config: Config = Config({})): void {
       children: { 'main.conversation': { kind: 'single', scope: 'session-maybe' } },
     }, ConversationPanel)
     yield registerConversationRoot()
+    yield registerConversationHeaderContent()
     yield registerConversationContent()
     yield registerConversationSession()
     yield registerHeader()

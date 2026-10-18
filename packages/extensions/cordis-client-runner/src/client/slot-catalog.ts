@@ -741,7 +741,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     keyDomain: '',
     hookContext: '',
     slotInject: '',
-    declaredBy: 'an entry in \'main.conversation\' (client-ui-conversation), so it exists while that entry is mounted',
+    declaredBy: 'factory \'conversation.header.content\' (client-ui-conversation), so it exists while that definition is registered',
     occupants: [
       'client-ui-conversation ConversationHeader',
     ],
