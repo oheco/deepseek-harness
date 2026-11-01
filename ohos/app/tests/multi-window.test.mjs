@@ -6,7 +6,7 @@ import vm from 'node:vm';
 import test from 'node:test';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
-import { cryptoFramework, LocalStorage } from './harmony-mocks.mjs';
+import { cryptoFramework, ListScroller, LocalStorage } from './harmony-mocks.mjs';
 
 const require = createRequire(import.meta.url);
 const ts = require('typescript');
@@ -108,7 +108,7 @@ function app() {
     assert.equal(emitted.diagnostics?.length ?? 0, 0);
     const exports = {};
     cache.set(relative, exports);
-    vm.runInNewContext(emitted.outputText, { exports, URL, NavPathStack, LocalStorage, AppStorage: { setOrCreate() {} },
+    vm.runInNewContext(emitted.outputText, { exports, URL, NavPathStack, ListScroller, LocalStorage, AppStorage: { setOrCreate() {} },
       getContext: component => component.testContext,
       $r: name => ({ name, id: 1 }), setInterval: () => 1, clearInterval() {},
       require(name) {
@@ -284,6 +284,35 @@ test('a window that is still opening a connection makes other windows switch ins
   assert.equal(h.calls.filter(call => call[0] === 'connect').length, 1);
   assert.equal(h.started.length, 1);
   assert.equal(h.registry.session(first.channel).pendingId, '', 'a finished open clears its claim');
+});
+
+test('swipe and right-click actions offer New window or Switch to window at every width, and Disconnect stays on the row', async () => {
+  const h = app();
+  const first = h.launch();
+  const second = h.launch({ parameters: { dshNewWindow: true } });
+  const page = second.home();
+  await ready(page);
+  const [a, b, c] = [remoteConnection(h, 'a', 3080), remoteConnection(h, 'b', 3081), remoteConnection(h, 'c', 3082)];
+  await page.store.update(() => [a, b, c]);
+  page.viewportWidth = 360;
+  h.registry.hold(first.channel, 'b');
+  page.heldElsewhere = h.registry.heldElsewhere(second.channel);
+  page.retainedConnectionId = 'c';
+  const actions = connection => Array.from(page.rowActions(connection), action => [action.label.name, action.enabled]);
+  assert.deepEqual(actions(a), [['app.string.open_new_window', true], ['app.string.edit_connection', true]], 'a phone-width list keeps New window');
+  assert.deepEqual(actions(b), [['app.string.switch_window', true], ['app.string.edit_connection', false]]);
+  assert.deepEqual(actions(c), [['app.string.edit_connection', true]], 'the connection open here is disconnected from its row');
+  page.busy = true;
+  assert.deepEqual(actions(a), [['app.string.open_new_window', false], ['app.string.edit_connection', false]]);
+  assert.deepEqual(actions(b), [['app.string.switch_window', true], ['app.string.edit_connection', false]], 'switching never waits for this window');
+  page.busy = false;
+  page.runRowAction(page.rowActions(b)[0]);
+  await settle();
+  assert.deepEqual(h.started.at(-1).parameters, { dshWindowKey: first.key });
+  page.runRowAction(page.rowActions(a)[0]);
+  await page.pendingWork;
+  assert.equal(h.started.at(-1).parameters.dshOpenConnection, 'a');
+  assert.equal(page.listScroller.collapsed, 2, 'each action collapses the revealed swipe actions');
 });
 
 test('Open in new window creates a window that opens the saved connection after loading the list', async () => {

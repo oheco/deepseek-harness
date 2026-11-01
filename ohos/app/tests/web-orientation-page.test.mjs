@@ -6,7 +6,7 @@ import vm from 'node:vm';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
-import { cryptoFramework, LocalStorage } from './harmony-mocks.mjs';
+import { cryptoFramework, ListScroller, LocalStorage } from './harmony-mocks.mjs';
 
 const require = createRequire(import.meta.url);
 const ts = require('typescript');
@@ -122,7 +122,7 @@ function harness() {
     assert.equal(emitted.diagnostics?.length ?? 0, 0, 'source behavior projection emits without parser recovery');
     const exports = {};
     cache.set(filename, exports);
-    const scope = { exports, URL, NavPathStack, LocalStorage, AppStorage: { setOrCreate() {} }, getContext: () => context,
+    const scope = { exports, URL, NavPathStack, ListScroller, LocalStorage, AppStorage: { setOrCreate() {} }, getContext: () => context,
       $r: name => ({ name, id: 1 }), webview: { WebviewController }, native,
       loopbackOrigin: relative === 'pages/Index' ? load('launcher/RunLogUrl').loopbackOrigin : undefined,
       WEB_VIEW_ACTIVE_EVENT: relative === 'pages/Index' ? load('launcher/WebOrientation').WEB_VIEW_ACTIVE_EVENT : undefined,

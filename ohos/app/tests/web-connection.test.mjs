@@ -7,7 +7,7 @@ import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import test from 'node:test';
-import { cryptoFramework, LocalStorage, windowStorage } from './harmony-mocks.mjs';
+import { cryptoFramework, ListScroller, LocalStorage, windowStorage } from './harmony-mocks.mjs';
 
 const require = createRequire(import.meta.url);
 const ts = require('typescript');
@@ -265,7 +265,7 @@ function harness({ callbackThrows = false } = {}) {
     const exports = {};
     cache.set(relative, exports);
     const index = relative === 'pages/Index';
-    const scope = { exports, URL, NavPathStack, LocalStorage, native, getContext: () => context,
+    const scope = { exports, URL, NavPathStack, ListScroller, LocalStorage, native, getContext: () => context,
       $r: (name, ...params) => ({ name, id: 1, params }), webview: mocks['@ohos.web.webview'],
       setInterval(callback) { const id = ++nextTimer; timers.set(id, { kind: 'interval', callback }); return id; },
       setTimeout(callback) { const id = ++nextTimer; timers.set(id, { kind: 'timeout', callback }); return id; },

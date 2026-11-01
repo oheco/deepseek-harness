@@ -49,6 +49,13 @@ class BrokerIdentitySnapshot {
   peerPassword: string = '';
 }
 
+/** A saved connection's secondary action, shown both when its row is swiped left and in its right-click menu. */
+interface ConnectionRowAction {
+  label: Resource;
+  enabled: boolean;
+  run: () => void;
+}
+
 /** Insert or replace `connection` in the committed list, moving a renewed managed login to its other connections. */
 function withSavedConnection(committed: ConnectionProfile[], connection: ConnectionProfile): ConnectionProfile[] {
   const next = committed.filter((item: ConnectionProfile) => item.id !== connection.id)
@@ -115,6 +122,7 @@ export struct ConnectionHome {
   private editingId: string = '';
   private store: ConnectionStore = new ConnectionStore();
   @State private paths: NavPathStack = new NavPathStack();
+  private listScroller: ListScroller = new ListScroller();
   private identityBeforeEdit: BrokerIdentitySnapshot | undefined = undefined;
   private generation: number = 0;
   private attached: boolean = false;
@@ -792,6 +800,32 @@ export struct ConnectionHome {
     }
   }
 
+  /** Secondary actions for `connection` in display order; Open and Disconnect stay on the row itself. */
+  private rowActions(connection: ConnectionProfile): ConnectionRowAction[] {
+    const heldElsewhere = this.heldElsewhere.includes(connection.id);
+    const actions: ConnectionRowAction[] = [];
+    if (heldElsewhere) {
+      actions.push({ label: $r('app.string.switch_window'), enabled: true,
+        run: () => { this.switchToHolder(connection); } });
+    } else if (this.retainedConnectionId !== connection.id) {
+      actions.push({ label: $r('app.string.open_new_window'), enabled: !this.busy,
+        run: () => this.runTask(() => this.openNewWindow(connection)) });
+    }
+    actions.push({ label: $r('app.string.edit_connection'), enabled: !this.busy && !heldElsewhere,
+      run: () => this.editConnection(connection) });
+    return actions;
+  }
+
+  /** Collapse revealed swipe actions before running `action`, so a returning page shows closed rows. */
+  private runRowAction(action: ConnectionRowAction): void {
+    try {
+      this.listScroller.closeAllSwipeActions();
+    } catch (unboundList) {
+      // A scroller not yet bound to the List has no revealed swipe actions; the action still runs.
+    }
+    action.run();
+  }
+
   private async openConnection(connection: ConnectionProfile): Promise<void> {
     if (this.busy) {
       connectionDiagnostic('home.open_busy', { generation: this.generation });
@@ -988,23 +1022,34 @@ export struct ConnectionHome {
       .backgroundColor(Color.Transparent).borderRadius(12)
       .enabled(!this.busy).onClick(() => this.runTask(() => this.openConnection(connection)))
       if (this.retainedConnectionId === connection.id) {
-        Button($r('app.string.disconnect_connection')).fontSize(13).height(40)
+        Button($r('app.string.disconnect_connection')).fontSize(13).height(40).margin({ right: 12 })
           .backgroundColor($r('app.color.canvas')).fontColor($r('app.color.ink'))
           .enabled(!this.busy).onClick(() => this.runTask(() => this.disconnectSaved(connection.id)))
-      } else if (this.heldElsewhere.includes(connection.id)) {
-        Button($r('app.string.switch_window')).fontSize(13).height(40)
-          .backgroundColor($r('app.color.canvas')).fontColor($r('app.color.ink'))
-          .onClick(() => { this.switchToHolder(connection); })
-      } else if (this.viewportWidth >= 600) {
-        Button($r('app.string.open_new_window')).fontSize(13).height(40)
-          .backgroundColor($r('app.color.canvas')).fontColor($r('app.color.ink'))
-          .enabled(!this.busy).onClick(() => this.runTask(() => this.openNewWindow(connection)))
       }
-      Button($r('app.string.edit_connection')).fontSize(13).height(40).margin({ right: 12 })
-        .backgroundColor($r('app.color.canvas')).fontColor($r('app.color.ink'))
-        .enabled(!this.busy && !this.heldElsewhere.includes(connection.id)).onClick(() => this.editConnection(connection))
     }.width('100%').backgroundColor($r('app.color.card')).borderRadius(16)
     .border({ width: 1, color: $r('app.color.border') })
+  }
+
+  @Builder
+  private connectionActions(connection: ConnectionProfile) {
+    Row({ space: 8 }) {
+      ForEach(this.rowActions(connection), (action: ConnectionRowAction) => {
+        Button(action.label).fontSize(13).height(40)
+          .backgroundColor($r('app.color.canvas')).fontColor($r('app.color.ink'))
+          .enabled(action.enabled).onClick(() => this.runRowAction(action))
+      }, (action: ConnectionRowAction, index: number) =>
+        index.toString() + ':' + action.label.id.toString() + ':' + action.enabled.toString())
+    }.height('100%').padding({ left: 12, right: 4 }).alignItems(VerticalAlign.Center)
+  }
+
+  @Builder
+  private connectionMenu(connection: ConnectionProfile) {
+    Menu() {
+      ForEach(this.rowActions(connection), (action: ConnectionRowAction) => {
+        MenuItem({ content: action.label }).enabled(action.enabled).onClick(() => this.runRowAction(action))
+      }, (action: ConnectionRowAction, index: number) =>
+        index.toString() + ':' + action.label.id.toString() + ':' + action.enabled.toString())
+    }
   }
 
   @Builder
@@ -1017,11 +1062,12 @@ export struct ConnectionHome {
             .textAlign(TextAlign.Center)
         }.layoutWeight(1).width('100%').justifyContent(FlexAlign.Center)
       } else {
-        List({ space: 12 }) {
+        List({ space: 12, scroller: this.listScroller }) {
           ForEach(this.connections, (connection: ConnectionProfile) => {
             ListItem() {
               this.connectionRow(connection)
-            }
+            }.swipeAction({ end: { builder: () => { this.connectionActions(connection) } } })
+            .bindContextMenu(() => { this.connectionMenu(connection) }, ResponseType.RightClick)
           }, (connection: ConnectionProfile) => connection.id + ':' + this.listRevision.toString())
         }.layoutWeight(1).width('100%')
       }

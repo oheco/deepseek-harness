@@ -7,7 +7,7 @@ import test from 'node:test';
 import { createRequire } from 'node:module';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { cryptoFramework } from './harmony-mocks.mjs';
+import { cryptoFramework, ListScroller } from './harmony-mocks.mjs';
 
 const require = createRequire(import.meta.url);
 const ts = require('typescript');
@@ -67,7 +67,7 @@ function harness() {
     } });
     const exports = {};
     cache.set(filename, exports);
-    vm.runInNewContext(output.outputText, { exports, URL, NavPathStack, getContext: () => context,
+    vm.runInNewContext(output.outputText, { exports, URL, NavPathStack, ListScroller, getContext: () => context,
       $r: name => ({ name, id: 1 }), setInterval: () => 1, clearInterval() {},
       require(specifier) {
         if (specifier.startsWith('.')) return load(path.posix.join(path.posix.dirname(relative), specifier));
@@ -177,12 +177,18 @@ function renderedConnectionRows(h) {
       (ts.isPropertyAccessExpression(node.expression) && node.expression.expression.getText(file) === 'Text' && node.expression.name.text === 'create')) text.push(node.arguments[0]);
     if (ts.isPropertyAccessExpression(node.expression) && node.expression.name.text === 'onClick') clicks.push(node.arguments[0]);
   });
-  // Open, Disconnect, Switch to window, New window and Edit; only Open and Edit are exercised here.
-  assert(key && text.length >= 3 && clicks.length === 5);
+  // The row itself holds only Open and Disconnect; swipe and right-click actions come from rowActions.
+  assert(key && text.length >= 3 && clicks.length === 2);
+  for (const builder of ['connectionActions', 'connectionMenu']) {
+    const body = methods.get(builder).getText(file);
+    assert(body.includes('this.rowActions(connection)') && body.includes('this.runRowAction(action)'), builder + ' shows rowActions');
+  }
   const exports = {};
   const javascript = ts.transpileModule('export function bind() { return ' + key.getText(file) + '; }\n' +
-    'export function row(connection) { return { name: () => (' + text[0].getText(file) + '), detail: () => (' +
-    text[2].getText(file) + '), open: ' + clicks[0].getText(file) + ', edit: ' + clicks[4].getText(file) + ' }; }', {
+    'export function row(connection) { const action = label => this.rowActions(connection)' +
+    '.find(item => item.label.name === label); return { name: () => (' + text[0].getText(file) + '), detail: () => (' +
+    text[2].getText(file) + '), open: ' + clicks[0].getText(file) +
+    ', edit: () => this.runRowAction(action(\'app.string.edit_connection\')) }; }', {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 }
   }).outputText;
   vm.runInNewContext(javascript, { exports, ConnectionMode: h.profile.ConnectionMode });

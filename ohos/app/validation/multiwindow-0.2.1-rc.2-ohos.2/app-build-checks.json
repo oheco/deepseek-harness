@@ -5,18 +5,27 @@
   "version_code": 1000011,
   "host_platform": "HarmonyOS ARM64",
   "app_logic_tests": {
-    "passed": 194,
+    "passed": 195,
     "failed": 0,
     "skipped": 0,
     "node": "24.21.0",
     "transpiler_source": "read-only previous checkout",
-    "new_multi_window_tests": 8,
+    "new_multi_window_tests": 9,
     "device_interaction": false
   },
   "mutation_negative_controls": {
-    "holder_lookup_disabled": { "suite": "multi-window", "failed": 5 },
-    "cookie_expiry_for_any_authority": { "suite": "connection-cookies and web-connection", "failed": 3 },
-    "window_channel_release_removed": { "suite": "multi-window", "failed": 1 },
+    "holder_lookup_disabled": {
+      "suite": "multi-window",
+      "failed": 5
+    },
+    "cookie_expiry_for_any_authority": {
+      "suite": "connection-cookies and web-connection",
+      "failed": 3
+    },
+    "window_channel_release_removed": {
+      "suite": "multi-window",
+      "failed": 1
+    },
     "production_source_mutated": false
   },
   "native_logger_tests": {
@@ -67,41 +76,58 @@
     "launch_type": "specified",
     "ability_stage_packaged": true,
     "filename": "DSHApp-0.2.1-rc.2-ohos.2-signed.hap",
-    "size": 5535411,
-    "sha256": "25838a939bd34b38692fc183a3501f79f6405d321a9899f8d93e2256cf3538a4",
-    "native_library_sha256": "e95148e72eacb1f2260590db3e0407127ea08ce60c2ecfe5ab04d44e70fff662",
-    "ark_bytecode_sha256": "f69da3be191c73082643f449503e8f0254c2a950b0a6b9931481d4b14c10dac5",
-    "personal_signed_hap_published": false
+    "size": 5539318,
+    "sha256": "84de58e8edb7a8ebf82379450116a5c01cdf97645a2d8aa58d4da132b089ec55",
+    "native_library_sha256": "4cc162756575654578ac683d49ec7f25e5c6f268a399033ee004ffb3bfd968e3",
+    "ark_bytecode_sha256": "2e245488d1c2e229b9005c3000c3f4bf5a5d7e82d98bfdd61d4560b6831727b7",
+    "personal_signed_hap_published": false,
+    "row_actions_packaged": true
   },
   "broker_sdk": {
     "version": "0.5.0",
     "modified": false
   },
   "device_installation": {
-    "device": "HarmonyOS 2in1 computer",
-    "transport": "hdc through the local SOCKS5 relay",
-    "replaced_version_code": 1000010,
-    "installed_version_code": 1000011,
-    "uninstalled_or_data_cleared": false,
-    "installed_launch_mode_specified": true,
-    "installed_ability_stage": true
+    "computer": {
+      "device": "HarmonyOS 2in1 computer",
+      "transport": "hdc through the local SOCKS5 relay",
+      "replaced_version_code": 1000011,
+      "installed_version_code": 1000011,
+      "uninstalled_or_data_cleared": false,
+      "installed_launch_mode_specified": true,
+      "installed_ability_stage": true
+    },
+    "phone": {
+      "device": "HarmonyOS phone",
+      "transport": "hdc through the local SOCKS5 relay",
+      "replaced_version_code": 1000011,
+      "installed_version_code": 1000011,
+      "uninstalled_or_data_cleared": false,
+      "launch_blocked_by_lock_screen": true
+    }
   },
   "device_observations": {
     "first_launch_blocked_by_lock_screen": true,
     "concurrent_entry_ability_windows_in_one_process": 3,
     "simultaneous_open_connections": 2,
-    "simultaneous_connection_modes": ["local", "remote"],
+    "simultaneous_connection_modes": [
+      "local",
+      "remote"
+    ],
     "window_titles_name_open_connection": true,
     "remote_loopback_listeners_in_app_process": 1,
     "local_and_remote_webview_sockets_established_together": true,
-    "held_connection_shows_switch_to_window": true,
-    "new_window_action_shown_at_wide_width": true,
-    "ui_input_stopped_while_user_used_another_full_screen_application": true
+    "ui_input_stopped_while_user_used_another_full_screen_application": true,
+    "rows_show_no_inline_buttons_without_open_connection": true,
+    "swipe_left_reveals_switch_to_window_and_disabled_edit_for_held_connection": true,
+    "switch_to_window_focused_holding_window": true,
+    "native_records_carry_channel_in_device_log": true,
+    "simultaneous_connections_observed_after_swipe_build": 2
   },
   "not_verified_on_device": [
-    "switch to window focus result",
+    "right-click menu (uitest cannot inject a mouse right click)",
+    "swipe actions on the phone (screen locked)",
     "system Dock new-window want parameters",
-    "window close channel release records",
-    "native channel field in the on-device journal"
+    "window close channel release records"
   ]
 }

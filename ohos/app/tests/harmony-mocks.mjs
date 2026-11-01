@@ -25,6 +25,12 @@ export class LocalStorage {
   get(key) { return this.#values.get(key); }
 }
 
+/** ArkUI ListScroller subset counting swipe-action collapses. */
+export class ListScroller {
+  collapsed = 0;
+  closeAllSwipeActions() { this.collapsed += 1; }
+}
+
 /**
  * Storage that EntryAbility would pass to its page.
  * @param channel Native broker channel of the window.
