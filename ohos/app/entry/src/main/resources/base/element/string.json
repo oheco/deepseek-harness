@@ -337,6 +337,46 @@
       "value": "Connection failed. Check the broker, connection password and DSH settings."
     },
     {
+      "name": "relay_mode",
+      "value": "Network path"
+    },
+    {
+      "name": "relay_mode_auto",
+      "value": "Automatic"
+    },
+    {
+      "name": "relay_mode_auto_hint",
+      "value": "Connects directly when possible and relays through the service otherwise."
+    },
+    {
+      "name": "relay_mode_never",
+      "value": "Direct only"
+    },
+    {
+      "name": "relay_mode_never_hint",
+      "value": "Never relays. The connection fails when no direct path is available."
+    },
+    {
+      "name": "relay_mode_force",
+      "value": "Relay only"
+    },
+    {
+      "name": "relay_mode_force_hint",
+      "value": "Always relays through the service. Adds latency and uses relay bandwidth."
+    },
+    {
+      "name": "broker_relay_failed",
+      "value": "Cannot connect through the relay. Check the network, or choose Automatic in the connection settings."
+    },
+    {
+      "name": "broker_direct_failed",
+      "value": "Cannot reach the broker directly. Choose Automatic in the connection settings to allow relaying."
+    },
+    {
+      "name": "broker_relay_unavailable",
+      "value": "Relay is not enabled for this account or service. Ask the service administrator to enable relay, or choose Automatic in the connection settings."
+    },
+    {
       "name": "web_connection_disconnected",
       "value": "Connection unavailable. This page stays open."
     },

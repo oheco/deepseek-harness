@@ -12,6 +12,8 @@ broker 方法接收指定服务的 HTTPS origin，并验证 HTTPS/WSS 的证书�
 
 连接使用 `ob_remote_connect_async`，在数字地址 `127.0.0.1` 上创建一个 SDK TCP 监听端并等待认证。`localPort = 0` 请求首次随机端口，非零时优先绑定已保存端口；仅 SDK 监听初始化错误且独立确认无法绑定时，会使用零重试一次，peer 认证、目标、取消和信令失败不触发端口回退。调用方保存返回的实际端口。目标为远端 `127.0.0.1` 和 DSH 端口，App 不额外创建转发监听端。HTTP Host、Origin、重定向、Cookie 和 WebSocket 字节保持不变，DSH 认证必须保持启用。
 
+`relayMode` 设置 SDK 的 `relay_mode`：`auto` 先尝试直连再使用中继，`never` 排除中继，`force` 只接受所选本地候选为 TURN 中继的路径。SDK 在自动恢复和重连中保持该模式。创建强制中继 peer 前，连接先读取账号的 `/v1/capabilities`；除非 `relay_enabled` 与 `turn_available` 都为 true，否则以 `DSH_BROKER_RELAY` 拒绝且不创建会话，因为控制服务对这种情况返回的 HTTP 403 与访问被撤销时相同。SDK `OB_REMOTE_EICE` 失败在拒绝结果和 `brokerStatus().errorCode` 中报告为 `DSH_BROKER_ICE`；401/403 仍为 `DSH_BROKER_AUTH`。
+
 登录、列表和连接均传入 `context.tempDir + '/dsh-broker'`。工作线程以 0700 创建缺失的路径组件，拒绝软链接和点路径组件，并验证最终所有者与权限。在 SDK 工作线程启动前，App 将进程 `TMPDIR` 一次性设为这个经过验证的应用私有目录；此后进程存活期间所有通道都必须使用同一目录。公开系统根证书文件与临时 SDK peer 证书使用私有文件。SDK 在最终关闭时删除 peer 密钥和证书。不调用 shell，也不修改 TLS 环境变量。
 
 ## 恢复与所有权

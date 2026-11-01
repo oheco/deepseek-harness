@@ -91,6 +91,8 @@ export function diagnosticFailureCode(error: Error): number {
   switch (code) {
     case 'DSH_BROKER': return -1;
     case 'DSH_BROKER_AUTH': return -2;
+    case 'DSH_BROKER_ICE': return -3;
+    case 'DSH_BROKER_RELAY': return -4;
     default: return 0;
   }
 }

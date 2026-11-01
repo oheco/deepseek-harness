@@ -881,7 +881,7 @@ test('Back dismisses the native menu, then search, then navigates history and fi
 test('every transport configuration change retires the retained page before new ownership', async () => {
   const fields = { id: 'other-profile', mode: 'local', port: 3091, token: 'new-dsh-token',
     serviceUrl: 'https://other.invalid', account: 'other-account', brokerId: 'other-broker', peerPassword: 'other-peer',
-    authSessionId: '12345678-1234-4234-8234-123456789abc', accessToken: 'other-legacy-bearer' };
+    relayMode: 'force', authSessionId: '12345678-1234-4234-8234-123456789abc', accessToken: 'other-legacy-bearer' };
   for (const [field, next] of Object.entries(fields)) {
     const h = harness();
     const { index } = h.page();

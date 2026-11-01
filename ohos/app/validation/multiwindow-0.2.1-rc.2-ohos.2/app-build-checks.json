@@ -5,13 +5,14 @@
   "version_code": 1000011,
   "host_platform": "HarmonyOS ARM64",
   "app_logic_tests": {
-    "passed": 195,
+    "passed": 198,
     "failed": 0,
     "skipped": 0,
     "node": "24.21.0",
     "transpiler_source": "read-only previous checkout",
     "new_multi_window_tests": 9,
-    "device_interaction": false
+    "device_interaction": false,
+    "new_relay_mode_tests": 3
   },
   "mutation_negative_controls": {
     "holder_lookup_disabled": {
@@ -26,7 +27,27 @@
       "suite": "multi-window",
       "failed": 1
     },
-    "production_source_mutated": false
+    "production_source_mutated": false,
+    "relay_mode_omitted_from_native_options": {
+      "suite": "connections",
+      "failed": 1
+    },
+    "relay_mode_omitted_from_page_configuration": {
+      "suite": "web-connection",
+      "failed": 1
+    },
+    "relay_mode_omitted_from_saved_profile": {
+      "suite": "connections",
+      "failed": 3
+    },
+    "relay_mode_validation_removed": {
+      "suite": "connections",
+      "failed": 1
+    },
+    "sdk_always_automatic": {
+      "suite": "native broker",
+      "failed_check": "direct-only connection forwarded through TURN"
+    }
   },
   "native_logger_tests": {
     "passed": 2,
@@ -43,7 +64,17 @@
     "concurrent_channel_clients_distinct_listeners": true,
     "closing_one_channel_keeps_other_connected": true,
     "client_diagnostics_carry_channel": true,
-    "broker_sdk_changed": false
+    "broker_sdk_changed": false,
+    "relay_mode_connections": {
+      "forced_relay_without_account_relay": "DSH_BROKER_RELAY before peer setup",
+      "relay_only_turn_bytes_increased": true,
+      "direct_only_turn_bytes_unchanged": true,
+      "automatic_connected": true,
+      "sdk_connect_flags_match_mode": true,
+      "dsh_probe_each_mode": true
+    },
+    "test_driver_timeout_seconds": 420,
+    "run_seconds": 226
   },
   "project_export_tests": {
     "passed": 22,
@@ -76,12 +107,13 @@
     "launch_type": "specified",
     "ability_stage_packaged": true,
     "filename": "DSHApp-0.2.1-rc.2-ohos.2-signed.hap",
-    "size": 5533662,
-    "sha256": "a1f89c6e993faa72fe6e37521db3419441b2654c1fa97352e9789e7d3e8fc032",
-    "native_library_sha256": "cb4e0e24e3fcb770917d0da9d04a1f07f48cf628ec20ee74015b5f497b7b6711",
-    "ark_bytecode_sha256": "631242f8917f67af86a65a145fc490c77aa125d774ee21e4856341fa0f25ddd5",
+    "size": 5543003,
+    "sha256": "98cd2c8bb53b4598f0e89b87b84566026a0dafa3b0f2c380d06453ea89a81eec",
+    "native_library_sha256": "c4efcec2d6544a614fa71e5cc2c29480647dbff9f3f807572029a3191dc246dc",
+    "ark_bytecode_sha256": "4e68c862c64905e6dae2d41333eee89c8345b87a28a1bfd40f5bb67e68f5c758",
     "personal_signed_hap_published": false,
-    "swipe_actions_packaged": true
+    "swipe_actions_packaged": true,
+    "relay_mode_symbols_packaged": true
   },
   "broker_sdk": {
     "version": "0.5.0",
@@ -96,7 +128,7 @@
       "uninstalled_or_data_cleared": false,
       "installed_launch_mode_specified": true,
       "installed_ability_stage": true,
-      "installed_sha256": "a1f89c6e993faa72fe6e37521db3419441b2654c1fa97352e9789e7d3e8fc032"
+      "installed_sha256": "98cd2c8bb53b4598f0e89b87b84566026a0dafa3b0f2c380d06453ea89a81eec"
     },
     "phone": {
       "device": "HarmonyOS phone",
@@ -106,7 +138,7 @@
       "uninstalled_or_data_cleared": false,
       "launch_blocked_by_lock_screen": true,
       "installed_sha256": "84de58e8edb7a8ebf82379450116a5c01cdf97645a2d8aa58d4da132b089ec55",
-      "installed_build_difference": "previous build with an inert right-click menu binding",
+      "installed_build_difference": "previous build without relay mode selection and with an inert right-click menu binding",
       "final_build_install_blocked_by_unreachable_hdc": true
     }
   },
@@ -130,6 +162,7 @@
     "right_click_menu_did_not_open_and_was_removed": true
   },
   "not_verified_on_device": [
+    "relay mode selector rendering and a forced-relay connection against the user service",
     "swipe actions on the phone (screen locked)",
     "system Dock new-window want parameters",
     "window close channel release records"

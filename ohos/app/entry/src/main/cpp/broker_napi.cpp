@@ -168,6 +168,11 @@ Inputs inputs(napi_env env, napi_value object, Method method) {
         if (method == Method::Connect) {
             input.brokerId = string(env, object, "brokerId", 128);
             input.peerPassword = string(env, object, "peerPassword", 1024);
+            const std::string relay = string(env, object, "relayMode", 8);
+            if (relay == "auto") input.relayMode = dsh::broker::RelayMode::Auto;
+            else if (relay == "never") input.relayMode = dsh::broker::RelayMode::Never;
+            else if (relay == "force") input.relayMode = dsh::broker::RelayMode::Force;
+            else throw std::invalid_argument("relayMode must be auto, never or force");
             double port; check(napi_get_value_double(env, field(env, object, "remotePort"), &port));
             if (!std::isfinite(port) || port != std::floor(port) || port < 1 || port > 65535)
                 throw std::invalid_argument("remotePort must be an integer from 1 through 65535");

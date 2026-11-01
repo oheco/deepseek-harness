@@ -20,6 +20,9 @@ namespace dsh::broker { class CredentialStore; }
 
 namespace dsh::broker {
 
+// Remote network path; numbers equal ob_remote_relay_mode and the diagnostic flags.
+enum class RelayMode { Auto = 0, Never = 1, Force = 2 };
+
 struct Inputs {
     std::string serviceUrl, account, password, accessToken, authSessionId, credentialDir;
     std::string brokerId, peerPassword, tempDir, origin, token;
@@ -28,6 +31,7 @@ struct Inputs {
     std::string testCaPath;
 #endif
     int remotePort = 0, localPort = 0;
+    RelayMode relayMode = RelayMode::Auto;
     Inputs() = default;
     Inputs(const Inputs&) = default;
     Inputs& operator=(const Inputs&) = default;
@@ -90,6 +94,8 @@ private:
     void checkPeer();
     Result login(const Inputs& input, Cancellation& cancellation);
     Result list(const Inputs& input, Cancellation& cancellation);
+    // Forced relay preflight: the account and service must both offer TURN; false fills result's error.
+    bool relayAvailable(Result& result, Cancellation& cancellation);
     Result connect(const Inputs& input, Cancellation& cancellation);
     Result reconnect(Cancellation& cancellation);
     Result probe(const Inputs& input, Cancellation& cancellation);

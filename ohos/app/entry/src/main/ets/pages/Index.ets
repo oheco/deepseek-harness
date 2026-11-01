@@ -259,10 +259,10 @@ struct Index {
     await this.webConnection.foregrounded(verifyEndpoint);
   }
 
-  /** Names and preferred ports preserve a live page; a new managed login or legacy bearer requires new ownership. */
+  /** Names and preferred ports preserve a live page; a new relay mode, managed login or legacy bearer requires new ownership. */
   private connectionConfiguration(connection: ConnectionProfile): string {
     return JSON.stringify([connection.id, connection.mode, connection.port, connection.token,
-      connection.serviceUrl, connection.account, connection.brokerId, connection.peerPassword,
+      connection.serviceUrl, connection.account, connection.brokerId, connection.peerPassword, connection.relayMode,
       connection.authSessionId, connection.authSessionId === '' ? connection.accessToken : '']);
   }
 

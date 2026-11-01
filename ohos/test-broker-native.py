@@ -78,7 +78,8 @@ def main():
                 if not api.startswith('http://127.0.0.1:'):
                     raise RuntimeError('control fixture must publish numeric loopback')
                 env['DSH_BROKER_FIXTURE_PORT'] = api.rsplit(':', 1)[1]
-            run(signed, env=env, timeout=180)
+            # The live fixture run, including the relay-mode connections, takes about four minutes on HarmonyOS.
+            run(signed, env=env, timeout=420)
         finally:
             if fixture and fixture.poll() is None:
                 fixture.terminate()

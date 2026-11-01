@@ -1372,3 +1372,128 @@ test('diagnostic navigation stays available during a pending probe and Back pres
   assert.equal(h.control.opened.length, 1);
   assert.equal(h.page.busy, false);
 });
+
+/** Evaluates each relay-mode row of the configuration page's network path selector against `h.page`. */
+function renderedRelayModes(h) {
+  const filename = path.join(ets, 'pages/ConnectionHome.ets');
+  const source = fs.readFileSync(filename, 'utf8').replace('export struct ConnectionHome', 'export class ConnectionHome');
+  const file = ts.createSourceFile(filename, source, ts.ScriptTarget.Latest, true);
+  function visit(node, callback) { callback(node); ts.forEachChild(node, child => visit(child, callback)); }
+  let config;
+  visit(file, node => { if (ts.isMethodDeclaration(node) && node.name.getText(file) === 'configPage') config = node; });
+  let each;
+  visit(config, node => {
+    if (ts.isCallExpression(node) && node.expression.getText(file) === 'ForEach' && node.arguments[0].getText(file) === 'RELAY_MODES') each = node;
+  });
+  assert(each, 'the configuration page lists RELAY_MODES');
+  const parts = {};
+  const text = [];
+  visit(each.arguments[1], node => {
+    if (!ts.isCallExpression(node)) return;
+    if (node.expression.getText(file) === 'Text') text.push(node.arguments[0]);
+    if (ts.isPropertyAccessExpression(node.expression) && ['checked', 'enabled', 'onChange', 'onClick'].includes(node.expression.name.text)) {
+      assert.equal(parts[node.expression.name.text], undefined, 'one ' + node.expression.name.text + ' per relay row');
+      parts[node.expression.name.text] = node.arguments[0];
+    }
+  });
+  assert(text.length === 2 && parts.checked && parts.enabled && parts.onChange && parts.onClick);
+  const exports = {};
+  const javascript = ts.transpileModule('export function row(mode) { return { label: () => (' + text[0].getText(file) +
+    '), hint: () => (' + text[1].getText(file) + '), checked: () => (' + parts.checked.getText(file) + '), enabled: () => (' +
+    parts.enabled.getText(file) + '), change: ' + parts.onChange.getText(file) + ', click: ' + parts.onClick.getText(file) + ' }; }', {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 }
+  }).outputText;
+  vm.runInNewContext(javascript, { exports });
+  const modes = Object.values(h.profile.RelayMode);
+  assert.deepEqual(modes, ['auto', 'never', 'force']);
+  return modes.map(mode => exports.row.call(h.page, mode));
+}
+
+async function remoteReady(h, relayMode) {
+  remoteDraft(h);
+  await h.page.login();
+  h.page.selectBroker(h.page.brokers[0]);
+  h.page.token = 'dsh-token';
+  h.page.peerPassword = 'peer-password';
+  if (relayMode) h.page.chooseRelayMode(relayMode);
+}
+
+test('remote connections offer Automatic, Direct only and Relay only, and the selection reaches native connect and persists', async () => {
+  const h = harness(); await h.ready(); await remoteReady(h);
+  const [auto, never, force] = renderedRelayModes(h);
+  assert.deepEqual([auto, never, force].map(row => row.label().name),
+    ['app.string.relay_mode_auto', 'app.string.relay_mode_never', 'app.string.relay_mode_force']);
+  assert.deepEqual([auto, never, force].map(row => row.hint().name),
+    ['app.string.relay_mode_auto_hint', 'app.string.relay_mode_never_hint', 'app.string.relay_mode_force_hint']);
+  assert.deepEqual([auto, never, force].map(row => row.checked()), [true, false, false], 'a new remote connection uses Automatic');
+  h.page.testState = h.states.Success;
+  force.click();
+  assert.equal(h.page.relayMode, 'force');
+  assert.equal(h.page.testState, h.states.Idle, 'a previous test result does not describe another network path');
+  assert.deepEqual([auto, never, force].map(row => row.checked()), [false, false, true]);
+  never.change(false);
+  assert.equal(h.page.relayMode, 'force', 'an unchecked notification does not select its row');
+  never.change(true);
+  assert.equal(h.page.relayMode, 'never');
+  force.click();
+  h.page.busy = true;
+  assert.equal(auto.enabled(), false);
+  auto.click();
+  assert.equal(h.page.relayMode, 'force', 'a busy page keeps its network path');
+  h.page.busy = false;
+  await h.page.testConnection();
+  assert.equal(h.calls.find(call => call[0] === 'connect')[1].relayMode, 'force');
+  await h.page.saveConnection();
+  assert.equal(JSON.parse(h.disk.get('connections_v1')).connections[0].relayMode, 'force');
+  const saved = h.page.connections[0];
+  h.page.addConnection();
+  assert.equal(h.page.relayMode, 'auto', 'a new draft starts at Automatic');
+  h.page.editConnection(saved);
+  assert.equal(h.page.relayMode, 'force');
+  await h.page.goBack();
+  h.calls.length = 0;
+  await h.page.openConnection(saved);
+  assert.equal(h.calls.find(call => call[0] === 'connect')[1].relayMode, 'force');
+  assert.equal(h.control.opened.length, 1);
+});
+
+test('records saved without a relay mode read as Automatic and invalid or local relay modes are rejected', async () => {
+  const h = harness(); await h.ready(); await remoteReady(h, 'never');
+  await h.page.saveConnection();
+  const profile = h.page.connections[0];
+  const legacy = { ...profile };
+  delete legacy.relayMode;
+  for (const version of [1, 2]) {
+    assert.equal(h.profile.parseConnections(JSON.stringify({ version, connections: [legacy] }))[0].relayMode, 'auto');
+  }
+  assert.equal(JSON.parse(h.profile.encodeConnections([profile])).connections[0].relayMode, 'never');
+  for (const relayMode of ['relay', '', null, 2]) {
+    assert.throws(() => h.profile.parseConnections(JSON.stringify({ version: 2, connections: [{ ...profile, relayMode }] })), String(relayMode));
+  }
+  const local = new h.profile.ConnectionProfile();
+  Object.assign(local, { id: 'local-relay', name: 'Local', token: 'fixture' });
+  assert.equal(h.profile.validConnection(local), true);
+  local.relayMode = 'force';
+  assert.equal(h.profile.validConnection(local), false, 'a local connection has no broker network path');
+});
+
+test('relay failures name the selected network path instead of requesting a new login', async () => {
+  for (const [relayMode, code, message] of [['force', 'DSH_BROKER_RELAY', 'broker_relay_unavailable'],
+    ['force', 'DSH_BROKER_ICE', 'broker_relay_failed'], ['never', 'DSH_BROKER_ICE', 'broker_direct_failed'],
+    ['auto', 'DSH_BROKER_ICE', 'broker_connection_failed']]) {
+    const h = harness(); await h.ready(); await remoteReady(h, relayMode);
+    await h.page.saveConnection();
+    const saved = h.page.connections[0];
+    h.control.connect = async () => { throw Object.assign(new Error('fixed native diagnostic'), { code }); };
+    await h.page.openConnection(saved);
+    assert.equal(h.page.message.name, 'app.string.' + message, relayMode + ' ' + code);
+    assert.equal(h.page.currentPage(), h.routes.Home, 'the connection list stays open');
+    assert.equal(h.page.connections[0].accessToken, 'account-bearer', 'the account login is retained');
+    assert.deepEqual(h.control.opened, []);
+    h.page.editConnection(saved);
+    await h.page.testConnection();
+    assert.equal(h.page.testState, h.states.Failure);
+    assert.equal(h.page.message.name, 'app.string.' + message);
+    assert.equal(h.page.currentPage(), h.routes.Config);
+  }
+});

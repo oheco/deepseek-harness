@@ -337,6 +337,46 @@
       "value": "连接失败，请检查 broker、连接密码和 DSH 配置。"
     },
     {
+      "name": "relay_mode",
+      "value": "网络路径"
+    },
+    {
+      "name": "relay_mode_auto",
+      "value": "自动"
+    },
+    {
+      "name": "relay_mode_auto_hint",
+      "value": "优先直连，无法直连时经服务中继。"
+    },
+    {
+      "name": "relay_mode_never",
+      "value": "仅直连"
+    },
+    {
+      "name": "relay_mode_never_hint",
+      "value": "从不使用中继；没有可用的直连路径时连接失败。"
+    },
+    {
+      "name": "relay_mode_force",
+      "value": "仅中继"
+    },
+    {
+      "name": "relay_mode_force_hint",
+      "value": "始终经服务中继转发，延迟较高并占用中继流量。"
+    },
+    {
+      "name": "broker_relay_failed",
+      "value": "无法通过中继连接。请检查网络，或在连接设置中改用“自动”。"
+    },
+    {
+      "name": "broker_direct_failed",
+      "value": "无法直连 broker。请在连接设置中改用“自动”以允许中继。"
+    },
+    {
+      "name": "broker_relay_unavailable",
+      "value": "该账号或服务未启用中继。请联系服务管理员启用中继，或在连接设置中改用“自动”。"
+    },
+    {
       "name": "web_connection_disconnected",
       "value": "连接暂不可用，页面保留。"
     },

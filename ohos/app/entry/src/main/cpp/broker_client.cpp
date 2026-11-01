@@ -68,6 +68,12 @@ std::string peerError(int code, int http) {
     if (code == OB_REMOTE_EQUIC) return "Broker encrypted transport failed";
     return "Broker connection failed";
 }
+// App category of a peer failure: account authorization, network path, or empty for other failures.
+const char* peerErrorCode(int code, int http) {
+    if (http == 401 || http == 403) return "DSH_BROKER_AUTH";
+    if (code == OB_REMOTE_EICE) return "DSH_BROKER_ICE";
+    return "";
+}
 // App state numbers are separate from the SDK's ob_remote_connection_state.
 int diagnosticState(const std::string& state) noexcept {
     if (state == "idle") return 0;
@@ -94,9 +100,11 @@ void apiCallLog(std::int64_t channel, Method method, diag::Stage stage, std::uin
     fields.startMs = started; fields.durationMs = diag::nowMs() - started;
     diag::emit(diag::Event::ApiCallEnd, fields);
 }
-void sdkCallLog(std::int64_t channel, Method method, diag::Stage stage, std::uint64_t started, int code, const ob_remote_error& error) noexcept {
+void sdkCallLog(std::int64_t channel, Method method, diag::Stage stage, std::uint64_t started, int code, const ob_remote_error& error,
+                std::uint64_t flags = 0) noexcept {
     diag::Fields fields; fields.channel = channel; fields.method = static_cast<int>(method); fields.stage = static_cast<int>(stage);
     fields.code = code; fields.http = error.http_status; fields.startMs = started; fields.durationMs = diag::nowMs() - started;
+    fields.flags = flags;
     diag::emit(diag::Event::SdkCallEnd, fields);
 }
 bool cannotBindLocalPort(int port) {
@@ -349,7 +357,7 @@ void Client::checkPeer() {
             case OB_REMOTE_STATE_CLOSED: next.state = "closed"; break;
         }
         next.error = info.last_error.code ? peerError(info.last_error.code, info.last_error.http_status) : "";
-        next.errorCode = info.last_error.http_status == 401 || info.last_error.http_status == 403 ? "DSH_BROKER_AUTH" : "";
+        next.errorCode = peerErrorCode(info.last_error.code, info.last_error.http_status);
         if (!map_ && next.state == "connected") {
             next.state = "failed"; next.error = "Broker loopback mapping is unavailable";
         }
@@ -512,6 +520,30 @@ Result Client::list(const Inputs& input, Cancellation& cancellation) {
     }
     return result;
 }
+bool Client::relayAvailable(Result& result, Cancellation& cancellation) {
+    Response response; ob_api_error error{};
+    auto started = diag::nowMs(); const int code = ob_api_capabilities(api_, &response.text, &error);
+    diag::Fields fields; fields.channel = channel_; fields.method = static_cast<int>(Method::Connect);
+    fields.stage = static_cast<int>(diag::Stage::RelayCheck); fields.code = code; fields.http = static_cast<int>(error.http_status);
+    fields.curl = error.transport_code; fields.startMs = started; fields.durationMs = diag::nowMs() - started;
+    if (cancelled(&cancellation)) { result.error = "Broker operation cancelled"; return false; }
+    if (code) {
+        result.error = apiError(error);
+        if (error.http_status == 401 || error.code == OB_API_AUTH) result.errorCode = "DSH_BROKER_AUTH";
+        diag::emit(diag::Event::ApiCallEnd, fields);
+        return false;
+    }
+    auto json = parse(response);
+    const bool enabled = cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(json.get(), "relay_enabled"));
+    const bool turn = cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(json.get(), "turn_available"));
+    // flags: bit 0 relay enabled for the account, bit 1 service TURN available.
+    fields.flags = (enabled ? 1u : 0u) | (turn ? 2u : 0u);
+    diag::emit(diag::Event::ApiCallEnd, fields);
+    if (enabled && turn) return true;
+    // The service rejects a forced-relay session with the same HTTP 403 it uses for revoked access.
+    result.error = "Broker relay is not available for this account"; result.errorCode = "DSH_BROKER_RELAY";
+    return false;
+}
 Result Client::connect(const Inputs& input, Cancellation& cancellation) {
     Result result;
     if (peer_ || api_) { result.error = "Close the current broker connection first"; return result; }
@@ -531,13 +563,20 @@ Result Client::connect(const Inputs& input, Cancellation& cancellation) {
     credentials_ = api.get_deleter().store;
     api_ = api.release();
     peerGeneration_ = cancellation.generation;
+    if (input.relayMode == RelayMode::Force && !relayAvailable(result, cancellation)) {
+        connecting.state = "failed"; connecting.error = result.error;
+        connecting.errorCode = result.errorCode == "DSH_BROKER" ? "" : result.errorCode;
+        publishCurrent(std::move(connecting), cancellation);
+        return result;
+    }
     ob_remote_connect_options options{};
-    options.relay_mode = OB_REMOTE_RELAY_AUTO; options.timeout_ms = 30000;
+    options.relay_mode = static_cast<ob_remote_relay_mode>(input.relayMode); options.timeout_ms = 30000;
     options.max_maps = 1; options.max_flows = 128;
     ob_remote_error error{};
     started = diag::nowMs();
     int code = ob_remote_connect_async(api_, input.brokerId.c_str(), input.peerPassword.c_str(), &options, &peer_, &error);
-    sdkCallLog(channel_, Method::Connect, diag::Stage::PeerConnect, started, code, error);
+    // flags: relay mode 0 automatic, 1 direct only, 2 relay only.
+    sdkCallLog(channel_, Method::Connect, diag::Stage::PeerConnect, started, code, error, static_cast<std::uint64_t>(input.relayMode));
     if (!code && !cancelled(&cancellation)) {
         started = diag::nowMs();
         code = ob_remote_portmap_tcp(peer_, "127.0.0.1", static_cast<std::uint16_t>(input.localPort),
@@ -562,9 +601,9 @@ Result Client::connect(const Inputs& input, Cancellation& cancellation) {
             }
         }
         result.error = peerError(code, error.http_status);
-        if (error.http_status == 401 || error.http_status == 403) result.errorCode = "DSH_BROKER_AUTH";
+        connecting.errorCode = peerErrorCode(code, error.http_status);
+        if (!connecting.errorCode.empty()) result.errorCode = connecting.errorCode;
         connecting.state = "failed"; connecting.error = result.error;
-        connecting.errorCode = result.errorCode == "DSH_BROKER_AUTH" ? result.errorCode : "";
         publishCurrent(std::move(connecting), cancellation);
         return result;
     }
@@ -605,7 +644,8 @@ Result Client::reconnect(Cancellation& cancellation) {
         sdkCallLog(channel_, Method::Reconnect, diag::Stage::PeerReconnect, started, code, error);
         if (code) {
             result.error = peerError(code, error.http_status);
-            if (error.http_status == 401 || error.http_status == 403) result.errorCode = "DSH_BROKER_AUTH";
+            const std::string category = peerErrorCode(code, error.http_status);
+            if (!category.empty()) result.errorCode = category;
             return result;
         }
         checkPeer();

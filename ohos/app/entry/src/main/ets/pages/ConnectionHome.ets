@@ -1,7 +1,7 @@
 import common from '@ohos.app.ability.common';
 import util from '@ohos.util';
 import native, { BrokerInfo, BrokerConnectOptions, BrokerLoginResult, BrokerStatus, DshProbeResult } from 'libdsh_launcher.so';
-import { ConnectionMode, ConnectionProfile, connectionPort, connectionUrl, serviceOrigin, validConnection, parseConnections, encodeConnections } from '../launcher/ConnectionProfile';
+import { ConnectionMode, ConnectionProfile, RelayMode, connectionPort, connectionUrl, serviceOrigin, validConnection, parseConnections, encodeConnections } from '../launcher/ConnectionProfile';
 import { ConnectionStore } from '../launcher/ConnectionStore';
 import { ConnectionField } from './ConnectionField';
 import { DiagnosticLogs } from './DiagnosticLogs';
@@ -48,6 +48,9 @@ class BrokerIdentitySnapshot {
   brokerName: string = '';
   peerPassword: string = '';
 }
+
+/** Network paths offered for a remote connection, in display order. */
+const RELAY_MODES: RelayMode[] = [RelayMode.Auto, RelayMode.Never, RelayMode.Force];
 
 /** A saved connection's secondary action, shown when its row is swiped left. */
 interface ConnectionRowAction {
@@ -117,6 +120,7 @@ export struct ConnectionHome {
   @State private brokerId: string = '';
   @State private brokerName: string = '';
   @State private peerPassword: string = '';
+  @State private relayMode: RelayMode = RelayMode.Auto;
   @State private editing: boolean = false;
   @State private testState: ConnectionTestState = ConnectionTestState.Idle;
   private editingId: string = '';
@@ -337,6 +341,7 @@ export struct ConnectionHome {
     this.brokerId = '';
     this.brokerName = '';
     this.peerPassword = '';
+    this.relayMode = RelayMode.Auto;
     this.testState = ConnectionTestState.Idle;
     this.feedback($r('app.string.choose_mode_hint'));
   }
@@ -371,6 +376,7 @@ export struct ConnectionHome {
     this.brokerId = connection.brokerId;
     this.brokerName = connection.brokerName;
     this.peerPassword = connection.peerPassword;
+    this.relayMode = connection.relayMode;
     this.feedback($r('app.string.edit_connection_hint'));
     this.navigate(LauncherPage.Config);
   }
@@ -391,6 +397,7 @@ export struct ConnectionHome {
       connection.brokerId = this.brokerId;
       connection.brokerName = this.brokerName;
       connection.peerPassword = this.peerPassword;
+      connection.relayMode = this.relayMode;
     }
     return connection;
   }
@@ -674,7 +681,29 @@ export struct ConnectionHome {
     return { channel: this.channel, serviceUrl: connection.serviceUrl, accessToken: connection.accessToken,
       authSessionId: connection.authSessionId, credentialDir: this.context().filesDir + '/dsh-broker-auth',
       brokerId: connection.brokerId, peerPassword: connection.peerPassword, localPort: connection.localPort,
-      remotePort: connection.port, tempDir: this.context().tempDir + '/dsh-broker' };
+      remotePort: connection.port, relayMode: connection.relayMode, tempDir: this.context().tempDir + '/dsh-broker' };
+  }
+
+  /** Select the remote network path; a previous test result no longer describes the draft. */
+  private chooseRelayMode(mode: RelayMode): void {
+    this.relayMode = mode;
+    this.testState = ConnectionTestState.Idle;
+  }
+
+  private relayModeLabel(mode: RelayMode): Resource {
+    switch (mode) {
+      case RelayMode.Never: return $r('app.string.relay_mode_never');
+      case RelayMode.Force: return $r('app.string.relay_mode_force');
+      default: return $r('app.string.relay_mode_auto');
+    }
+  }
+
+  private relayModeHint(mode: RelayMode): Resource {
+    switch (mode) {
+      case RelayMode.Never: return $r('app.string.relay_mode_never_hint');
+      case RelayMode.Force: return $r('app.string.relay_mode_force_hint');
+      default: return $r('app.string.relay_mode_auto_hint');
+    }
   }
 
   private probeFeedback(result: DshProbeResult): void {
@@ -687,8 +716,13 @@ export struct ConnectionHome {
     }
   }
 
-  private brokerFailure(error: BrokerFailure, saved: ConnectionProfile | undefined = undefined): void {
-    if (error && error.code === 'DSH_BROKER_AUTH') {
+  /** Report a broker failure; a failed network path names the selected relay mode that excluded the other path. */
+  private brokerFailure(error: BrokerFailure, relay: RelayMode, saved: ConnectionProfile | undefined = undefined): void {
+    if (error && error.code === 'DSH_BROKER_RELAY') {
+      this.feedback($r('app.string.broker_relay_unavailable'), true);
+    } else if (error && error.code === 'DSH_BROKER_ICE' && relay !== RelayMode.Auto) {
+      this.feedback($r(relay === RelayMode.Force ? 'app.string.broker_relay_failed' : 'app.string.broker_direct_failed'), true);
+    } else if (error && error.code === 'DSH_BROKER_AUTH') {
       if (saved) {
         this.editConnection(saved);
       }
@@ -740,7 +774,7 @@ export struct ConnectionHome {
     } catch (error) {
       if (this.attached && generation === this.generation) {
         this.testState = ConnectionTestState.Failure;
-        this.brokerFailure(error as BrokerFailure);
+        this.brokerFailure(error as BrokerFailure, connection.relayMode);
       }
     } finally {
       try {
@@ -895,7 +929,7 @@ export struct ConnectionHome {
     } catch (error) {
       connectionDiagnosticFailure('home.open_failed', error, { operation: operation, generation: generation });
       if (this.attached && generation === this.generation) {
-        this.brokerFailure(error as BrokerFailure, remote ? connection : undefined);
+        this.brokerFailure(error as BrokerFailure, connection.relayMode, remote ? connection : undefined);
       }
     } finally {
       try {
@@ -1149,6 +1183,20 @@ export struct ConnectionHome {
         }.width('100%').padding(16).backgroundColor($r('app.color.card')).borderRadius(12)
         ConnectionField({ label: $r('app.string.peer_password'), value: this.peerPassword, secret: true, locked: this.busy, onEdited: () => this.testState = ConnectionTestState.Idle })
         Text($r('app.string.peer_password_hint')).fontSize(12).fontColor($r('app.color.muted')).width('100%')
+        Column({ space: 4 }) {
+          Text($r('app.string.relay_mode')).fontSize(14).fontColor($r('app.color.muted')).width('100%')
+          ForEach(RELAY_MODES, (mode: RelayMode) => {
+            Row({ space: 12 }) {
+              Radio({ value: mode, group: 'dshRelayMode' }).checked(this.relayMode === mode).enabled(!this.busy)
+                .onChange((checked: boolean) => { if (checked) { this.chooseRelayMode(mode); } })
+              Column({ space: 2 }) {
+                Text(this.relayModeLabel(mode)).fontSize(15).fontColor($r('app.color.ink'))
+                Text(this.relayModeHint(mode)).fontSize(12).fontColor($r('app.color.muted'))
+              }.layoutWeight(1).alignItems(HorizontalAlign.Start)
+            }.width('100%').padding({ top: 8, bottom: 8 })
+            .onClick(() => { if (!this.busy) { this.chooseRelayMode(mode); } })
+          }, (mode: RelayMode) => mode)
+        }.width('100%').padding(16).backgroundColor($r('app.color.card')).borderRadius(12)
       }
       Column({ space: 8 }) {
         Text($r(this.mode === ConnectionMode.Local ? 'app.string.local_port' : 'app.string.remote_port'))

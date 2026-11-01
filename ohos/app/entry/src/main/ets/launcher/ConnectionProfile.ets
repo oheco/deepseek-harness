@@ -6,6 +6,16 @@ export enum ConnectionMode {
   Remote = 'remote'
 }
 
+/** Broker network path for a remote connection; values match the SDK relay modes. */
+export enum RelayMode {
+  /** Try a direct peer path first and relay when traversal fails. */
+  Auto = 'auto',
+  /** Never relay; traversal failure fails the connection. */
+  Never = 'never',
+  /** Relay every packet through the service's TURN server; no direct fallback. */
+  Force = 'force'
+}
+
 /** A saved connection contains only the settings needed to reopen that service. */
 export class ConnectionProfile {
   id: string = '';
@@ -23,6 +33,8 @@ export class ConnectionProfile {
   brokerId: string = '';
   brokerName: string = '';
   peerPassword: string = '';
+  /** Remote network path; local connections keep Auto. Records saved before this field read as Auto. */
+  relayMode: RelayMode = RelayMode.Auto;
 }
 
 /** Versioned launcher preferences; these records do not modify DSH Session data. */
@@ -65,6 +77,10 @@ export function connectionUrl(origin: string, token: string): string {
   return origin + '/?token=' + encodeURIComponent(token);
 }
 
+function relayMode(value: RelayMode): boolean {
+  return value === RelayMode.Auto || value === RelayMode.Never || value === RelayMode.Force;
+}
+
 function shortString(value: string, limit: number): boolean {
   return typeof value === 'string' && value.length <= limit && !/[\x00\r\n]/.test(value);
 }
@@ -81,8 +97,11 @@ export function validConnection(value: ConnectionProfile): boolean {
     !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(value.authSessionId))) {
     return false;
   }
+  if (!relayMode(value.relayMode)) {
+    return false;
+  }
   if (value.mode === ConnectionMode.Local) {
-    return value.serviceUrl === '' && value.account === '' && value.accessToken === '' &&
+    return value.relayMode === RelayMode.Auto && value.serviceUrl === '' && value.account === '' && value.accessToken === '' &&
       value.authSessionId === '' && value.localPort === 0 &&
       value.brokerId === '' && value.brokerName === '' && value.peerPassword === '';
   }
@@ -125,6 +144,8 @@ export function parseConnections(raw: string): ConnectionProfile[] {
     current.brokerId = connection.brokerId;
     current.brokerName = connection.brokerName;
     current.peerPassword = connection.peerPassword;
+    // Records written before relay selection omit the field and keep the earlier Auto behavior; null stays invalid.
+    current.relayMode = (connection.relayMode as RelayMode | undefined) === undefined ? RelayMode.Auto : connection.relayMode;
     current.authSessionId = document.version === 1 ? '' : connection.authSessionId;
     current.localPort = document.version === 1 ? 0 : connection.localPort;
     if (!validConnection(current) || ids.includes(current.id)) {

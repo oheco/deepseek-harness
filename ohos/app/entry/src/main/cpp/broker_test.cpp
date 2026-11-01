@@ -424,6 +424,63 @@ void concurrentChannels(Inputs input, const std::string& token, bool fixtureTarg
     std::cout << "PASS two concurrent channel clients sharing a preferred port own distinct listeners for one broker; "
         "closing one keeps the other connected, probed and its WebSocket open\n";
 }
+// Relayed payload bytes the control service has metered for the account; flushed by the service on read.
+double relayedBytes(ob_api_client* account) {
+    char* response = nullptr; ob_api_error error{};
+    const int code = ob_api_usage(account, &response, &error);
+    cJSON* json = response ? cJSON_Parse(response) : nullptr; ob_api_response_free(response);
+    cJSON* lifetime = cJSON_GetObjectItemCaseSensitive(json, "lifetime");
+    const double bytes = code == 0 && cJSON_IsNumber(lifetime) ? lifetime->valuedouble : -1;
+    cJSON_Delete(json); require(bytes >= 0, "account relay usage");
+    return bytes;
+}
+void tenantRelay(ob_api_client* admin, const std::string& tenant, bool enabled) {
+    const char* token = std::getenv("OHECO_BROKER_ADMIN_TOKEN"); require(token && *token, "fixture admin token");
+    char* response = nullptr; ob_api_error error{};
+    const int code = ob_api_request(admin, "PATCH", ("/v1/admin/tenants/" + tenant).c_str(), token,
+        enabled ? "{\"relay_enabled\":true}" : "{\"relay_enabled\":false}", &response, &error);
+    ob_api_response_free(response); require(code == 0, "fixture tenant relay update");
+}
+void relayModes(Inputs input, const std::string& token, ob_api_client* account, ob_api_client* admin, const std::string& tenant) {
+    namespace diag = dsh::broker::diag;
+    static std::atomic<int> peerConnectFlags{-1}, relayCheckFlags{-1};
+    diag::setTestSink(+[](diag::Event event, const diag::Fields& fields) noexcept {
+        if (event == diag::Event::SdkCallEnd && fields.stage == static_cast<int>(diag::Stage::PeerConnect))
+            peerConnectFlags.store(static_cast<int>(fields.flags));
+        if (event == diag::Event::ApiCallEnd && fields.stage == static_cast<int>(diag::Stage::RelayCheck))
+            relayCheckFlags.store(static_cast<int>(fields.flags));
+    });
+    Client client(3); input.localPort = 0;
+    tenantRelay(admin, tenant, false);
+    input.relayMode = RelayMode::Force;
+    const auto started = Clock::now();
+    auto unavailable = client.submit(Method::Connect, input).get();
+    require(unavailable.errorCode == "DSH_BROKER_RELAY" && client.status().state == "failed" &&
+        client.status().errorCode == "DSH_BROKER_RELAY", "forced relay without account relay was not classified");
+    require(Clock::now() - started < std::chrono::seconds(10) && peerConnectFlags.load() == -1 && relayCheckFlags.load() == 2,
+        "forced relay preflight started peer setup");
+    require(client.submit(Method::Close, {}).get().error.empty(), "relay preflight close");
+    tenantRelay(admin, tenant, true);
+    double previous = relayedBytes(account);
+    for (const auto mode : {RelayMode::Force, RelayMode::Never, RelayMode::Auto}) {
+        input.relayMode = mode; peerConnectFlags.store(-1);
+        auto connected = client.submit(Method::Connect, input).get();
+        if (!connected.error.empty()) std::cerr << "relay mode=" << static_cast<int>(mode) << ": " << connected.error << '\n';
+        require(connected.error.empty() && connected.status.state == "connected", "relay mode connection failed");
+        require(peerConnectFlags.load() == static_cast<int>(mode), "relay mode did not reach the SDK connect call");
+        Inputs probe; probe.origin = connected.status.localUrl; probe.token = token;
+        require(client.submit(Method::Probe, probe).get().probeState == "ok", "relay mode DSH probe failed");
+        require(client.submit(Method::Close, {}).get().error.empty(), "relay mode close");
+        const double relayed = relayedBytes(account);
+        if (mode == RelayMode::Force) require(relayed > previous, "relay-only connection did not forward through TURN");
+        if (mode == RelayMode::Never) require(relayed == previous, "direct-only connection forwarded through TURN");
+        previous = relayed;
+    }
+    require(relayCheckFlags.load() == 3, "forced relay preflight did not observe account relay and TURN");
+    client.dispose(); diag::setTestSink(nullptr);
+    std::cout << "PASS forced relay without account relay fails before peer setup; relay-only traffic is metered by TURN, "
+        "direct-only traffic is not, and automatic still maps and probes DSH\n";
+}
 void integration(const std::string& root, int upstreamPort) {
     auto ca = root + "/integration-ca.pem"; auto* context = certificate(ca);
     {
@@ -437,7 +494,11 @@ void integration(const std::string& root, int upstreamPort) {
         ob_api_error error{}; auto* api = ob_api_client_create(&apiOptions, &error); require(api, "integration api");
         ob_api_credentials credentials{}; char* receipt = nullptr;
         require(ob_api_tenant_register(api, &credentials, &receipt, &error) == 0, "integration account registration");
-        ob_api_response_free(receipt); ob_api_client_destroy(api);
+        cJSON* registration = cJSON_Parse(receipt); ob_api_response_free(receipt);
+        cJSON* tenantId = cJSON_GetObjectItemCaseSensitive(cJSON_GetObjectItemCaseSensitive(registration, "tenant"), "id");
+        require(cJSON_IsString(tenantId), "integration tenant id"); const std::string tenant = tenantId->valuestring;
+        cJSON_Delete(registration);
+        ob_api_client* admin = api;
         Client client; input.account = credentials.name; input.password = credentials.password;
         auto login = client.submit(Method::Login, input).get(); require(login.error.empty(), "integration account login"); input.authSessionId = login.authSessionId;
         CredentialStore store(input.credentialDir, input.serviceUrl, input.authSessionId);
@@ -519,7 +580,8 @@ void integration(const std::string& root, int upstreamPort) {
         client.dispose();
         std::cout << "PASS real control HTTPS/WSS, account login/list, peer-password rejection, PAKE ICE QUIC, dynamic TCP DSH cookie probe, healthy SDK wake keeps port, accepted WebSocket close, repeated connect/close and cancellation\n";
         concurrentChannels(input, realToken ? realToken : "valid", !realPort);
-        ob_remote_server_close(server); ob_api_client_destroy(api); ob_api_credentials_clear(&credentials);
+        relayModes(input, realToken ? realToken : "valid", api, admin, tenant);
+        ob_remote_server_close(server); ob_api_client_destroy(api); ob_api_client_destroy(admin); ob_api_credentials_clear(&credentials);
     }
     SSL_CTX_free(context); unlink(ca.c_str());
 }

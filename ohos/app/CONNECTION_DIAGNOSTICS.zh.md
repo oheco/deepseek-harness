@@ -30,12 +30,13 @@ App 将记录写入 `context.filesDir/connection-diagnostics/connection.log`，�
 | `web.ws_large_message` / `web.ws_summary` | `chars`、`totalChars`、`maxChars` 为文本 UTF-16 长度；二进制消息使用 `bytes`；普通消息汇总最多每 5 秒一次 |
 | `web.visibility` / `web.online` / `web.offline` | 浏览器报告的可见性与 online 状态；online 读取原始 getter，仍属于 ArkWeb 报告而不是蜂窝网络诊断 |
 | `native_sdk_state` / `native_sdk_recovery_stopped` | SDK 原始错误 `code`、`http`、`attempts`、`sdk_gen`、`retry_ms`；`flags` bit0 为映射存在、bit1 为取消代次已变、bit2 为状态查询失败 |
+| `native_api_call_end` / `native_sdk_call_end` | 管理 API 或 SDK 调用的 `stage`、数字 `code`、`http` 与耗时。阶段 11 peer 连接：`flags` 为中继模式，0 自动、1 仅直连、2 仅中继。阶段 31 强制中继检查：`flags` bit0 为账号已启用中继、bit1 为服务提供 TURN |
 | `native_probe_stage_begin` / `native_probe_stage_end` | `stage=1` 为 token 交换、2 为首页；curl 数值错误、HTTP、耗时及保留的响应体字节数；不记录响应体 |
 | `native_operation_begin` / `native_operation_end` | `method`：0 登录、1 列表、2 映射、3 手动重连、4 状态、5 关闭、6 DSH 探测；`queue_ms` 与 `duration_ms` 区分排队及执行 |
 | `native_napi_forced_close` / `native_release_begin` / `native_release_end` | 提交失败是否触发取消和关闭，以及映射、peer、API 各自释放时长 |
 | `native_napi_channel_release_begin` / `native_napi_channel_release_end` | 关闭窗口时释放其通道：`duration_ms`、`queue_ms`、NAPI 状态 `code`；`outcome` 0 完成、1 工作线程尚未停止、2 已取消、3 异常；`flags` bit0 为未知通道立即完成、bit1 为在独立线程继续释放 |
 
-`native_sdk_state.state` 使用 SDK 枚举：0 connecting、1 connected、2 reconnecting、3 retry_wait、4 paused、5 failed、6 closed。`connection.state.state` 使用 App 枚举：0 connected、1 disconnected、2 recovering、3 authentication-required。`web.ws_closed.reason` 仅为固定分类：0 空、1 reconnect requested、2 invalid Remote stream frame、3 Remote stream failure could not be delivered、4 peer disposed、5 其他非空值；未匹配的文本被丢弃。原生阶段 29 表示通道查找、创建、64 通道上限及模块关闭，阶段 30 表示通道释放；`native_napi_complete` 的 `flags` bit0 表示关闭或重连作用于尚无 broker 客户端的通道。
+`native_sdk_state.state` 使用 SDK 枚举：0 connecting、1 connected、2 reconnecting、3 retry_wait、4 paused、5 failed、6 closed。`connection.state.state` 使用 App 枚举：0 connected、1 disconnected、2 recovering、3 authentication-required。`web.ws_closed.reason` 仅为固定分类：0 空、1 reconnect requested、2 invalid Remote stream frame、3 Remote stream failure could not be delivered、4 peer disposed、5 其他非空值；未匹配的文本被丢弃。App 失败记录的 `code` 保留平台错误号；原生分类为 -1 broker 失败、-2 账号授权、-3 所选中继模式下没有可用网络路径、-4 强制中继不可用。原生阶段 29 表示通道查找、创建、64 通道上限及模块关闭，阶段 30 表示通道释放；`native_napi_complete` 的 `flags` bit0 表示关闭或重连作用于尚无 broker 客户端的通道。
 
 阶段观察每 5 秒记录尚未完成的等待；普通 SDK 状态轮询只记录变化。观察定时器只写日志，连接动作由原有逻辑负责。WebSocket `1006` 表示浏览器未收到正常关闭帧；判断服务端心跳或主动终止仍需对应时间的服务端日志。SDK 公共状态没有暴露其内部在线探测的 curl 阶段，App 的 HTTP Probe 记录与该状态分别保留。
 

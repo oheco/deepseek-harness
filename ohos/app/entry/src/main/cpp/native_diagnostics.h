@@ -35,7 +35,8 @@ enum class Stage {
     NapiPromise = 18, NapiArguments = 19, NapiInputs = 20,
     NapiCreateWork = 21, NapiSubmit = 22, NapiQueue = 23,
     NapiSettle = 24, NapiDeleteWork = 25, NapiFuture = 26,
-    NapiCloseSubmit = 27, NapiCleanupThread = 28, NapiChannel = 29, NapiDispose = 30
+    NapiCloseSubmit = 27, NapiCleanupThread = 28, NapiChannel = 29, NapiDispose = 30,
+    RelayCheck = 31
 };
 struct Fields {
     int method = -1, stage = 0, outcome = 0, code = 0, http = 0, curl = 0, state = -1;

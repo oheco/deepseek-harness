@@ -82,6 +82,12 @@ export interface BrokerConnectOptions extends BrokerListOptions {
   peerPassword: string;
   /** Integer 1..65535; the target is fixed to remote 127.0.0.1. */
   remotePort: number;
+  /**
+   * Network path: `auto` tries a direct path and then relay, `never` fails without a direct path, and
+   * `force` sends all traffic through the service's TURN relay. `force` first confirms that relay is
+   * enabled for the account and service; otherwise it rejects with `DSH_BROKER_RELAY` before creating a session.
+   */
+  relayMode: 'auto' | 'never' | 'force';
   /** Prefer the saved listener; zero allocates its first port. Local bind failure falls back to zero. */
   localPort: number;
 }
@@ -95,7 +101,11 @@ export interface BrokerStatus {
   remotePort: number;
   /** Fixed redacted diagnostic; never includes credentials or wire responses. */
   error: string;
-  /** DSH_BROKER_AUTH for account authorization failures (HTTP 401/403); otherwise empty. */
+  /**
+   * DSH_BROKER_AUTH for account authorization failures (HTTP 401/403), DSH_BROKER_ICE when no network path
+   * satisfies the relay mode, DSH_BROKER_RELAY when forced relay is unavailable; otherwise empty.
+   * A rejected broker promise carries the same code, or DSH_BROKER for other failures.
+   */
   errorCode: string;
 }
 export interface DshProbeOptions {
