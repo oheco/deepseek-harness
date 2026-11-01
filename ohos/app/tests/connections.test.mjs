@@ -177,12 +177,10 @@ function renderedConnectionRows(h) {
       (ts.isPropertyAccessExpression(node.expression) && node.expression.expression.getText(file) === 'Text' && node.expression.name.text === 'create')) text.push(node.arguments[0]);
     if (ts.isPropertyAccessExpression(node.expression) && node.expression.name.text === 'onClick') clicks.push(node.arguments[0]);
   });
-  // The row itself holds only Open and Disconnect; swipe and right-click actions come from rowActions.
+  // The row itself holds only Open and Disconnect; swipe actions come from rowActions.
   assert(key && text.length >= 3 && clicks.length === 2);
-  for (const builder of ['connectionActions', 'connectionMenu']) {
-    const body = methods.get(builder).getText(file);
-    assert(body.includes('this.rowActions(connection)') && body.includes('this.runRowAction(action)'), builder + ' shows rowActions');
-  }
+  const swipe = methods.get('connectionActions').getText(file);
+  assert(swipe.includes('this.rowActions(connection)') && swipe.includes('this.runRowAction(action)'), 'swipe actions show rowActions');
   const exports = {};
   const javascript = ts.transpileModule('export function bind() { return ' + key.getText(file) + '; }\n' +
     'export function row(connection) { const action = label => this.rowActions(connection)' +

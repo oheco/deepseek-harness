@@ -49,7 +49,7 @@ class BrokerIdentitySnapshot {
   peerPassword: string = '';
 }
 
-/** A saved connection's secondary action, shown both when its row is swiped left and in its right-click menu. */
+/** A saved connection's secondary action, shown when its row is swiped left. */
 interface ConnectionRowAction {
   label: Resource;
   enabled: boolean;
@@ -1043,16 +1043,6 @@ export struct ConnectionHome {
   }
 
   @Builder
-  private connectionMenu(connection: ConnectionProfile) {
-    Menu() {
-      ForEach(this.rowActions(connection), (action: ConnectionRowAction) => {
-        MenuItem({ content: action.label }).enabled(action.enabled).onClick(() => this.runRowAction(action))
-      }, (action: ConnectionRowAction, index: number) =>
-        index.toString() + ':' + action.label.id.toString() + ':' + action.enabled.toString())
-    }
-  }
-
-  @Builder
   private homePage() {
     Column({ space: 16 }) {
       if (this.connections.length === 0) {
@@ -1067,7 +1057,6 @@ export struct ConnectionHome {
             ListItem() {
               this.connectionRow(connection)
             }.swipeAction({ end: { builder: () => { this.connectionActions(connection) } } })
-            .bindContextMenu(() => { this.connectionMenu(connection) }, ResponseType.RightClick)
           }, (connection: ConnectionProfile) => connection.id + ':' + this.listRevision.toString())
         }.layoutWeight(1).width('100%')
       }

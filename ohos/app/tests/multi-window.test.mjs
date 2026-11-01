@@ -286,7 +286,7 @@ test('a window that is still opening a connection makes other windows switch ins
   assert.equal(h.registry.session(first.channel).pendingId, '', 'a finished open clears its claim');
 });
 
-test('swipe and right-click actions offer New window or Switch to window at every width, and Disconnect stays on the row', async () => {
+test('swipe actions offer New window or Switch to window at every width, and Disconnect stays on the row', async () => {
   const h = app();
   const first = h.launch();
   const second = h.launch({ parameters: { dshNewWindow: true } });

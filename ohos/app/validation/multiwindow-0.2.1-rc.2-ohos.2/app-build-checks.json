@@ -76,12 +76,12 @@
     "launch_type": "specified",
     "ability_stage_packaged": true,
     "filename": "DSHApp-0.2.1-rc.2-ohos.2-signed.hap",
-    "size": 5539318,
-    "sha256": "84de58e8edb7a8ebf82379450116a5c01cdf97645a2d8aa58d4da132b089ec55",
-    "native_library_sha256": "4cc162756575654578ac683d49ec7f25e5c6f268a399033ee004ffb3bfd968e3",
-    "ark_bytecode_sha256": "2e245488d1c2e229b9005c3000c3f4bf5a5d7e82d98bfdd61d4560b6831727b7",
+    "size": 5533662,
+    "sha256": "a1f89c6e993faa72fe6e37521db3419441b2654c1fa97352e9789e7d3e8fc032",
+    "native_library_sha256": "cb4e0e24e3fcb770917d0da9d04a1f07f48cf628ec20ee74015b5f497b7b6711",
+    "ark_bytecode_sha256": "631242f8917f67af86a65a145fc490c77aa125d774ee21e4856341fa0f25ddd5",
     "personal_signed_hap_published": false,
-    "row_actions_packaged": true
+    "swipe_actions_packaged": true
   },
   "broker_sdk": {
     "version": "0.5.0",
@@ -95,7 +95,8 @@
       "installed_version_code": 1000011,
       "uninstalled_or_data_cleared": false,
       "installed_launch_mode_specified": true,
-      "installed_ability_stage": true
+      "installed_ability_stage": true,
+      "installed_sha256": "a1f89c6e993faa72fe6e37521db3419441b2654c1fa97352e9789e7d3e8fc032"
     },
     "phone": {
       "device": "HarmonyOS phone",
@@ -103,7 +104,10 @@
       "replaced_version_code": 1000011,
       "installed_version_code": 1000011,
       "uninstalled_or_data_cleared": false,
-      "launch_blocked_by_lock_screen": true
+      "launch_blocked_by_lock_screen": true,
+      "installed_sha256": "84de58e8edb7a8ebf82379450116a5c01cdf97645a2d8aa58d4da132b089ec55",
+      "installed_build_difference": "previous build with an inert right-click menu binding",
+      "final_build_install_blocked_by_unreachable_hdc": true
     }
   },
   "device_observations": {
@@ -122,10 +126,10 @@
     "swipe_left_reveals_switch_to_window_and_disabled_edit_for_held_connection": true,
     "switch_to_window_focused_holding_window": true,
     "native_records_carry_channel_in_device_log": true,
-    "simultaneous_connections_observed_after_swipe_build": 2
+    "simultaneous_connections_observed_after_swipe_build": 2,
+    "right_click_menu_did_not_open_and_was_removed": true
   },
   "not_verified_on_device": [
-    "right-click menu (uitest cannot inject a mouse right click)",
     "swipe actions on the phone (screen locked)",
     "system Dock new-window want parameters",
     "window close channel release records"
