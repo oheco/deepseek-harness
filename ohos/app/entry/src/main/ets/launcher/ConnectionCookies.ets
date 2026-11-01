@@ -1,9 +1,45 @@
 import webview from '@ohos.web.webview';
+import cryptoFramework from '@ohos.security.cryptoFramework';
 import { loopbackOrigin } from './RunLogUrl';
 import { connectionDiagnostic, connectionDiagnosticFailure } from './ConnectionDiagnostics';
 
+const BASE64URL: string = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+
+function base64Url(bytes: Uint8Array): string {
+  let text = '';
+  for (let index = 0; index < bytes.length; index += 3) {
+    const value = (bytes[index] << 16) | ((index + 1 < bytes.length ? bytes[index + 1] : 0) << 8) |
+      (index + 2 < bytes.length ? bytes[index + 2] : 0);
+    text += BASE64URL[(value >> 18) & 63] + BASE64URL[(value >> 12) & 63];
+    if (index + 1 < bytes.length) { text += BASE64URL[(value >> 6) & 63]; }
+    if (index + 2 < bytes.length) { text += BASE64URL[value & 63]; }
+  }
+  return text;
+}
+
 /**
- * Expire DSH authentication cookies after a real Web controller is bound, before its first authenticated navigation.
+ * Name of the DSH browser-session cookie for one HTTP authority. DSH Web names each cookie `dsh-auth-` plus the
+ * unpadded base64url SHA-256 of the request Host authority, so services on other loopback ports keep their cookies.
+ * @param origin Numeric loopback origin.
+ * @returns Cookie name.
+ */
+export function authenticationCookieName(origin: string): string {
+  let authority = origin.slice('http://'.length);
+  if (authority.endsWith(':80')) {
+    authority = authority.slice(0, -3);
+  }
+  const bytes = new Uint8Array(authority.length);
+  for (let index = 0; index < authority.length; index++) {
+    bytes[index] = authority.charCodeAt(index);
+  }
+  const digest = cryptoFramework.createMd('SHA256');
+  digest.updateSync({ data: bytes });
+  return 'dsh-auth-' + base64Url(digest.digestSync().data);
+}
+
+/**
+ * Expire this origin's DSH authentication cookie after a real Web controller is bound, before its first
+ * authenticated navigation. Cookies of other loopback ports, including connections open in other windows, stay valid.
  * @param origin Numeric loopback origin for the new connection.
  * @param current Reports whether the bound controller still owns the pending navigation.
  * @returns False when ownership is cancelled; otherwise cookie preparation is complete.
@@ -16,6 +52,7 @@ export async function prepareConnectionCookies(origin: string, current: () => bo
     return false;
   }
   const hostname = origin.startsWith('http://[::1]:') ? '::1' : '127.0.0.1';
+  const name = authenticationCookieName(origin);
   const started = Date.now();
   connectionDiagnostic('cookies.read_begin', { generation: generation });
   let cookies: webview.WebHttpCookie[];
@@ -33,7 +70,7 @@ export async function prepareConnectionCookies(origin: string, current: () => bo
   let expired: number = 0;
   for (const cookie of cookies) {
     const domain = cookie.domain.replace(/^\./, '').replace(/^\[|\]$/g, '').toLowerCase();
-    if (domain !== hostname || cookie.path !== '/' || !/^dsh-auth-[A-Za-z0-9_-]{43}$/.test(cookie.name)) {
+    if (domain !== hostname || cookie.path !== '/' || cookie.name !== name) {
       continue;
     }
     if (!current()) {

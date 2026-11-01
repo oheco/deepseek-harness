@@ -213,7 +213,25 @@ struct Fixture {
     }
 };
 Inputs service(int port, const std::string& ca) { Inputs input; input.serviceUrl = "https://127.0.0.1:" + std::to_string(port); input.testCaPath = ca; return input; }
+std::atomic<int> labelledRecords{0}, foreignRecords{0}, disposeRecords{0};
+void channelLabels() {
+    namespace diag = dsh::broker::diag;
+    diag::setTestSink(+[](diag::Event event, const diag::Fields& fields) noexcept {
+        (fields.channel == 2147483647 ? labelledRecords : foreignRecords).fetch_add(1);
+        if (event == diag::Event::DisposeBegin) disposeRecords.fetch_add(1);
+    });
+    {
+        Client labelled(2147483647);
+        require(labelled.submit(Method::Close, {}).get().error.empty(), "labelled client close");
+        labelled.dispose();
+    }
+    diag::setTestSink(nullptr);
+    require(labelledRecords.load() >= 6 && foreignRecords.load() == 0, "client diagnostics omitted their channel");
+    require(disposeRecords.load() == 1, "destructor repeated an explicit dispose");
+    std::cout << "PASS client diagnostics carry their channel and repeated dispose is silent\n";
+}
 void basic(const std::string& root) {
+    channelLabels();
     auto ca = root + "/fixture-ca.pem"; auto* context = certificate(ca);
     {
         Fixture fixture(context), web;
@@ -343,6 +361,69 @@ void publicHttps() {
     require(code == CURLE_OK && status >= 100 && status <= 599, "read-only public broker HTTPS system verification failed");
     std::cout << "PASS read-only public broker HTTPS with system roots, HTTP status=" << status << '\n';
 }
+bool listening(int port) {
+    int fd = socket(AF_INET, SOCK_STREAM, 0); require(fd >= 0, "listener check socket");
+    sockaddr_in address{}; address.sin_family = AF_INET; address.sin_addr.s_addr = htonl(INADDR_LOOPBACK); address.sin_port = htons(port);
+    const bool accepted = ::connect(fd, reinterpret_cast<sockaddr*>(&address), sizeof(address)) == 0;
+    close(fd); return accepted;
+}
+int holdWebSocket(int port) {
+    int held = socket(AF_INET, SOCK_STREAM, 0); require(held >= 0, "held WebSocket socket");
+    timeval deadline{5, 0}; setsockopt(held, SOL_SOCKET, SO_RCVTIMEO, &deadline, sizeof(deadline));
+    sockaddr_in mapping{}; mapping.sin_family = AF_INET; mapping.sin_addr.s_addr = htonl(INADDR_LOOPBACK); mapping.sin_port = htons(port);
+    require(::connect(held, reinterpret_cast<sockaddr*>(&mapping), sizeof(mapping)) == 0, "held WebSocket connect");
+    const char request[] = "GET /keep-open HTTP/1.1\r\nHost: 127.0.0.1\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\nSec-WebSocket-Version: 13\r\n\r\n";
+    require(Fixture::write(held, nullptr, request, sizeof(request) - 1), "held WebSocket upgrade send");
+    char bytes[1024]; int received = recv(held, bytes, sizeof(bytes), 0);
+    require(received > 0 && std::string(bytes, received).find("101 Switching Protocols") != std::string::npos, "held WebSocket upgrade acknowledgement");
+    return held;
+}
+// A port that carried mapped traffic can stay in TIME_WAIT; this one never accepted a connection.
+int unusedPort() {
+    int fd = socket(AF_INET, SOCK_STREAM, 0); require(fd >= 0, "unused port socket");
+    sockaddr_in address{}; address.sin_family = AF_INET; address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    socklen_t length = sizeof(address);
+    require(bind(fd, reinterpret_cast<sockaddr*>(&address), sizeof(address)) == 0 &&
+        getsockname(fd, reinterpret_cast<sockaddr*>(&address), &length) == 0, "unused port allocation");
+    close(fd); return ntohs(address.sin_port);
+}
+// Two App windows own independent channel clients that map the same served broker and saved preferred port.
+void concurrentChannels(Inputs input, const std::string& token, bool fixtureTarget) {
+    const int preferred = unusedPort();
+    input.localPort = preferred;
+    Client first(1), second(2);
+    auto firstConnect = first.submit(Method::Connect, input);
+    auto secondConnect = second.submit(Method::Connect, input);
+    auto a = firstConnect.get(), b = secondConnect.get();
+    if (!a.error.empty() || !b.error.empty()) std::cerr << "concurrent channel connect: [" << a.error << "] [" << b.error << "]\n";
+    require(a.error.empty() && b.error.empty() && a.status.state == "connected" && b.status.state == "connected",
+        "concurrent channel connections failed");
+    std::cout << "INFO concurrent channel listeners " << a.status.localPort << "/" << b.status.localPort << ", preferred " << preferred << std::endl;
+    require(a.status.localPort > 0 && b.status.localPort > 0 && a.status.localPort != b.status.localPort &&
+        (a.status.localPort == preferred || b.status.localPort == preferred), "concurrent channels did not own distinct listeners");
+    Inputs probe; probe.token = token;
+    probe.origin = a.status.localUrl; require(first.submit(Method::Probe, probe).get().probeState == "ok", "first channel probe");
+    probe.origin = b.status.localUrl; require(second.submit(Method::Probe, probe).get().probeState == "ok", "second channel probe");
+    const int held = fixtureTarget ? holdWebSocket(b.status.localPort) : -1;
+    require(first.submit(Method::Close, {}).get().error.empty(), "first channel close");
+    first.dispose();
+    require(first.status().state == "idle" && !listening(a.status.localPort), "closed channel still listening");
+    auto remaining = second.submit(Method::Status, {}).get();
+    require(remaining.error.empty() && remaining.status.state == "connected" && remaining.status.localPort == b.status.localPort,
+        "closing one channel changed another channel");
+    if (held >= 0) {
+        char byte; const auto received = recv(held, &byte, 1, MSG_DONTWAIT);
+        require(received < 0 && (errno == EAGAIN || errno == EWOULDBLOCK), "closing one channel dropped another channel's WebSocket");
+    }
+    probe.origin = b.status.localUrl;
+    require(second.submit(Method::Probe, probe).get().probeState == "ok", "remaining channel probe after another channel closed");
+    require(second.submit(Method::Close, {}).get().error.empty() && second.status().state == "idle", "second channel close");
+    if (held >= 0) { char byte; require(recv(held, &byte, 1, 0) == 0, "second channel close retained its WebSocket"); close(held); }
+    second.dispose();
+    require(!listening(b.status.localPort), "second closed channel still listening");
+    std::cout << "PASS two concurrent channel clients sharing a preferred port own distinct listeners for one broker; "
+        "closing one keeps the other connected, probed and its WebSocket open\n";
+}
 void integration(const std::string& root, int upstreamPort) {
     auto ca = root + "/integration-ca.pem"; auto* context = certificate(ca);
     {
@@ -435,8 +516,10 @@ void integration(const std::string& root, int upstreamPort) {
         require(client.status().state == "connecting", "native setup did not start before cancellation");
         auto cancelledClose = client.submit(Method::Close, {});
         require(pendingConnect.get().error == "Broker operation cancelled" && cancelledClose.get().error.empty() && client.status().state == "idle", "in-flight native peer cancellation/quiescence failed");
-        client.dispose(); ob_remote_server_close(server); ob_api_client_destroy(api); ob_api_credentials_clear(&credentials);
+        client.dispose();
         std::cout << "PASS real control HTTPS/WSS, account login/list, peer-password rejection, PAKE ICE QUIC, dynamic TCP DSH cookie probe, healthy SDK wake keeps port, accepted WebSocket close, repeated connect/close and cancellation\n";
+        concurrentChannels(input, realToken ? realToken : "valid", !realPort);
+        ob_remote_server_close(server); ob_api_client_destroy(api); ob_api_credentials_clear(&credentials);
     }
     SSL_CTX_free(context); unlink(ca.c_str());
 }

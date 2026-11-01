@@ -1,0 +1,107 @@
+{
+  "observed_on": "2026-11-01",
+  "bundle_name": "org.oheco.deepseekharness",
+  "version_name": "0.2.1-rc.2-ohos.2",
+  "version_code": 1000011,
+  "host_platform": "HarmonyOS ARM64",
+  "app_logic_tests": {
+    "passed": 194,
+    "failed": 0,
+    "skipped": 0,
+    "node": "24.21.0",
+    "transpiler_source": "read-only previous checkout",
+    "new_multi_window_tests": 8,
+    "device_interaction": false
+  },
+  "mutation_negative_controls": {
+    "holder_lookup_disabled": { "suite": "multi-window", "failed": 5 },
+    "cookie_expiry_for_any_authority": { "suite": "connection-cookies and web-connection", "failed": 3 },
+    "window_channel_release_removed": { "suite": "multi-window", "failed": 1 },
+    "production_source_mutated": false
+  },
+  "native_logger_tests": {
+    "passed": 2,
+    "compiled_on_host": true,
+    "signed": true,
+    "executed": true,
+    "temporary_inputs_cleaned": true
+  },
+  "native_broker_tests": {
+    "final_exit_code": 0,
+    "fresh_build_directory": true,
+    "compiler_warnings": 0,
+    "real_control_fixture": true,
+    "concurrent_channel_clients_distinct_listeners": true,
+    "closing_one_channel_keeps_other_connected": true,
+    "client_diagnostics_carry_channel": true,
+    "broker_sdk_changed": false
+  },
+  "project_export_tests": {
+    "passed": 22,
+    "failed": 0
+  },
+  "standalone_arkts": {
+    "exit_code": 0,
+    "reported_errors": 0,
+    "warnings_retained": true,
+    "configured_product_sdk": "6.1.0(23)",
+    "checker_sdk": "command-line-tools 26.0.0.201"
+  },
+  "hap_build": {
+    "fresh_build": true,
+    "offline": true,
+    "hvigor": "7.26.8",
+    "sdk": "26.0.0.105 Release",
+    "compile_sdk": "26.0.0",
+    "minimum_api": 23,
+    "compatible_sdk": "6.1.0(23)",
+    "assemble_exit_code": 0,
+    "signature_verification_exit_code": 0,
+    "original_signing_family_verified": true,
+    "embedded_profile_matches": true,
+    "private_signing_copies_cleaned": true,
+    "cache_signing_configuration_cleared": true,
+    "source_snapshot_files": 254,
+    "source_snapshot_matched_build_cache_at_build_time": true,
+    "source_snapshot_matched_commit_tree": true,
+    "launch_type": "specified",
+    "ability_stage_packaged": true,
+    "filename": "DSHApp-0.2.1-rc.2-ohos.2-signed.hap",
+    "size": 5535411,
+    "sha256": "25838a939bd34b38692fc183a3501f79f6405d321a9899f8d93e2256cf3538a4",
+    "native_library_sha256": "e95148e72eacb1f2260590db3e0407127ea08ce60c2ecfe5ab04d44e70fff662",
+    "ark_bytecode_sha256": "f69da3be191c73082643f449503e8f0254c2a950b0a6b9931481d4b14c10dac5",
+    "personal_signed_hap_published": false
+  },
+  "broker_sdk": {
+    "version": "0.5.0",
+    "modified": false
+  },
+  "device_installation": {
+    "device": "HarmonyOS 2in1 computer",
+    "transport": "hdc through the local SOCKS5 relay",
+    "replaced_version_code": 1000010,
+    "installed_version_code": 1000011,
+    "uninstalled_or_data_cleared": false,
+    "installed_launch_mode_specified": true,
+    "installed_ability_stage": true
+  },
+  "device_observations": {
+    "first_launch_blocked_by_lock_screen": true,
+    "concurrent_entry_ability_windows_in_one_process": 3,
+    "simultaneous_open_connections": 2,
+    "simultaneous_connection_modes": ["local", "remote"],
+    "window_titles_name_open_connection": true,
+    "remote_loopback_listeners_in_app_process": 1,
+    "local_and_remote_webview_sockets_established_together": true,
+    "held_connection_shows_switch_to_window": true,
+    "new_window_action_shown_at_wide_width": true,
+    "ui_input_stopped_while_user_used_another_full_screen_application": true
+  },
+  "not_verified_on_device": [
+    "switch to window focus result",
+    "system Dock new-window want parameters",
+    "window close channel release records",
+    "native channel field in the on-device journal"
+  ]
+}

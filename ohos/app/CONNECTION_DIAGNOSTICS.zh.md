@@ -14,10 +14,12 @@ App 将记录写入 `context.filesDir/connection-diagnostics/connection.log`，�
 
 ## 记录含义
 
-`source=app` 与 `source=native` 共享同一文件；`wallMs` 为时间戳，`monoMs` 为原生单调时间，`pid` 区分重启。`generation` 是对应 App 所有者的代次，`app_gen` 是原生取消代次，`sdk_gen` 是 SDK 恢复代次；这些计数分别解释，不能直接互相比较。`current=0` 表示来自已退役页面的回调。
+`source=app` 与 `source=native` 共享同一文件；`wallMs` 为时间戳，`monoMs` 为原生单调时间，`pid` 区分重启。`generation` 是对应 App 所有者的代次，`app_gen` 是原生取消代次，`sdk_gen` 是 SDK 恢复代次；这些计数分别解释，不能直接互相比较。`current=0` 表示来自已退役页面的回调。每个窗口拥有一个原生 broker 通道：窗口的 App 记录与其 broker 客户端的原生记录带相同的 `channel` 编号，原生 `channel=-1` 表示环境清理等模块级记录。其他计数按窗口或通道独立，只能在同一 `channel` 内比较。
 
 | 记录 | 关键字段 |
 | --- | --- |
+| `ability.created` / `ability.foreground` / `ability.background` / `ability.window_destroyed` / `ability.destroyed` | 窗口生命周期及其 `channel` |
+| `home.switch_window` / `home.new_window` / `home.switch_window_failed` / `home.new_window_failed` / `home.refresh_failed` | 已打开的连接切换到 `targetChannel` 所在窗口、在新窗口中打开连接，或无法读取其他窗口修改后的列表 |
 | `home.phase` / `home.phase_pending` | `operation` 区分选择与断开；`phase`：1 等待页面准备、2 broker 映射、3 DSH 探测、4 WebView 接管、5 断开；`elapsedMs` 为等待时长 |
 | `index.phase` / `index.phase_pending` | `phase`：0 就绪或结束、1 等待控制器绑定或初始空白页结束、2 Cookie 准备、3 等待导航结束、4 页面错误、5 渲染器退出；`attached` 为 Web 控制器是否绑定 |
 | `cookies.read_begin` / `cookies.read_complete` / `cookies.prepared` | 元数据读取、完成及认证 Cookie 过期数量；没有完成事件时可与等待阶段对照 |
@@ -31,8 +33,9 @@ App 将记录写入 `context.filesDir/connection-diagnostics/connection.log`，�
 | `native_probe_stage_begin` / `native_probe_stage_end` | `stage=1` 为 token 交换、2 为首页；curl 数值错误、HTTP、耗时及保留的响应体字节数；不记录响应体 |
 | `native_operation_begin` / `native_operation_end` | `method`：0 登录、1 列表、2 映射、3 手动重连、4 状态、5 关闭、6 DSH 探测；`queue_ms` 与 `duration_ms` 区分排队及执行 |
 | `native_napi_forced_close` / `native_release_begin` / `native_release_end` | 提交失败是否触发取消和关闭，以及映射、peer、API 各自释放时长 |
+| `native_napi_channel_release_begin` / `native_napi_channel_release_end` | 关闭窗口时释放其通道：`duration_ms`、`queue_ms`、NAPI 状态 `code`；`outcome` 0 完成、1 工作线程尚未停止、2 已取消、3 异常；`flags` bit0 为未知通道立即完成、bit1 为在独立线程继续释放 |
 
-`native_sdk_state.state` 使用 SDK 枚举：0 connecting、1 connected、2 reconnecting、3 retry_wait、4 paused、5 failed、6 closed。`connection.state.state` 使用 App 枚举：0 connected、1 disconnected、2 recovering、3 authentication-required。`web.ws_closed.reason` 仅为固定分类：0 空、1 reconnect requested、2 invalid Remote stream frame、3 Remote stream failure could not be delivered、4 peer disposed、5 其他非空值；未匹配的文本被丢弃。
+`native_sdk_state.state` 使用 SDK 枚举：0 connecting、1 connected、2 reconnecting、3 retry_wait、4 paused、5 failed、6 closed。`connection.state.state` 使用 App 枚举：0 connected、1 disconnected、2 recovering、3 authentication-required。`web.ws_closed.reason` 仅为固定分类：0 空、1 reconnect requested、2 invalid Remote stream frame、3 Remote stream failure could not be delivered、4 peer disposed、5 其他非空值；未匹配的文本被丢弃。原生阶段 29 表示通道查找、创建、64 通道上限及模块关闭，阶段 30 表示通道释放；`native_napi_complete` 的 `flags` bit0 表示关闭或重连作用于尚无 broker 客户端的通道。
 
 阶段观察每 5 秒记录尚未完成的等待；普通 SDK 状态轮询只记录变化。观察定时器只写日志，连接动作由原有逻辑负责。WebSocket `1006` 表示浏览器未收到正常关闭帧；判断服务端心跳或主动终止仍需对应时间的服务端日志。SDK 公共状态没有暴露其内部在线探测的 curl 阶段，App 的 HTTP Probe 记录与该状态分别保留。
 

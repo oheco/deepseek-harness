@@ -3,6 +3,9 @@ import native from 'libdsh_launcher.so';
 /** Only numeric measurements and flags cross into the persistent diagnostic journal. */
 export interface ConnectionDiagnosticFields {
   operation?: number;
+  channel?: number;
+  /** Channel of another window that a switch brings forward. */
+  targetChannel?: number;
   generation?: number;
   remote?: boolean;
   attached?: boolean;
@@ -61,7 +64,8 @@ function numericField(name: string, value: number | boolean | undefined): string
 
 /** Append fixed event names and numeric fields; a failed logger cannot change connection behavior. */
 export function connectionDiagnostic(event: string, fields: ConnectionDiagnosticFields = {}): void {
-  const values = numericField('operation', fields.operation) + numericField('generation', fields.generation) +
+  const values = numericField('operation', fields.operation) + numericField('channel', fields.channel) +
+    numericField('targetChannel', fields.targetChannel) + numericField('generation', fields.generation) +
     numericField('remote', fields.remote) + numericField('attached', fields.attached) +
     numericField('visible', fields.visible) + numericField('current', fields.current) +
     numericField('initialAuthentication', fields.initialAuthentication) + numericField('elapsedMs', fields.elapsedMs) +

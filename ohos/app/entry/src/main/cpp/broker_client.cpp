@@ -88,14 +88,14 @@ int diagnosticProbeState(const std::string& state) noexcept {
     if (state == "not-dsh") return 4;
     return -1;
 }
-void apiCallLog(Method method, diag::Stage stage, std::uint64_t started, int code, const ob_api_error& error) noexcept {
-    diag::Fields fields; fields.method = static_cast<int>(method); fields.stage = static_cast<int>(stage);
+void apiCallLog(std::int64_t channel, Method method, diag::Stage stage, std::uint64_t started, int code, const ob_api_error& error) noexcept {
+    diag::Fields fields; fields.channel = channel; fields.method = static_cast<int>(method); fields.stage = static_cast<int>(stage);
     fields.code = code; fields.http = static_cast<int>(error.http_status); fields.curl = error.transport_code;
     fields.startMs = started; fields.durationMs = diag::nowMs() - started;
     diag::emit(diag::Event::ApiCallEnd, fields);
 }
-void sdkCallLog(Method method, diag::Stage stage, std::uint64_t started, int code, const ob_remote_error& error) noexcept {
-    diag::Fields fields; fields.method = static_cast<int>(method); fields.stage = static_cast<int>(stage);
+void sdkCallLog(std::int64_t channel, Method method, diag::Stage stage, std::uint64_t started, int code, const ob_remote_error& error) noexcept {
+    diag::Fields fields; fields.channel = channel; fields.method = static_cast<int>(method); fields.stage = static_cast<int>(stage);
     fields.code = code; fields.http = error.http_status; fields.startMs = started; fields.durationMs = diag::nowMs() - started;
     diag::emit(diag::Event::SdkCallEnd, fields);
 }
@@ -220,8 +220,9 @@ std::size_t probeHeader(char* bytes, std::size_t size, std::size_t count, void* 
 
 Inputs::~Inputs() { wipe(password); wipe(peerPassword); wipe(accessToken); wipe(token); }
 Result::~Result() { wipe(accessToken); }
-Client::Client() : worker_(&Client::run, this) {}
+Client::Client(std::int64_t channel) : channel_(channel), worker_(&Client::run, this) {}
 Client::~Client() { dispose(); }
+diag::Fields Client::diagnosticFields() const noexcept { diag::Fields fields; fields.channel = channel_; return fields; }
 int Client::cancelled(void* data) {
     auto* c = static_cast<Cancellation*>(data);
     return c->owner->stopping_.load() || c->owner->generation_.load() != c->generation;
@@ -229,7 +230,7 @@ int Client::cancelled(void* data) {
 void Client::cancel() {
     std::uint64_t generation;
     { std::lock_guard<std::mutex> lock(stateMutex_); generation = generation_.fetch_add(1) + 1; }
-    diag::Fields fields; fields.appGeneration = generation;
+    diag::Fields fields = diagnosticFields(); fields.appGeneration = generation;
     diag::emit(diag::Event::Cancel, fields);
     wake_.notify_all();
 }
@@ -238,7 +239,7 @@ std::future<Result> Client::submit(Method method, Inputs inputs) {
     task->method = method;
     task->inputs = std::move(inputs);
     std::lock_guard<std::mutex> lock(queueMutex_);
-    diag::Fields fields; fields.method = static_cast<int>(method); fields.depth = queue_.size();
+    diag::Fields fields = diagnosticFields(); fields.method = static_cast<int>(method); fields.depth = queue_.size();
     fields.appGeneration = generation_.load();
     if (stopping_.load()) {
         fields.code = 1; diag::emit(diag::Event::QueueError, fields);
@@ -250,7 +251,7 @@ std::future<Result> Client::submit(Method method, Inputs inputs) {
         // settles now; prior closes remain queued until handles are quiescent.
         for (auto it = queue_.begin(); it != queue_.end();) {
             if ((*it)->method == Method::Close) { ++it; continue; }
-            diag::Fields dropped; dropped.method = static_cast<int>((*it)->method);
+            diag::Fields dropped = diagnosticFields(); dropped.method = static_cast<int>((*it)->method);
             dropped.appGeneration = (*it)->generation; dropped.queueMs = diag::nowMs() - (*it)->enqueuedMs;
             dropped.depth = queue_.size(); dropped.outcome = static_cast<int>(diag::Outcome::Cancelled);
             diag::emit(diag::Event::QueueDropped, dropped);
@@ -291,17 +292,20 @@ const char* Client::prepareApi(const Inputs& input) {
     return caBundle_.c_str();
 }
 void Client::dispose() {
-    auto started = diag::nowMs(); diag::Fields fields; fields.startMs = started;
+    // Callers serialize dispose calls; a repeat, including the destructor's, returns silently.
+    if (disposed_.load()) return;
+    auto started = diag::nowMs(); diag::Fields fields = diagnosticFields(); fields.startMs = started;
     diag::emit(diag::Event::DisposeBegin, fields);
-    // Called by module cleanup on its own thread, never by an ArkTS callback.
+    // Called on NAPI execute, cleanup or test threads, never by an ArkTS callback.
     { std::lock_guard<std::mutex> lock(queueMutex_); stopping_.store(true); cancel(); }
     if (worker_.joinable()) worker_.join();
+    disposed_.store(true);
     fields.durationMs = diag::nowMs() - started; fields.appGeneration = generation_.load();
     diag::emit(diag::Event::DisposeEnd, fields);
 }
 void Client::release() {
     auto closeHandle = [&](diag::Stage stage, auto close) {
-        diag::Fields fields; fields.stage = static_cast<int>(stage); fields.appGeneration = peerGeneration_;
+        diag::Fields fields = diagnosticFields(); fields.stage = static_cast<int>(stage); fields.appGeneration = peerGeneration_;
         auto started = diag::nowMs(); fields.startMs = started; diag::emit(diag::Event::ReleaseBegin, fields);
         close(); fields.durationMs = diag::nowMs() - started;
         diag::emit(diag::Event::ReleaseEnd, fields);
@@ -321,7 +325,7 @@ void Client::checkPeer() {
     diag::SdkObservation observation{queryCode, queryCode ? -1 : static_cast<int>(info.state),
         info.last_error.code, info.last_error.http_status, info.attempts, info.generation, peerGeneration_, map_ != nullptr};
     if (sdkLog_.changed(observation)) {
-        diag::Fields fields; fields.code = queryCode ? queryCode : info.last_error.code;
+        diag::Fields fields = diagnosticFields(); fields.code = queryCode ? queryCode : info.last_error.code;
         fields.state = observation.state; fields.http = info.last_error.http_status; fields.attempts = info.attempts;
         fields.sdkGeneration = info.generation; fields.appGeneration = peerGeneration_; fields.retryMs = info.next_retry_ms;
         fields.durationMs = diag::nowMs() - started;
@@ -365,7 +369,7 @@ void Client::run() {
         }
         if (task) {
             auto started = diag::nowMs();
-            diag::Fields fields; fields.method = static_cast<int>(task->method); fields.appGeneration = task->generation;
+            diag::Fields fields = diagnosticFields(); fields.method = static_cast<int>(task->method); fields.appGeneration = task->generation;
             fields.startMs = started; fields.queueMs = started - task->enqueuedMs; fields.depth = task->queueDepth;
             if (task->method != Method::Status) diag::emit(diag::Event::OperationBegin, fields);
             Result result;
@@ -444,7 +448,7 @@ Result Client::login(const Inputs& input, Cancellation& cancellation) {
     const char* roots = prepareApi(input);
     if (cancelled(&cancellation)) { result.error = "Broker operation cancelled"; return result; }
     auto started = diag::nowMs(); auto api = newApi(input, roots, error);
-    apiCallLog(Method::Login, diag::Stage::ApiCreate, started, api ? 0 : error.code, error);
+    apiCallLog(channel_, Method::Login, diag::Stage::ApiCreate, started, api ? 0 : error.code, error);
     if (!api) { result.error = apiError(error); return result; }
     Response response;
     Json body(cJSON_CreateObject());
@@ -459,7 +463,7 @@ Result Client::login(const Inputs& input, Cancellation& cancellation) {
     started = diag::nowMs();
     const int code = ob_api_request_cancelled(api.get(), "POST", "/v1/auth/login", "", raw,
         &response.text, &error, cancelled, &cancellation);
-    apiCallLog(Method::Login, diag::Stage::ApiRequest, started, code, error);
+    apiCallLog(channel_, Method::Login, diag::Stage::ApiRequest, started, code, error);
     OPENSSL_cleanse(raw, std::strlen(raw)); cJSON_free(raw);
     if (code) {
         result.error = apiError(error);
@@ -483,11 +487,11 @@ Result Client::list(const Inputs& input, Cancellation& cancellation) {
     const char* roots = prepareApi(input);
     if (cancelled(&cancellation)) { result.error = "Broker operation cancelled"; return result; }
     auto started = diag::nowMs(); auto api = newApi(input, roots, error);
-    apiCallLog(Method::List, diag::Stage::ApiCreate, started, api ? 0 : error.code, error);
+    apiCallLog(channel_, Method::List, diag::Stage::ApiCreate, started, api ? 0 : error.code, error);
     if (!api) { result.error = apiError(error); return result; }
     Response response;
     started = diag::nowMs(); const int code = ob_api_broker_list(api.get(), &response.text, &error);
-    apiCallLog(Method::List, diag::Stage::ApiRequest, started, code, error);
+    apiCallLog(channel_, Method::List, diag::Stage::ApiRequest, started, code, error);
     if (code) {
         result.error = apiError(error);
         if (error.http_status == 401 || error.code == OB_API_AUTH) result.errorCode = "DSH_BROKER_AUTH";
@@ -517,7 +521,7 @@ Result Client::connect(const Inputs& input, Cancellation& cancellation) {
     if (cancelled(&cancellation)) { result.error = "Broker operation cancelled"; return result; }
     ob_api_error apiErrorValue{};
     auto started = diag::nowMs(); auto api = newApi(input, roots, apiErrorValue);
-    apiCallLog(Method::Connect, diag::Stage::ApiCreate, started, api ? 0 : apiErrorValue.code, apiErrorValue);
+    apiCallLog(channel_, Method::Connect, diag::Stage::ApiCreate, started, api ? 0 : apiErrorValue.code, apiErrorValue);
     if (!api) {
         result.error = apiError(apiErrorValue);
         connecting.state = "failed"; connecting.error = result.error;
@@ -533,12 +537,12 @@ Result Client::connect(const Inputs& input, Cancellation& cancellation) {
     ob_remote_error error{};
     started = diag::nowMs();
     int code = ob_remote_connect_async(api_, input.brokerId.c_str(), input.peerPassword.c_str(), &options, &peer_, &error);
-    sdkCallLog(Method::Connect, diag::Stage::PeerConnect, started, code, error);
+    sdkCallLog(channel_, Method::Connect, diag::Stage::PeerConnect, started, code, error);
     if (!code && !cancelled(&cancellation)) {
         started = diag::nowMs();
         code = ob_remote_portmap_tcp(peer_, "127.0.0.1", static_cast<std::uint16_t>(input.localPort),
             "127.0.0.1", static_cast<std::uint16_t>(input.remotePort), &map_, &error);
-        sdkCallLog(Method::Connect, diag::Stage::PortMap, started, code, error);
+        sdkCallLog(channel_, Method::Connect, diag::Stage::PortMap, started, code, error);
         // The SDK groups socket/bind/listen failures; confirm a failed bind before changing origin.
         if (code == OB_REMOTE_EIO && input.localPort != 0 && error.http_status == 0 &&
             std::strcmp(error.message, "cannot bind requested local interface and port") == 0 &&
@@ -546,7 +550,7 @@ Result Client::connect(const Inputs& input, Cancellation& cancellation) {
             started = diag::nowMs();
             code = ob_remote_portmap_tcp(peer_, "127.0.0.1", 0, "127.0.0.1",
                 static_cast<std::uint16_t>(input.remotePort), &map_, &error);
-            sdkCallLog(Method::Connect, diag::Stage::PortMapFallback, started, code, error);
+            sdkCallLog(channel_, Method::Connect, diag::Stage::PortMapFallback, started, code, error);
         }
     }
     if (code) {
@@ -598,7 +602,7 @@ Result Client::reconnect(Cancellation& cancellation) {
     if (current.state == "paused" && !cancelled(&cancellation)) {
         ob_remote_error error{};
         auto started = diag::nowMs(); const int code = ob_remote_peer_reconnect(peer_, &error);
-        sdkCallLog(Method::Reconnect, diag::Stage::PeerReconnect, started, code, error);
+        sdkCallLog(channel_, Method::Reconnect, diag::Stage::PeerReconnect, started, code, error);
         if (code) {
             result.error = peerError(code, error.http_status);
             if (error.http_status == 401 || error.http_status == 403) result.errorCode = "DSH_BROKER_AUTH";
@@ -614,7 +618,7 @@ Result Client::reconnect(Cancellation& cancellation) {
 Result Client::probe(const Inputs& input, Cancellation& cancellation) {
     Result result; result.probeState = "unreachable";
     auto setupFailed = [&](diag::Stage stage, int code) {
-        diag::Fields fields; fields.method = static_cast<int>(Method::Probe); fields.stage = static_cast<int>(stage);
+        diag::Fields fields = diagnosticFields(); fields.method = static_cast<int>(Method::Probe); fields.stage = static_cast<int>(stage);
         fields.curl = code; fields.outcome = static_cast<int>(diag::Outcome::Failed); fields.appGeneration = cancellation.generation;
         diag::emit(diag::Event::ProbeSetupFailed, fields);
     };
@@ -647,7 +651,7 @@ Result Client::probe(const Inputs& input, Cancellation& cancellation) {
     auto set = [&](CURLoption option, auto value) { optionCode = curl_easy_setopt(easy.get(), option, value); return optionCode == CURLE_OK; };
     long status = 0;
     auto performStage = [&](diag::Stage stage) {
-        diag::Fields fields; fields.method = static_cast<int>(Method::Probe); fields.stage = static_cast<int>(stage);
+        diag::Fields fields = diagnosticFields(); fields.method = static_cast<int>(Method::Probe); fields.stage = static_cast<int>(stage);
         fields.appGeneration = cancellation.generation; auto started = diag::nowMs(); fields.startMs = started;
         diag::emit(diag::Event::ProbeStageBegin, fields);
         auto code = curl_easy_perform(easy.get());

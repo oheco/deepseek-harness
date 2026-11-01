@@ -45,6 +45,8 @@ export interface ProbeSnapshot {
 
 /** HTTPS broker control service verified with HarmonyOS system roots and hostname. */
 export interface BrokerServiceOptions {
+  /** Window-owned broker channel, integer 0..2147483647; creates that channel's native client on first use. */
+  channel: number;
   /** HTTPS origin without credentials, path or query; supplied by the user. */
   serviceUrl: string;
   /** context.tempDir + '/dsh-broker'; verified private 0700, fixed for all requests in this process. */
@@ -97,6 +99,8 @@ export interface BrokerStatus {
   errorCode: string;
 }
 export interface DshProbeOptions {
+  /** Window-owned broker channel, integer 0..2147483647; the probe runs on that channel's worker. */
+  channel: number;
   /** Exact numeric http://127.0.0.1:<port> origin; no path or query. */
   origin: string;
   /** Independent DSH authentication token. Never persisted by native code. */
@@ -107,7 +111,12 @@ export interface DshProbeResult {
   httpStatus: number;
 }
 
-/** Asynchronous process supervisor. Methods perform no filesystem or child waits. */
+/**
+ * Asynchronous process supervisor. Methods perform no filesystem or child waits.
+ * Broker methods address a numeric channel: each channel owns one independent native
+ * client, peer and listener, and at most 64 clients, including releasing ones, exist at once.
+ * An invalid channel or argument count rejects the returned Promise.
+ */
 interface DshLauncher {
   /** Initialize a 0700 App-private directory containing at most two 1 MiB diagnostic files. */
   configureConnectionDiagnostics(directory: string): void;
@@ -121,12 +130,24 @@ interface DshLauncher {
   brokerList(options: BrokerListOptions): Promise<BrokerInfo[]>;
   /** Create a persistent peer and preferred-or-random listener; wait for initial authentication and return its actual local port. */
   brokerConnect(options: BrokerConnectOptions): Promise<BrokerStatus>;
-  /** Wake a paused SDK peer without replacing its map; acceptance returns current state, completion is observed through brokerStatus. */
-  brokerReconnect(): Promise<BrokerStatus>;
-  /** Cancel initial connection waiting and queued work; settle after map/peer/API quiescence. Management REST waits on its deadline. */
-  brokerClose(): Promise<void>;
-  /** Read the SDK's recovery state on the owner worker; outages retain handles and the numeric loopback URL. */
-  brokerStatus(): Promise<BrokerStatus>;
+  /**
+   * Wake the channel's paused SDK peer without replacing its map; acceptance returns current state, completion is
+   * observed through brokerStatus. A channel without a client resolves an idle status and creates none.
+   */
+  brokerReconnect(channel: number): Promise<BrokerStatus>;
+  /**
+   * Cancel the channel's initial connection waiting and queued work; settle after map/peer/API quiescence. Management
+   * REST waits on its deadline. The client stays reusable; a channel without a client resolves at once.
+   */
+  brokerClose(channel: number): Promise<void>;
+  /** Read the channel's SDK recovery state on its worker; a channel without a client resolves an idle status and creates none. */
+  brokerStatus(channel: number): Promise<BrokerStatus>;
+  /**
+   * Detach the channel at once, cancel its work, and resolve after its worker joins off the UI thread. A channel
+   * without a client resolves at once. The next call with this channel creates a fresh client; await this Promise
+   * before reconnecting to reuse the released listener port.
+   */
+  brokerRelease(channel: number): Promise<void>;
   /** Fresh cookie jar; token303 exchange and same-origin homepage __DSH_BOOT__ check. */
   dshProbe(options: DshProbeOptions): Promise<DshProbeResult>;
   /** Enqueue startup; throws on invalid fields or an active/terminating run. */

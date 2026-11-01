@@ -3,7 +3,8 @@ import pasteboard from '@ohos.pasteboard';
 import { ConnectionHome, ConnectionHomeController } from './ConnectionHome';
 import common from '@ohos.app.ability.common';
 import { RuntimeDefaults } from '../config/RuntimeDefaults';
-import { APP_FOREGROUND_EVENT, APP_BACKGROUND_EVENT } from '../launcher/AppActivity';
+import { APP_FOREGROUND_EVENT, APP_BACKGROUND_EVENT, WINDOW_TITLE_EVENT } from '../launcher/AppActivity';
+import { storageChannel, takeOpenRequest, windowRegistry } from '../launcher/WindowRegistry';
 import { WebConnection, WebConnectionState } from '../launcher/WebConnection';
 import { ConnectionProfile } from '../launcher/ConnectionProfile';
 import { WEB_VIEW_ACTIVE_EVENT } from '../launcher/WebOrientation';
@@ -59,6 +60,12 @@ struct Index {
   private preparingConfiguration: string = '';
   private retainedConfiguration: string = '';
   @State private retainedConnectionId: string = '';
+  /** Saved connection ids open in other windows; the registry owns the authoritative state. */
+  @State private heldElsewhere: string[] = [];
+  /** Native broker channel this window's EntryAbility stored in its LocalStorage. */
+  private channel: number = 0;
+  private openRequest: string = '';
+  private stopObservingWindows: (() => void) | undefined = undefined;
   @State private webVisible: boolean = false;
   @State private connectionState: WebConnectionState = WebConnectionState.Connected;
   private webConnection: WebConnection = new WebConnection((state: WebConnectionState, recovered: boolean) =>
@@ -145,6 +152,24 @@ struct Index {
     return loopbackOrigin(address) === this.webOrigin ? 1 : 2;
   }
 
+  /** Returns and clears the saved connection id this window was created to open. */
+  private takeOpenRequest(): string {
+    const request = this.openRequest;
+    this.openRequest = '';
+    return request;
+  }
+
+  /** Publishes this window's held connection to other windows and names the window after it. */
+  private publishHeldConnection(connection: ConnectionProfile | undefined): void {
+    windowRegistry().hold(this.channel, connection ? connection.id : '');
+    try {
+      (this.getUIContext().getHostContext() as common.UIAbilityContext).eventHub.emit(WINDOW_TITLE_EVENT,
+        connection ? connection.name : '');
+    } catch (error) {
+      // A detached ability keeps its previous window title until it is destroyed.
+    }
+  }
+
   private updateWebOrientation(active: boolean): void {
     try {
       (this.getUIContext().getHostContext() as common.UIAbilityContext).eventHub.emit(WEB_VIEW_ACTIVE_EVENT, active);
@@ -154,8 +179,16 @@ struct Index {
   }
 
   aboutToAppear(): void {
-    connectionDiagnostic('index.appeared', { generation: this.webGeneration, visible: this.webVisible });
+    const storage = this.getUIContext().getSharedLocalStorage();
+    this.channel = storageChannel(storage);
+    this.openRequest = takeOpenRequest(storage);
+    this.webConnection.channel = this.channel;
+    connectionDiagnostic('index.appeared', { channel: this.channel, generation: this.webGeneration, visible: this.webVisible });
     this.attached = true;
+    this.heldElsewhere = windowRegistry().heldElsewhere(this.channel);
+    this.stopObservingWindows = windowRegistry().observeWindows(() => {
+      this.heldElsewhere = windowRegistry().heldElsewhere(this.channel);
+    });
     this.updateWebOrientation(this.webVisible && this.webUrl !== '');
     try {
       this.activityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
@@ -179,6 +212,10 @@ struct Index {
     clearInterval(this.remoteTimer);
     this.updateWebOrientation(false);
     this.attached = false;
+    if (this.stopObservingWindows) {
+      this.stopObservingWindows();
+      this.stopObservingWindows = undefined;
+    }
     this.dismissMenu();
     const context = this.activityContext;
     this.activityContext = undefined;
@@ -370,6 +407,7 @@ struct Index {
     this.connectionState = WebConnectionState.Connected;
     this.retainedConfiguration = this.connectionConfiguration(connection);
     this.retainedConnectionId = connection.id;
+    this.publishHeldConnection(connection);
     this.webVisible = true;
     this.diagnosticControllerAttached = false;
     connectionDiagnostic('index.controller_created', { generation: this.webGeneration, remote: remote });
@@ -530,6 +568,7 @@ struct Index {
     const cleanup: Promise<void> = this.webConnection.close();
     this.webVisible = false;
     this.retainedConnectionId = '';
+    this.publishHeldConnection(undefined);
     this.retainedConfiguration = '';
     this.remote = false;
     this.activeConnection = undefined;
@@ -1160,6 +1199,7 @@ struct Index {
         }, (generation: number) => generation.toString())
       }
       ConnectionHome({ controller: this.homeController, retainedConnectionId: this.retainedConnectionId,
+        channel: this.channel, heldElsewhere: this.heldElsewhere, onTakeOpenRequest: () => this.takeOpenRequest(),
         onPrepare: (connection: ConnectionProfile) => this.prepareConnection(connection),
         onDisconnect: (id: string) => this.disconnectConnection(id),
         onOpen: (address: string, remote: boolean, connection: ConnectionProfile) =>

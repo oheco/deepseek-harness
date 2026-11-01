@@ -2,6 +2,7 @@
   "module": {
     "name": "entry",
     "type": "entry",
+    "srcEntry": "./ets/abilitystage/AbilityStage.ets",
     "mainElement": "EntryAbility",
     "deviceTypes": [
       "phone",
@@ -27,7 +28,7 @@
         "startWindowIcon": "$media:ability_icon",
         "startWindowBackground": "$color:start_window_background",
         "exported": true,
-        "launchType": "singleton",
+        "launchType": "specified",
         "orientation": "portrait",
         "skills": [
           {

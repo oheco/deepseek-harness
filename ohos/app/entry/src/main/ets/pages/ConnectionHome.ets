@@ -6,6 +6,7 @@ import { ConnectionStore } from '../launcher/ConnectionStore';
 import { ConnectionField } from './ConnectionField';
 import { DiagnosticLogs } from './DiagnosticLogs';
 import { connectionDiagnostic, connectionDiagnosticFailure, nextDiagnosticOperation, diagnosticBrokerState } from '../launcher/ConnectionDiagnostics';
+import { WindowSession, focusWindow, openInNewWindow, windowRegistry } from '../launcher/WindowRegistry';
 
 /** Parent page delegates system Back to the mounted connection flow. */
 export class ConnectionHomeController {
@@ -48,14 +49,43 @@ class BrokerIdentitySnapshot {
   peerPassword: string = '';
 }
 
-/** Owns saved connections and drafts; the parent owns a successfully opened WebView mapping. */
+/** Insert or replace `connection` in the committed list, moving a renewed managed login to its other connections. */
+function withSavedConnection(committed: ConnectionProfile[], connection: ConnectionProfile): ConnectionProfile[] {
+  const next = committed.filter((item: ConnectionProfile) => item.id !== connection.id)
+    .map((item: ConnectionProfile): ConnectionProfile => {
+      if (connection.authSessionId === '' || item.mode !== ConnectionMode.Remote ||
+        item.serviceUrl !== connection.serviceUrl || item.account !== connection.account) { return item; }
+      const updated = parseConnections(encodeConnections([item]))[0];
+      updated.authSessionId = connection.authSessionId;
+      updated.accessToken = '';
+      return updated;
+    });
+  const oldIndex = committed.findIndex((item: ConnectionProfile) => item.id === connection.id);
+  if (oldIndex < 0) {
+    next.push(connection);
+  } else {
+    next.splice(oldIndex, 0, connection);
+  }
+  return next;
+}
+
+/**
+ * Owns saved connections and drafts; the parent owns a successfully opened WebView mapping. Every native call uses
+ * the window's broker channel, and a connection open in another window is switched to instead of opened twice.
+ */
 @Component
 export struct ConnectionHome {
   controller: ConnectionHomeController = new ConnectionHomeController();
   onOpen: (address: string, remote: boolean, connection: ConnectionProfile) => boolean = () => false;
   onPrepare: (connection: ConnectionProfile) => Promise<boolean> = async () => false;
   onDisconnect: (id: string) => Promise<void> = async () => {};
+  /** Returns and clears the saved connection id this window was created to open, or ''. */
+  onTakeOpenRequest: () => string = () => '';
+  /** Native broker channel owned by this window. */
+  channel: number = 0;
   @Prop retainedConnectionId: string = '';
+  /** Saved connection ids open in other windows of this App. */
+  @Prop heldElsewhere: string[] = [];
   @StorageProp('dshColorMode') private colorMode: number = -1;
   @State private page: LauncherPage = LauncherPage.Home;
   @State private connections: ConnectionProfile[] = [];
@@ -93,6 +123,7 @@ export struct ConnectionHome {
   private returning: boolean = false;
   private abilityContext: common.UIAbilityContext | undefined = undefined;
   private diagnosticTimer: number = -1;
+  private stopObservingConnections: (() => void) | undefined = undefined;
 
   private observeOperation(operation: number, generation: number, phase: number): void {
     clearInterval(this.diagnosticTimer);
@@ -117,7 +148,12 @@ export struct ConnectionHome {
     this.abilityContext = getContext(this) as common.UIAbilityContext;
     this.attached = true;
     this.controller.onBack = () => this.handleBack();
-    this.runTask(() => this.loadConnections());
+    this.stopObservingConnections = windowRegistry().observeConnections((source: number) => {
+      if (source !== this.channel) {
+        this.refreshConnections();
+      }
+    });
+    this.runTask(() => this.loadInitialConnections());
   }
 
   aboutToDisappear(): void {
@@ -126,6 +162,10 @@ export struct ConnectionHome {
     this.attached = false;
     this.generation += 1;
     this.controller.onBack = undefined;
+    if (this.stopObservingConnections) {
+      this.stopObservingConnections();
+      this.stopObservingConnections = undefined;
+    }
     this.disposeFlow().catch((error: Error) => {
       // A detached page cannot publish cleanup diagnostics.
     });
@@ -134,7 +174,7 @@ export struct ConnectionHome {
   private async disposeFlow(): Promise<void> {
     if (!this.transferred) {
       try {
-        await native.brokerClose();
+        await native.brokerClose(this.channel);
       } catch (error) {
         // The owner has already requested cancellation before awaiting the UI operation.
       }
@@ -162,6 +202,35 @@ export struct ConnectionHome {
   private publishConnections(connections: ConnectionProfile[]): void {
     this.listRevision += 1;
     this.connections = connections;
+  }
+
+  /** Loads the list, then opens the connection a new window was created for. */
+  private async loadInitialConnections(): Promise<void> {
+    await this.loadConnections();
+    const request = this.onTakeOpenRequest();
+    const connection = this.connections.find((item: ConnectionProfile): boolean => item.id === request);
+    if (request !== '' && this.attached && this.loaded && connection !== undefined) {
+      await this.openConnection(connection);
+    }
+  }
+
+  /** Publishes another window's committed list without cancelling this window's current operation. */
+  private refreshConnections(): void {
+    if (!this.attached || !this.loaded) {
+      return;
+    }
+    this.store.read().then((connections: ConnectionProfile[]) => {
+      if (this.attached && this.loaded) {
+        this.publishConnections(connections);
+      }
+    }, (error: Error) => {
+      connectionDiagnosticFailure('home.refresh_failed', error, { channel: this.channel });
+    });
+  }
+
+  /** Tells other windows that this window committed the shared list. */
+  private announceConnections(): void {
+    windowRegistry().connectionsChanged(this.channel);
   }
 
   private async loadConnections(): Promise<void> {
@@ -216,7 +285,7 @@ export struct ConnectionHome {
     const work = this.pendingWork;
     try {
       if (!this.transferred) {
-        await native.brokerClose();
+        await native.brokerClose(this.channel);
       }
     } catch (error) {
       // A failed close still leaves pending UI work to settle before the route is popped.
@@ -348,26 +417,16 @@ export struct ConnectionHome {
       this.feedback($r('app.string.connection_invalid'), true);
       return;
     }
+    if (windowRegistry().holder(connection.id, this.channel) !== undefined) {
+      this.feedback($r('app.string.connection_open_elsewhere'), true);
+      return;
+    }
     const generation = ++this.generation;
     this.busy = true;
     try {
-      const next = this.connections.filter((item: ConnectionProfile) => item.id !== connection.id)
-        .map((item: ConnectionProfile): ConnectionProfile => {
-          if (connection.authSessionId === '' || item.mode !== ConnectionMode.Remote ||
-            item.serviceUrl !== connection.serviceUrl || item.account !== connection.account) { return item; }
-          const updated = parseConnections(encodeConnections([item]))[0];
-          updated.authSessionId = connection.authSessionId;
-          updated.accessToken = '';
-          return updated;
-        });
-      const oldIndex = this.connections.findIndex((item: ConnectionProfile) => item.id === connection.id);
-      if (oldIndex < 0) {
-        next.push(connection);
-      } else {
-        next.splice(oldIndex, 0, connection);
-      }
       await this.releaseRetained();
-      await this.store.save(next);
+      const next = await this.store.update((committed: ConnectionProfile[]) => withSavedConnection(committed, connection));
+      this.announceConnections();
       if (this.attached && generation === this.generation) {
         this.publishConnections(next);
         this.page = LauncherPage.Home;
@@ -391,12 +450,18 @@ export struct ConnectionHome {
     if (this.busy || !this.editing) {
       return;
     }
+    const id = this.editingId;
+    if (windowRegistry().holder(id, this.channel) !== undefined) {
+      this.feedback($r('app.string.connection_open_elsewhere'), true);
+      return;
+    }
     const generation = ++this.generation;
     this.busy = true;
     try {
-      const next = this.connections.filter((item: ConnectionProfile) => item.id !== this.editingId);
       await this.releaseRetained();
-      await this.store.save(next);
+      const next = await this.store.update((committed: ConnectionProfile[]) =>
+        committed.filter((item: ConnectionProfile) => item.id !== id));
+      this.announceConnections();
       if (this.attached && generation === this.generation) {
         this.publishConnections(next);
         this.page = LauncherPage.Home;
@@ -457,7 +522,7 @@ export struct ConnectionHome {
     try {
       await this.releaseRetained();
       if (!this.attached || generation !== this.generation) { return; }
-      const session: BrokerLoginResult = await native.brokerLogin({ serviceUrl: origin, account: this.account.trim(),
+      const session: BrokerLoginResult = await native.brokerLogin({ channel: this.channel, serviceUrl: origin, account: this.account.trim(),
         password: this.password, tempDir: this.context().tempDir + '/dsh-broker',
         credentialDir: this.context().filesDir + '/dsh-broker-auth' });
       if (!this.attached || generation !== this.generation) {
@@ -467,7 +532,7 @@ export struct ConnectionHome {
       this.serviceUrl = origin;
       this.accessToken = session.accessToken;
       this.authSessionId = session.authSessionId;
-      const brokers: BrokerInfo[] = await native.brokerList({ serviceUrl: origin, accessToken: session.accessToken,
+      const brokers: BrokerInfo[] = await native.brokerList({ channel: this.channel, serviceUrl: origin, accessToken: session.accessToken,
         authSessionId: session.authSessionId, credentialDir: this.context().filesDir + '/dsh-broker-auth',
         tempDir: this.context().tempDir + '/dsh-broker' });
       if (this.attached && generation === this.generation) {
@@ -508,7 +573,7 @@ export struct ConnectionHome {
     const generation = ++this.generation;
     this.busy = true;
     try {
-      const brokers: BrokerInfo[] = await native.brokerList({ serviceUrl: serviceOrigin(this.serviceUrl),
+      const brokers: BrokerInfo[] = await native.brokerList({ channel: this.channel, serviceUrl: serviceOrigin(this.serviceUrl),
         accessToken: this.accessToken, authSessionId: this.authSessionId,
         credentialDir: this.context().filesDir + '/dsh-broker-auth', tempDir: this.context().tempDir + '/dsh-broker' });
       if (this.attached && generation === this.generation) {
@@ -580,14 +645,17 @@ export struct ConnectionHome {
 
   private async rememberPort(connection: ConnectionProfile, port: number): Promise<void> {
     if (connection.localPort === port) { return; }
-    const next = this.connections.map((item: ConnectionProfile): ConnectionProfile => {
-      if (item.id !== connection.id) { return item; }
-      const updated = parseConnections(encodeConnections([item]))[0];
-      updated.localPort = port;
-      return updated;
+    const next = await this.store.update((committed: ConnectionProfile[]): ConnectionProfile[] => {
+      if (!committed.some((item: ConnectionProfile): boolean => item.id === connection.id)) { return committed; }
+      return committed.map((item: ConnectionProfile): ConnectionProfile => {
+        if (item.id !== connection.id) { return item; }
+        const updated = parseConnections(encodeConnections([item]))[0];
+        updated.localPort = port;
+        return updated;
+      });
     });
     if (next.some((item: ConnectionProfile): boolean => item.id === connection.id)) {
-      await this.store.save(next);
+      this.announceConnections();
       if (this.attached) { this.publishConnections(next); }
     }
     connection.localPort = port;
@@ -595,7 +663,7 @@ export struct ConnectionHome {
   }
 
   private remoteOptions(connection: ConnectionProfile): BrokerConnectOptions {
-    return { serviceUrl: connection.serviceUrl, accessToken: connection.accessToken,
+    return { channel: this.channel, serviceUrl: connection.serviceUrl, accessToken: connection.accessToken,
       authSessionId: connection.authSessionId, credentialDir: this.context().filesDir + '/dsh-broker-auth',
       brokerId: connection.brokerId, peerPassword: connection.peerPassword, localPort: connection.localPort,
       remotePort: connection.port, tempDir: this.context().tempDir + '/dsh-broker' };
@@ -654,7 +722,7 @@ export struct ConnectionHome {
       if (!this.attached || generation !== this.generation) {
         return;
       }
-      const result: DshProbeResult = await native.dshProbe({ origin: origin, token: connection.token });
+      const result: DshProbeResult = await native.dshProbe({ channel: this.channel, origin: origin, token: connection.token });
       if (this.attached && generation === this.generation) {
         this.testState = result.state === 'ok' ? ConnectionTestState.Success : ConnectionTestState.Failure;
         if (result.state !== 'ok') {
@@ -669,7 +737,7 @@ export struct ConnectionHome {
     } finally {
       try {
         if (mappingAttempted) {
-          await native.brokerClose();
+          await native.brokerClose(this.channel);
         }
       } catch (error) {
         if (this.attached && generation === this.generation) {
@@ -684,9 +752,54 @@ export struct ConnectionHome {
     }
   }
 
+  /** Brings the window that holds a connection to the foreground. */
+  private async switchToWindow(session: WindowSession): Promise<void> {
+    connectionDiagnostic('home.switch_window', { channel: this.channel, targetChannel: session.channel });
+    try {
+      await focusWindow(this.context(), session);
+      if (this.attached) { this.feedback($r('app.string.connection_switched_window')); }
+    } catch (error) {
+      connectionDiagnosticFailure('home.switch_window_failed', error, { channel: this.channel });
+      if (this.attached) { this.feedback($r('app.string.window_action_failed'), true); }
+    }
+  }
+
+  /** Switches to the window holding `connection` without waiting for this window's current operation. */
+  private async switchToHolder(connection: ConnectionProfile): Promise<void> {
+    const holder = windowRegistry().holder(connection.id, this.channel);
+    if (holder !== undefined) {
+      await this.switchToWindow(holder);
+    }
+  }
+
+  /** Opens a saved connection in a new window, or switches to the window that already holds it. */
+  private async openNewWindow(connection: ConnectionProfile): Promise<void> {
+    if (this.busy) {
+      return;
+    }
+    const holder = windowRegistry().holder(connection.id, this.channel);
+    if (holder !== undefined) {
+      await this.switchToWindow(holder);
+      return;
+    }
+    connectionDiagnostic('home.new_window', { channel: this.channel });
+    try {
+      await openInNewWindow(this.context(), connection.id);
+      if (this.attached) { this.feedback($r('app.string.new_window_opening')); }
+    } catch (error) {
+      connectionDiagnosticFailure('home.new_window_failed', error, { channel: this.channel });
+      if (this.attached) { this.feedback($r('app.string.window_action_failed'), true); }
+    }
+  }
+
   private async openConnection(connection: ConnectionProfile): Promise<void> {
     if (this.busy) {
       connectionDiagnostic('home.open_busy', { generation: this.generation });
+      return;
+    }
+    const holder = windowRegistry().holder(connection.id, this.channel);
+    if (holder !== undefined) {
+      await this.switchToWindow(holder);
       return;
     }
     const operation = nextDiagnosticOperation();
@@ -694,6 +807,7 @@ export struct ConnectionHome {
     const generation = ++this.generation;
     const remote = connection.mode === ConnectionMode.Remote;
     connectionDiagnostic('home.open_begin', { operation: operation, generation: generation, remote: remote });
+    windowRegistry().claim(this.channel, connection.id);
     this.busy = true;
     this.feedback($r('app.string.opening'));
     let opened = false;
@@ -721,7 +835,7 @@ export struct ConnectionHome {
       }
       if (!this.attached || generation !== this.generation) { return; }
       this.observeOperation(operation, generation, 3);
-      const result: DshProbeResult = await native.dshProbe({ origin: origin, token: connection.token });
+      const result: DshProbeResult = await native.dshProbe({ channel: this.channel, origin: origin, token: connection.token });
       connectionDiagnostic('home.probe_complete', { operation: operation, generation: generation,
         status: result.httpStatus, phase: result.state === 'ok' ? 1 : 0 });
       if (!this.attached || generation !== this.generation) { return; }
@@ -753,7 +867,7 @@ export struct ConnectionHome {
       try {
         if (!opened && mappingAttempted) {
           connectionDiagnostic('home.failed_open_cleanup', { operation: operation, generation: generation });
-          await native.brokerClose();
+          await native.brokerClose(this.channel);
         }
       } catch (error) {
         connectionDiagnosticFailure('home.failed_open_cleanup_failed', error, { operation: operation, generation: generation });
@@ -761,6 +875,7 @@ export struct ConnectionHome {
           this.feedback($r('app.string.broker_connection_failed'), true);
         }
       } finally {
+        windowRegistry().unclaim(this.channel, connection.id);
         clearInterval(this.diagnosticTimer);
         connectionDiagnostic('home.open_end', { operation: operation, generation: generation,
           current: this.attached && generation === this.generation, elapsedMs: Date.now() - started, phase: opened ? 1 : 0 });
@@ -876,10 +991,18 @@ export struct ConnectionHome {
         Button($r('app.string.disconnect_connection')).fontSize(13).height(40)
           .backgroundColor($r('app.color.canvas')).fontColor($r('app.color.ink'))
           .enabled(!this.busy).onClick(() => this.runTask(() => this.disconnectSaved(connection.id)))
+      } else if (this.heldElsewhere.includes(connection.id)) {
+        Button($r('app.string.switch_window')).fontSize(13).height(40)
+          .backgroundColor($r('app.color.canvas')).fontColor($r('app.color.ink'))
+          .onClick(() => { this.switchToHolder(connection); })
+      } else if (this.viewportWidth >= 600) {
+        Button($r('app.string.open_new_window')).fontSize(13).height(40)
+          .backgroundColor($r('app.color.canvas')).fontColor($r('app.color.ink'))
+          .enabled(!this.busy).onClick(() => this.runTask(() => this.openNewWindow(connection)))
       }
       Button($r('app.string.edit_connection')).fontSize(13).height(40).margin({ right: 12 })
         .backgroundColor($r('app.color.canvas')).fontColor($r('app.color.ink'))
-        .enabled(!this.busy).onClick(() => this.editConnection(connection))
+        .enabled(!this.busy && !this.heldElsewhere.includes(connection.id)).onClick(() => this.editConnection(connection))
     }.width('100%').backgroundColor($r('app.color.card')).borderRadius(16)
     .border({ width: 1, color: $r('app.color.border') })
   }

@@ -6,6 +6,7 @@ import vm from 'node:vm';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
+import { LocalStorage } from './harmony-mocks.mjs';
 
 const require = createRequire(import.meta.url);
 const ts = require('typescript');
@@ -43,8 +44,8 @@ function environment({ rejectOff = false } = {}) {
       target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS
     }, reportDiagnostics: true });
     assert.equal(emitted.diagnostics?.length ?? 0, 0);
-    vm.runInNewContext(emitted.outputText, { exports, AppStorage: { setOrCreate() {} }, require(name) {
-      if (name === 'libdsh_launcher.so') return { __esModule: true, default: { brokerClose: () => Promise.resolve() } };
+    vm.runInNewContext(emitted.outputText, { exports, LocalStorage, AppStorage: { setOrCreate() {} }, require(name) {
+      if (name === 'libdsh_launcher.so') return { __esModule: true, default: { brokerRelease: () => Promise.resolve() } };
       if (name === '@ohos.window') return { __esModule: true, default: { Orientation } };
       if (name === '@ohos.app.ability.UIAbility') return { __esModule: true, default: UIAbility };
       if (name === '@ohos.app.ability.ConfigurationConstant') return { __esModule: true, default: { ColorMode } };
@@ -83,7 +84,7 @@ function stage({ manual = false, unavailableBeforeLoad = false, throwOrientation
       if (unavailableBeforeLoad && !loaded) throw new Error('window not ready');
       return mainWindow;
     },
-    loadContent(_page, callback) { contentReady = callback; }
+    loadContent(_page, _storage, callback) { contentReady = callback; }
   };
   return { windowStage, requested, pending, ready() { loaded = true; contentReady({ code: 0 }); } };
 }

@@ -14,10 +14,12 @@ Records contain timestamps, a process number, fixed event names, integers and bo
 
 ## Interpret records
 
-`source=app` and `source=native` share one file. `wallMs` is a timestamp, `monoMs` is native monotonic time, and `pid` distinguishes restarts. `generation` counts the corresponding App owner's lifetime, `app_gen` counts native cancellation, and `sdk_gen` counts SDK recovery. Interpret these counters separately; they cannot be compared directly. `current=0` identifies a callback from a retired page.
+`source=app` and `source=native` share one file. `wallMs` is a timestamp, `monoMs` is native monotonic time, and `pid` distinguishes restarts. `generation` counts the corresponding App owner's lifetime, `app_gen` counts native cancellation, and `sdk_gen` counts SDK recovery. Interpret these counters separately; they cannot be compared directly. `current=0` identifies a callback from a retired page. Each window owns one native broker channel: App records from a window and native records from its broker client carry the same `channel` number, and native `channel=-1` marks module-wide records such as environment cleanup. Other counters are per window or per channel, so compare them only within one `channel`.
 
 | Record | Relevant fields |
 | --- | --- |
+| `ability.created` / `ability.foreground` / `ability.background` / `ability.window_destroyed` / `ability.destroyed` | Window lifecycle with its `channel` |
+| `home.switch_window` / `home.new_window` / `home.switch_window_failed` / `home.new_window_failed` / `home.refresh_failed` | A held connection switches to the window on `targetChannel`, Open in new window starts a window, or another window's list change cannot be read |
 | `home.phase` / `home.phase_pending` | `operation` distinguishes selections and disconnects; `phase`: 1 page preparation, 2 broker mapping, 3 DSH probe, 4 WebView handoff, 5 disconnect; `elapsedMs` measures the wait |
 | `index.phase` / `index.phase_pending` | `phase`: 0 ready or finished, 1 controller attachment or initial blank completion, 2 Cookie preparation, 3 navigation completion, 4 page error, 5 renderer exit; `attached` reports controller attachment |
 | `cookies.read_begin` / `cookies.read_complete` / `cookies.prepared` | Cookie metadata read, completion and number expired; a missing completion can be compared with the pending stage |
@@ -31,8 +33,9 @@ Records contain timestamps, a process number, fixed event names, integers and bo
 | `native_probe_stage_begin` / `native_probe_stage_end` | Stage 1 token exchange, 2 homepage; numeric curl result, HTTP, duration and retained body bytes; body contents are excluded |
 | `native_operation_begin` / `native_operation_end` | Method 0 login, 1 list, 2 map, 3 manual reconnect, 4 status, 5 close, 6 DSH probe; queue and execution durations are separate |
 | `native_napi_forced_close` / `native_release_begin` / `native_release_end` | Whether submission failure triggered cancellation and close, plus mapping/peer/API release durations |
+| `native_napi_channel_release_begin` / `native_napi_channel_release_end` | A closed window's channel release: `duration_ms`, `queue_ms`, NAPI status `code`; `outcome` 0 complete, 1 worker not yet stopped, 2 cancelled, 3 exception; flags bit0 unknown channel resolved at once, bit1 disposal continues on a separate thread |
 
-`native_sdk_state.state` uses SDK numbers: 0 connecting, 1 connected, 2 reconnecting, 3 retry_wait, 4 paused, 5 failed, 6 closed. `connection.state.state` uses App numbers: 0 connected, 1 disconnected, 2 recovering, 3 authentication-required. The close `reason` is a fixed category: 0 empty, 1 reconnect requested, 2 invalid Remote stream frame, 3 Remote stream failure could not be delivered, 4 peer disposed, 5 another nonempty value. Unmatched text is discarded.
+`native_sdk_state.state` uses SDK numbers: 0 connecting, 1 connected, 2 reconnecting, 3 retry_wait, 4 paused, 5 failed, 6 closed. `connection.state.state` uses App numbers: 0 connected, 1 disconnected, 2 recovering, 3 authentication-required. The close `reason` is a fixed category: 0 empty, 1 reconnect requested, 2 invalid Remote stream frame, 3 Remote stream failure could not be delivered, 4 peer disposed, 5 another nonempty value. Unmatched text is discarded. Native stage 29 covers channel lookup, creation, the 64-channel limit and module shutdown; stage 30 covers channel disposal. `native_napi_complete` flags bit0 marks a close or reconnect settled on a channel without a broker client.
 
 Pending-stage observations run every five seconds; stable SDK polling records only changes. Observers write logs while existing logic owns connection actions. WebSocket code 1006 means the browser did not receive a normal close frame; identifying a server heartbeat timeout or termination still requires corresponding server logs. The SDK public state does not expose its internal online-probe curl stages, so the App HTTP Probe and SDK state remain separate records.
 

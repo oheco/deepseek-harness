@@ -3,14 +3,14 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write ohos/app/entry/src/main/cpp/broker/README.md
 /native-broker-client-reference:
-  en: 128caa0c3e5bb53e
-  zh: 4565484a21dacf84
+  en: add5562d20493aa2
+  zh: 0c61da40447952ec
 /native-broker-client-reference/authentication-and-mapping:
-  en: cf5a8c9694cd2d4c
-  zh: de40ba929218b9aa
+  en: 1f7d1d99179199da
+  zh: edfcc33dbfb8e059
 /native-broker-client-reference/recovery-and-ownership:
-  en: 4c0f4be4e8015d01
-  zh: 362c167c63397827
+  en: 124161fae22e328d
+  zh: a8bccec7fc717e01
 /native-broker-client-reference/offline-build-inputs:
   en: 03b6ead2c0ab28a0
   zh: 5152dc3e6a70b8c3

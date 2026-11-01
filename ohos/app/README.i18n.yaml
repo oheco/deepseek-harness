@@ -6,8 +6,8 @@
   en: 14bf179d4c987cf3
   zh: 9c592782721b02f9
 /dsh-harmonyos-app-connection-manager/open-in-deveco:
-  en: 14e075a2e5e5398f
-  zh: 8844701cc4415e5a
+  en: 0cad2f1c936ceb97
+  zh: b6c5ddd4ce293c48
 /dsh-harmonyos-app-connection-manager/add-and-edit-connections:
   en: 13433a2a86db6263
   zh: d6af8e7d6f3c7bd8
@@ -15,8 +15,11 @@
   en: fdf0c2451e90d215
   zh: d16b377decff5a52
 /dsh-harmonyos-app-connection-manager/add-and-edit-connections/remote-mode:
-  en: 914f8ad5f3797441
-  zh: acd7def6bd226fe3
+  en: d98649d0f40b103d
+  zh: 5b191ae267d57bc9
+/dsh-harmonyos-app-connection-manager/multiple-windows:
+  en: 21caac5db298aff0
+  zh: 51a99dd0dd49ba4c
 /dsh-harmonyos-app-connection-manager/webview-and-appearance:
   en: 98182696956f87be
   zh: cefa9ed0fc4c511b

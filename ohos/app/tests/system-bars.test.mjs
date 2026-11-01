@@ -6,6 +6,7 @@ import vm from 'node:vm';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
+import { LocalStorage } from './harmony-mocks.mjs';
 
 const require = createRequire(import.meta.url);
 const ts = require('typescript');
@@ -57,10 +58,10 @@ function abilityEnvironment({ rejectFollowSystem = false, rejectResourceConfig =
     }, reportDiagnostics: true });
     assert.equal(emitted.diagnostics?.length ?? 0, 0, 'ability and helper parse as TypeScript');
     vm.runInNewContext(emitted.outputText, {
-      exports,
+      exports, LocalStorage,
       AppStorage: { setOrCreate(key, value) { storage.set(key, value); } },
       require(name) {
-        if (name === 'libdsh_launcher.so') return { __esModule: true, default: { brokerClose: () => Promise.resolve() } };
+        if (name === 'libdsh_launcher.so') return { __esModule: true, default: { brokerRelease: () => Promise.resolve() } };
         if (name === '@ohos.window') return { __esModule: true,
           default: { Orientation: { PORTRAIT: 1, AUTO_ROTATION: 5, AUTO_ROTATION_RESTRICTED: 8 } } };
         if (name === '@ohos.app.ability.UIAbility') return { __esModule: true, default: UIAbility };
@@ -102,7 +103,10 @@ function stageEnvironment({ rejectBackground = false, rejectLayout = false, reje
     }
   };
   const stage = {
-    loadContent(page, callback) { calls.push(['load', page]); contentReady = callback; },
+    loadContent(page, storage, callback) {
+      assert.ok(storage instanceof LocalStorage, 'each window passes its own LocalStorage');
+      calls.push(['load', page]); contentReady = callback;
+    },
     getMainWindowSync() {
       calls.push(['main-window']);
       if (missingWindow) throw new Error('window unavailable');

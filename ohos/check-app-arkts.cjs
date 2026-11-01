@@ -19,6 +19,7 @@ const checker = require(path.join(sdk, 'build-tools/ets-loader/lib/ets_checker.j
 require(path.join(sdk, 'build-tools/ets-loader/main.js'));
 const entries = {};
 for (const [name, relative] of Object.entries({EntryAbility: 'entryability/EntryAbility.ets', Index: 'pages/Index.ets',
+  AbilityStage: 'abilitystage/AbilityStage.ets', WindowRegistry: 'launcher/WindowRegistry.ets',
   ServiceProbe: 'launcher/ServiceProbe.ets', RunLogWatcher: 'launcher/RunLogWatcher.ets',
   RunLogUrl: 'launcher/RunLogUrl.ets', ExternalLink: 'launcher/ExternalLink.ets',
   ContextActions: 'launcher/ContextActions.ets', PathActions: 'launcher/PathActions.ets',

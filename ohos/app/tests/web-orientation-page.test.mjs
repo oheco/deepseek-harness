@@ -6,6 +6,7 @@ import vm from 'node:vm';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
+import { cryptoFramework, LocalStorage } from './harmony-mocks.mjs';
 
 const require = createRequire(import.meta.url);
 const ts = require('typescript');
@@ -86,6 +87,7 @@ function harness() {
   }
   const native = {
     async brokerClose() { calls.push('close'); if (control.close) await control.close.promise; },
+    async brokerRelease() { calls.push('release'); },
     async brokerReconnect() { calls.push('reconnect'); return { state: 'reconnecting', localUrl: 'http://127.0.0.1:43219/',
       localPort: 43219, error: '', errorCode: '' }; },
     async brokerConnect() { calls.push('connect'); return { state: 'connected', localUrl: 'http://127.0.0.1:43219/',
@@ -103,6 +105,7 @@ function harness() {
     '@ohos.resourceManager': { ColorMode: { DARK: 0, LIGHT: 1 } },
     '@ohos.url': { URL },
     '@ohos.web.webview': { WebCookieManager: { fetchAllCookies: async () => [], configCookieSync() {} } },
+    '@ohos.security.cryptoFramework': cryptoFramework,
     '@ohos.util': { generateRandomUUID: () => 'owned-profile' },
     '@ohos.data.preferences': { getPreferences: async () => ({ get: async (_key, fallback) => fallback }) },
     'libdsh_launcher.so': native
@@ -119,7 +122,7 @@ function harness() {
     assert.equal(emitted.diagnostics?.length ?? 0, 0, 'source behavior projection emits without parser recovery');
     const exports = {};
     cache.set(filename, exports);
-    const scope = { exports, URL, NavPathStack, AppStorage: { setOrCreate() {} }, getContext: () => context,
+    const scope = { exports, URL, NavPathStack, LocalStorage, AppStorage: { setOrCreate() {} }, getContext: () => context,
       $r: name => ({ name, id: 1 }), webview: { WebviewController }, native,
       loopbackOrigin: relative === 'pages/Index' ? load('launcher/RunLogUrl').loopbackOrigin : undefined,
       WEB_VIEW_ACTIVE_EVENT: relative === 'pages/Index' ? load('launcher/WebOrientation').WEB_VIEW_ACTIVE_EVENT : undefined,
@@ -137,7 +140,8 @@ function harness() {
         return load(path.posix.join(path.posix.dirname(relative), name));
       }
     };
-    if (relative === 'pages/Index') Object.assign(scope, load('launcher/ConnectionDiagnostics'), load('launcher/WebConnectionDiagnostics'));
+    if (relative === 'pages/Index') Object.assign(scope, load('launcher/ConnectionDiagnostics'), load('launcher/WebConnectionDiagnostics'),
+      load('launcher/WindowRegistry'), { WINDOW_TITLE_EVENT: load('launcher/AppActivity').WINDOW_TITLE_EVENT });
     vm.runInNewContext(emitted.outputText, scope, { filename });
     return exports;
   }
@@ -146,9 +150,11 @@ function harness() {
   const mainWindow = { setPreferredOrientation(mode) { modes.push(mode); return Promise.resolve(); },
     setWindowBackgroundColor() {}, setWindowLayoutFullScreen() { return Promise.resolve(); },
     setWindowSystemBarProperties() { return Promise.resolve(); } };
-  owner.onWindowStageCreate({ getMainWindowSync: () => mainWindow, loadContent(_page, ready) { ready({ code: 0 }); } });
+  let windowStorage;
+  owner.onWindowStageCreate({ getMainWindowSync: () => mainWindow,
+    loadContent(_page, storage, ready) { windowStorage = storage; ready({ code: 0 }); } });
   page = new (load('pages/Index').Index)();
-  page.getUIContext = () => ({ getHostContext() {
+  page.getUIContext = () => ({ getSharedLocalStorage: () => windowStorage, getHostContext() {
     if (control.detached) throw new Error('ability detached');
     return context;
   } });

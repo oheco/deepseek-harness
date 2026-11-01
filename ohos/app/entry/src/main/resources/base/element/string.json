@@ -395,6 +395,30 @@
     {
       "name": "disconnect_connection",
       "value": "Disconnect"
+    },
+    {
+      "name": "open_new_window",
+      "value": "New window"
+    },
+    {
+      "name": "switch_window",
+      "value": "Switch to window"
+    },
+    {
+      "name": "connection_open_elsewhere",
+      "value": "This connection is open in another window"
+    },
+    {
+      "name": "connection_switched_window",
+      "value": "Switched to the window with this connection"
+    },
+    {
+      "name": "new_window_opening",
+      "value": "Opening the connection in a new window"
+    },
+    {
+      "name": "window_action_failed",
+      "value": "Unable to open the window"
     }
   ]
 }

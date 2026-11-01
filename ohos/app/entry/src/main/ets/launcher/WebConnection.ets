@@ -12,6 +12,8 @@ export enum WebConnectionState {
 
 /** Owns one WebView's persistent mapping and observes SDK recovery without changing its origin. */
 export class WebConnection {
+  /** Native broker channel of the owning window; set before the first activation. */
+  channel: number = 0;
   private profile: ConnectionProfile | undefined = undefined;
   private origin: string = '';
   private generation: number = 0;
@@ -74,7 +76,7 @@ export class WebConnection {
     const generation = this.generation;
     this.reading = true;
     try {
-      const status: BrokerStatus = await native.brokerStatus();
+      const status: BrokerStatus = await native.brokerStatus(this.channel);
       await this.inspect(status, profile, generation, false);
     } catch (error) {
       if (this.state !== WebConnectionState.Disconnected) {
@@ -113,7 +115,7 @@ export class WebConnection {
     let closed = false;
     try {
       if (this.closeRemote) {
-        await native.brokerClose();
+        await native.brokerClose(this.channel);
       }
       closed = true;
     } finally {
@@ -171,7 +173,7 @@ export class WebConnection {
 
   private async probe(token: string): Promise<DshProbeResult> {
     try {
-      return await native.dshProbe({ origin: this.origin, token: token });
+      return await native.dshProbe({ channel: this.channel, origin: this.origin, token: token });
     } catch (error) {
       // An unavailable HTTP probe leaves the same page and SDK mapping in place.
       return { state: 'unreachable', httpStatus: 0 };
@@ -223,14 +225,14 @@ export class WebConnection {
         }
         return;
       }
-      const status: BrokerStatus = await native.brokerStatus();
+      const status: BrokerStatus = await native.brokerStatus(this.channel);
       if (!this.current(generation)) {
         return;
       }
       if (status.localUrl.replace(/\/$/, '') === this.origin && status.state === 'paused' &&
         status.errorCode !== 'DSH_BROKER_AUTH') {
         this.publish(WebConnectionState.Recovering, false, generation);
-        const accepted: BrokerStatus = await native.brokerReconnect();
+        const accepted: BrokerStatus = await native.brokerReconnect(this.channel);
         if (accepted.localUrl.replace(/\/$/, '') === this.origin && accepted.state === 'paused' &&
           accepted.errorCode !== 'DSH_BROKER_AUTH') {
           // An accepted request may precede the SDK coordinator's first state transition.

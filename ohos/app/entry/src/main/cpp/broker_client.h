@@ -59,10 +59,12 @@ enum class Method { Login = 0, List = 1, Connect = 2, Reconnect = 3, Status = 4,
  * reconnect and close operations. Recoverable outages retain every handle and
  * listener port. Close invalidates queued work, interrupts the initial async
  * connection wait, and settles after SDK quiescence. Management REST operations
- * finish on their configured deadlines. Dispose joins after map/peer/API closure. */
+ * finish on their configured deadlines. Dispose joins after map/peer/API closure;
+ * repeated dispose returns at once. `channel` only labels diagnostic records:
+ * -1 is unassigned, otherwise the App channel 0..2147483647 owning this client. */
 class Client final {
 public:
-    Client();
+    explicit Client(std::int64_t channel = -1);
     ~Client();
     Client(const Client&) = delete;
     Client& operator=(const Client&) = delete;
@@ -91,6 +93,9 @@ private:
     Result connect(const Inputs& input, Cancellation& cancellation);
     Result reconnect(Cancellation& cancellation);
     Result probe(const Inputs& input, Cancellation& cancellation);
+    diag::Fields diagnosticFields() const noexcept;
+    const std::int64_t channel_;
+    std::atomic<bool> disposed_{false};
     mutable std::mutex stateMutex_;
     Status status_;
     std::mutex queueMutex_;

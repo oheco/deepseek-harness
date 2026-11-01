@@ -34,6 +34,19 @@ void fallback() {
     emit(Event::Cancel);
     assert(calls == 1);
 }
+void formatting() {
+    Fields fields; char text[1024];
+    assert(fields.channel == -1);
+    int length = format(text, sizeof(text), fields);
+    assert(length > 0 && static_cast<std::size_t>(length) < sizeof(text));
+    assert(std::strncmp(text, "method=-1 channel=-1 stage=0 outcome=0 ", 39) == 0);
+    fields.method = 2; fields.channel = 2147483647; fields.flags = 6;
+    length = format(text, sizeof(text), fields);
+    assert(length > 0 && std::strncmp(text, "method=2 channel=2147483647 stage=0 ", 36) == 0);
+    assert(std::strstr(text, " depth=0 flags=6") && text[length - 1] == '6');
+    assert(std::strcmp(eventName(Event::NapiChannelReleaseBegin), "native_napi_channel_release_begin") == 0);
+    assert(std::strcmp(eventName(Event::NapiChannelReleaseEnd), "native_napi_channel_release_end") == 0);
+}
 void observations() {
     ChangeGate<SdkObservation> sdk;
     SdkObservation state; state.state = 3; state.error = -7; state.attempts = 1;
@@ -62,6 +75,6 @@ void observations() {
 }
 } // namespace
 int main() {
-    fallback(); observations();
+    fallback(); formatting(); observations();
     return 0;
 }

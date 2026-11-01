@@ -5,7 +5,9 @@ import path from 'node:path';
 import vm from 'node:vm';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
+import { createHash } from 'node:crypto';
 import test from 'node:test';
+import { cryptoFramework, LocalStorage, windowStorage } from './harmony-mocks.mjs';
 
 const require = createRequire(import.meta.url);
 const ts = require('typescript');
@@ -246,6 +248,7 @@ function harness({ callbackThrows = false } = {}) {
         lifecycle.push('expire');
       }
     } },
+    '@ohos.security.cryptoFramework': cryptoFramework,
     '@ohos.util': { generateRandomUUID: () => 'owned-profile' },
     '@ohos.data.preferences': { getPreferences: async () => ({ get: async (_key, fallback) => fallback }) }
   };
@@ -262,7 +265,7 @@ function harness({ callbackThrows = false } = {}) {
     const exports = {};
     cache.set(relative, exports);
     const index = relative === 'pages/Index';
-    const scope = { exports, URL, NavPathStack, native, getContext: () => context,
+    const scope = { exports, URL, NavPathStack, LocalStorage, native, getContext: () => context,
       $r: (name, ...params) => ({ name, id: 1, params }), webview: mocks['@ohos.web.webview'],
       setInterval(callback) { const id = ++nextTimer; timers.set(id, { kind: 'interval', callback }); return id; },
       setTimeout(callback) { const id = ++nextTimer; timers.set(id, { kind: 'timeout', callback }); return id; },
@@ -275,7 +278,7 @@ function harness({ callbackThrows = false } = {}) {
     };
     if (index) Object.assign(scope, load('launcher/AppActivity'), load('launcher/WebConnection'),
       load('launcher/OverlayAppearance'), load('launcher/RunLogUrl'), load('launcher/ConnectionCookies'),
-      load('launcher/ConnectionDiagnostics'), load('launcher/WebConnectionDiagnostics'), {
+      load('launcher/ConnectionDiagnostics'), load('launcher/WebConnectionDiagnostics'), load('launcher/WindowRegistry'), {
         WEB_VIEW_ACTIVE_EVENT: 'dshWebViewActive',
         ConfigurationConstant: { ColorMode: { COLOR_MODE_DARK: 0, COLOR_MODE_LIGHT: 1, COLOR_MODE_NOT_SET: -1 } },
         ConnectionHomeController: load('pages/ConnectionHome').ConnectionHomeController
@@ -305,7 +308,8 @@ function harness({ callbackThrows = false } = {}) {
   }
   function page(remote = true) {
     const index = new (load('pages/Index').Index)();
-    index.getUIContext = () => ({ getHostContext: () => context,
+    const storage = windowStorage(7);
+    index.getUIContext = () => ({ getHostContext: () => context, getSharedLocalStorage: () => storage,
       getPromptAction: () => ({ showToast: toast => toasts.push(toast) }),
       getFocusController: () => ({ requestFocus() {} }) });
     index.testLoopbackOrigin = load('launcher/RunLogUrl').loopbackOrigin;
@@ -1346,8 +1350,10 @@ test('subresources, foreign origins and retired WebViews cannot replace the curr
   await closePage(h, index);
 });
 
-function pendingCookie() {
-  const cookie = { name: 'dsh-auth-' + 'a'.repeat(43), domain: '127.0.0.1', path: '/', isHttpOnly: true };
+/** The connection origin's DSH Web cookie; other authorities' cookies are never expired. */
+function pendingCookie(authority = '127.0.0.1:43219') {
+  const cookie = { name: 'dsh-auth-' + createHash('sha256').update(authority).digest('base64url'),
+    domain: '127.0.0.1', path: '/', isHttpOnly: true };
   Object.defineProperty(cookie, 'value', { get() { throw new Error('cookie values must not be inspected'); } });
   return cookie;
 }
@@ -1552,9 +1558,9 @@ test('a cold engine first binds a blank Web, then prepares cookies once before a
   assert.equal(callbacks.attached(), work, 'duplicate binding joins the exact pending operation');
   assert.deepEqual(h.lifecycle, ['attached', 'cookies']);
   assert.deepEqual(index.controller.loaded, []);
-  read.resolve([pendingCookie()]);
+  read.resolve([pendingCookie('127.0.0.1:43220'), pendingCookie()]);
   await work;
-  assert.deepEqual(h.lifecycle, ['attached', 'cookies', 'expire', 'navigate']);
+  assert.deepEqual(h.lifecycle, ['attached', 'cookies', 'expire', 'navigate'], 'another window\'s port keeps its cookie');
   assert.deepEqual(index.controller.loaded, [ADDRESS]);
   assert.equal(index.initialAuthentication, false);
   assert.equal(h.control.badInitialization, false);

@@ -395,6 +395,30 @@
     {
       "name": "disconnect_connection",
       "value": "断开连接"
+    },
+    {
+      "name": "open_new_window",
+      "value": "新窗口"
+    },
+    {
+      "name": "switch_window",
+      "value": "切换到窗口"
+    },
+    {
+      "name": "connection_open_elsewhere",
+      "value": "此连接已在其他窗口中打开"
+    },
+    {
+      "name": "connection_switched_window",
+      "value": "已切换到打开此连接的窗口"
+    },
+    {
+      "name": "new_window_opening",
+      "value": "正在新窗口中打开连接"
+    },
+    {
+      "name": "window_action_failed",
+      "value": "无法打开窗口"
     }
   ]
 }
