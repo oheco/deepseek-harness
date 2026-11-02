@@ -6,7 +6,7 @@ Manage saved local and remote DSH connections, then open the selected workspace 
 
 ## Open in DevEco
 
-This source project builds App `0.2.1-rc.2-ohos.2` with versionCode `1000011` for CLI/Web runtime `0.2.1-rc.2-ohos.1`. [VALIDATION.md](VALIDATION.md) records its build and device acceptance. To create a local source export, run `python3 -B ohos/package-app-project.py --output <new-archive-directory> --export-project <new-project-directory>` from the checkout root.
+This source project builds App `0.2.1-rc.2-ohos.3` with versionCode `1000012` for CLI/Web runtime `0.2.1-rc.2-ohos.1`. [VALIDATION.md](VALIDATION.md) records its build and device acceptance. To create a local source export, run `python3 -B ohos/package-app-project.py --output <new-archive-directory> --export-project <new-project-directory>` from the checkout root.
 
 1. Open the project root containing [build-profile.json5](build-profile.json5).
 2. Use an ARM64 HarmonyOS SDK supporting the declared `6.1.0(23)` compile, target and compatible API. The module supports phone, tablet and 2in1 devices; its forms scroll and adapt to the available window width.
@@ -64,6 +64,12 @@ Every window owns an independent native broker channel with its own client, peer
 The WebView occupies the whole content area and permits automatic portrait and landscape rotation when system rotation lock is off. The connection list and all settings pages stay in portrait; returning from WebView restores portrait. System Back first closes a native menu or search, then follows Web history within the connection origin. It skips the bootstrap blank page and retains the current workspace page when returning to the connection list. Desktop users can return directly with **Ctrl+Shift+L**. Ctrl+F, match navigation, context actions, external links and local path actions remain available. A path displayed by a remote DSH page is not fetched from the remote computer by the native file-manager action.
 
 The connection list and forms use native HarmonyOS Navigation and NavDestination pages with default transitions and the system back button. They follow the system light/dark theme. System bars remain transparent: the App's background (`#FFFFFF` light, `#151517` dark) extends behind the status bar and bottom gesture area, with readable system-bar text and icons. Controls remain in safe areas. Settings Scroll fills the page width so its scrollbar stays at the screen edge; horizontal padding and maximum widths apply to its content, with bottom actions aligned to the form. The loading cover stays through the initial blank page until the connection page finishes loading. Cookie preparation or navigation failure keeps a visible error and the return action. A main-page HTTP or network failure stays visible with its status or error code and a **Return to connections** action; paint and page completion cannot dismiss it. Errors from subresources do not replace the page. Native overlays read the active page's theme colors.
+
+## File previews and downloads
+
+The App repairs ArkWeb's internal resource-address parsing before the page starts, so file previews also work with an unmodified remote DSH runtime. The compatibility check covers `dsh-resource://` and `sidebar://` addresses; browsers that already parse them correctly keep their native behavior.
+
+Downloads from the active connection, including Session-log ZIP exports, use the WebView's authenticated native download. When the file is ready, the system save dialog lets you choose **Download** or another folder and confirm the name. A success message appears after the selected file has been written and synchronized. Cancelling removes the temporary download; download and save failures are reported separately. Each window handles one download or save at a time. Disconnecting, switching connections or destroying the page cancels its pending download or save dialog result; a copy you already authorized finishes before cleanup completes.
 
 ## Diagnostic logs
 

@@ -24,6 +24,7 @@ for (const [name, relative] of Object.entries({EntryAbility: 'entryability/Entry
   RunLogUrl: 'launcher/RunLogUrl.ets', ExternalLink: 'launcher/ExternalLink.ets',
   ContextActions: 'launcher/ContextActions.ets', PathActions: 'launcher/PathActions.ets',
   OverlayAppearance: 'launcher/OverlayAppearance.ets',
+  WebDownloads: 'launcher/WebDownloads.ets', WebResourceCompatibility: 'launcher/WebResourceCompatibility.ets',
   ConnectionHome: 'pages/ConnectionHome.ets', ConnectionField: 'pages/ConnectionField.ets', ConnectionProfile: 'launcher/ConnectionProfile.ets',
   ConnectionStore: 'launcher/ConnectionStore.ets',
   Defaults: 'config/RuntimeDefaults.ets'})) entries[name] = path.join(root, relative);

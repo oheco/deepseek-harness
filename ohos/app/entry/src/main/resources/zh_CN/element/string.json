@@ -1,5 +1,14 @@
 {
   "string": [
+    { "name": "web_download_started", "value": "正在下载，完成后请选择文件保存位置。" },
+    { "name": "web_download_saved", "value": "已保存：%1$s" },
+    { "name": "web_download_cancelled", "value": "已取消下载或保存。" },
+    { "name": "web_download_busy", "value": "请先完成当前文件的下载或保存。" },
+    { "name": "web_download_unsupported", "value": "此下载链接无法在 App 内保存，请在浏览器中打开页面后下载。" },
+    { "name": "web_download_failed", "value": "文件下载失败，请检查连接后重试。" },
+    { "name": "web_download_save_failed", "value": "文件保存失败，请重试并选择可写的保存位置。" },
+    { "name": "web_download_partial", "value": "文件保存失败，目标位置可能有不完整文件，请重新下载并保存。" },
+    { "name": "web_download_cleanup_failed", "value": "无法清理临时下载文件，已保存的文件不受影响。" },
     { "name": "diagnostics_title", "value": "诊断日志" },
     { "name": "diagnostics_refresh", "value": "刷新" },
     { "name": "diagnostics_copy", "value": "复制日志" },

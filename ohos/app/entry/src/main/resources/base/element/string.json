@@ -1,5 +1,14 @@
 {
   "string": [
+    { "name": "web_download_started", "value": "Downloading. Choose where to save the file when it is ready." },
+    { "name": "web_download_saved", "value": "Saved: %1$s" },
+    { "name": "web_download_cancelled", "value": "Download or save cancelled." },
+    { "name": "web_download_busy", "value": "Finish the current download or save before downloading another file." },
+    { "name": "web_download_unsupported", "value": "This download link cannot be saved in the App. Open the page in a browser to download it." },
+    { "name": "web_download_failed", "value": "Unable to download the file. Check the connection and try again." },
+    { "name": "web_download_save_failed", "value": "Unable to save the file. Try again and choose a writable location." },
+    { "name": "web_download_partial", "value": "Saving failed. The selected location may contain an incomplete file. Download and save it again." },
+    { "name": "web_download_cleanup_failed", "value": "Unable to remove a temporary download file. This does not change a file already saved." },
     { "name": "diagnostics_title", "value": "Diagnostic logs" },
     { "name": "diagnostics_refresh", "value": "Refresh" },
     { "name": "diagnostics_copy", "value": "Copy logs" },

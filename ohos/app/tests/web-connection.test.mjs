@@ -117,6 +117,7 @@ function harness({ callbackThrows = false } = {}) {
   const publications = [];
   const timers = new Map();
   const controllers = [];
+  const downloads = [];
   const toasts = [];
   const cookieCalls = [];
   const lifecycle = [];
@@ -214,6 +215,17 @@ function harness({ callbackThrows = false } = {}) {
     }
     clearMatches() { this.clearedMatches += 1; }
   }
+  class WebDownloads {
+    attachments = [];
+    closes = 0;
+    closeResult = Promise.resolve();
+    constructor(changed) { this.changed = changed; downloads.push(this); }
+    attach(controller, ability, origin) {
+      this.attachments.push({ controller, ability, origin });
+      lifecycle.push('download-delegate');
+    }
+    close() { this.closes += 1; return this.closeResult; }
+  }
   class NavPathStack {
     paths = [];
     getAllPathName() { return this.paths.map(item => item.name); }
@@ -265,7 +277,7 @@ function harness({ callbackThrows = false } = {}) {
     const exports = {};
     cache.set(relative, exports);
     const index = relative === 'pages/Index';
-    const scope = { exports, URL, NavPathStack, ListScroller, LocalStorage, native, getContext: () => context,
+    const scope = { exports, URL, NavPathStack, ListScroller, LocalStorage, WebDownloads, native, getContext: () => context,
       $r: (name, ...params) => ({ name, id: 1, params }), webview: mocks['@ohos.web.webview'],
       setInterval(callback) { const id = ++nextTimer; timers.set(id, { kind: 'interval', callback }); return id; },
       setTimeout(callback) { const id = ++nextTimer; timers.set(id, { kind: 'timeout', callback }); return id; },
@@ -344,7 +356,7 @@ function harness({ callbackThrows = false } = {}) {
     if (completeBlank) blankEnd(controller, callbacks);
     return work;
   }
-  return { calls, changes, plans, control, context, eventHub, listeners, registrations, publications, timers, controllers, toasts,
+  return { calls, changes, plans, control, context, eventHub, listeners, registrations, publications, timers, controllers, downloads, toasts,
     cookieCalls, lifecycle, attach, blankBegin, blankEnd, states: connectionModule.WebConnectionState, activity, helper, page, profile, load,
     count: name => calls.filter(call => call.name === name).length };
 }
@@ -1560,7 +1572,8 @@ test('a cold engine first binds a blank Web, then prepares cookies once before a
   assert.deepEqual(index.controller.loaded, []);
   read.resolve([pendingCookie('127.0.0.1:43220'), pendingCookie()]);
   await work;
-  assert.deepEqual(h.lifecycle, ['attached', 'cookies', 'expire', 'navigate'], 'another window\'s port keeps its cookie');
+  assert.deepEqual(h.lifecycle.filter(event => event !== 'download-delegate'),
+    ['attached', 'cookies', 'expire', 'navigate'], 'another window\'s port keeps its cookie');
   assert.deepEqual(index.controller.loaded, [ADDRESS]);
   assert.equal(index.initialAuthentication, false);
   assert.equal(h.control.badInitialization, false);
@@ -1732,4 +1745,94 @@ test('an account authentication terminal state retires its retained peer before 
   assert.equal(h.count('close'), 1);
   assert.equal(index.retainedConnectionId, '');
   await closePage(h, index);
+});
+
+test('the attached controller receives its download owner before authenticated navigation', async () => {
+  const h = harness();
+  const { index, bind } = h.page(false);
+  await h.attach(index, bind());
+  const download = h.downloads[0];
+  assert.equal(download.attachments.length, 1);
+  assert.equal(download.attachments[0].controller, index.controller);
+  assert.equal(download.attachments[0].ability, h.context);
+  assert.equal(download.attachments[0].origin, ORIGIN);
+  assert.ok(h.lifecycle.indexOf('download-delegate') < h.lifecycle.indexOf('navigate'));
+  await closePage(h, index);
+});
+
+test('connection close joins download cleanup and rejects a delayed old attachment', async () => {
+  const h = harness();
+  const { index, bind } = h.page(false);
+  await h.attach(index, bind());
+  const download = h.downloads[0];
+  const retiredGeneration = index.webGeneration;
+  const cleanup = deferred();
+  download.closeResult = cleanup.promise;
+  let settled = false;
+  const closing = index.closeWeb().then(() => { settled = true; });
+  index.attachWebDownloads(retiredGeneration);
+  await tick();
+  assert.equal(settled, false);
+  assert.equal(download.closes, 1);
+  cleanup.resolve();
+  await closing;
+  await tick();
+  assert.equal(download.attachments.length, 1);
+  await closePage(h, index);
+});
+
+test('temporary component detachment retires downloads and reattachment restores the retained controller owner', async () => {
+  const h = harness();
+  const { index, bind } = h.page(false);
+  await h.attach(index, bind());
+  const download = h.downloads[0];
+  const controller = index.controller;
+  index.aboutToDisappear();
+  await tick();
+  assert.equal(download.closes, 1);
+  index.aboutToAppear();
+  await tick();
+  assert.equal(download.attachments.length, 2);
+  assert.equal(download.attachments[1].controller, controller);
+  assert.equal(index.controller, controller);
+  bind().exited();
+  assert.equal(download.closes, 2);
+  await closePage(h, index);
+});
+
+test('download notices identify saved files and distinguish cancellation from a partial save', async () => {
+  const h = harness();
+  const { index } = h.page(false);
+  const download = h.downloads[0];
+  const notice = { kind: 'saved', stage: 'save', filename: 'dsh-session-owned.zip', code: 0, partial: false };
+  download.changed(notice);
+  assert.equal(h.toasts.at(-1).message.name, 'app.string.web_download_saved');
+  assert.deepEqual([...h.toasts.at(-1).message.params], ['dsh-session-owned.zip']);
+  download.changed({ ...notice, kind: 'failed', partial: true });
+  assert.equal(h.toasts.at(-1).message.name, 'app.string.web_download_partial');
+  download.changed({ ...notice, kind: 'cancelled', stage: 'picker' });
+  assert.equal(h.toasts.at(-1).message.name, 'app.string.web_download_cancelled');
+  index.aboutToDisappear();
+  const count = h.toasts.length;
+  download.changed(notice);
+  assert.equal(h.toasts.length, count);
+  await closePage(h, index);
+});
+
+test('the resource compatibility script is the first document-start injection', () => {
+  const filename = path.join(ets, 'pages/Index.ets');
+  const source = fs.readFileSync(filename, 'utf8').replace('struct Index', 'class Index');
+  const file = ts.createSourceFile(filename, source, ts.ScriptTarget.Latest, true);
+  let scripts;
+  function visit(node) {
+    if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression) &&
+      node.expression.name.text === 'javaScriptOnDocumentStart') scripts = node.arguments[0];
+    ts.forEachChild(node, visit);
+  }
+  visit(file);
+  assert.ok(scripts && ts.isArrayLiteralExpression(scripts));
+  const first = scripts.elements[0];
+  assert.ok(ts.isObjectLiteralExpression(first));
+  const script = first.properties.find(node => ts.isPropertyAssignment(node) && node.name.getText(file) === 'script');
+  assert.equal(script.initializer.getText(file), 'WEB_RESOURCE_COMPATIBILITY_SCRIPT');
 });

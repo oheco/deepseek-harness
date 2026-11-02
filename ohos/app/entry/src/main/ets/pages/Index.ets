@@ -13,6 +13,8 @@ import { loopbackOrigin } from '../launcher/RunLogUrl';
 import { prepareConnectionCookies } from '../launcher/ConnectionCookies';
 import { connectionDiagnostic, connectionDiagnosticFailure } from '../launcher/ConnectionDiagnostics';
 import { WEB_CONNECTION_DIAGNOSTIC_SCRIPT, recordWebConnectionDiagnostic } from '../launcher/WebConnectionDiagnostics';
+import { WEB_RESOURCE_COMPATIBILITY_SCRIPT } from '../launcher/WebResourceCompatibility';
+import { WebDownloads, WebDownloadNotice } from '../launcher/WebDownloads';
 
 import { KeyCode } from '@ohos.multimodalInput.keyCode';
 import { CONTEXT_CAPTURE_SCRIPT, ContextSnapshot, contextSnapshotScript, contextTarget } from '../launcher/ContextActions';
@@ -93,6 +95,8 @@ struct Index {
   // cannot remove the cover; completion at the connection origin does.
   @State private webPainted: boolean = false;
   private controller: webview.WebviewController = new webview.WebviewController();
+  private webDownloads: WebDownloads = new WebDownloads((notice: WebDownloadNotice) => this.downloadNotice(notice));
+  private downloadCleanup: Promise<void> = Promise.resolve();
   // ArkWeb may report one navigation through more than one callback; the second
   // report of the same address must not open a second browser window.
   private handedOff: string = '';
@@ -198,6 +202,7 @@ struct Index {
       // A detached context cannot deliver App activity; the page remains reachable through Back.
     }
     if (this.activeConnection && this.webVisible && this.webUrl !== '') {
+      if (this.diagnosticControllerAttached) { this.attachWebDownloads(this.webGeneration); }
       this.reattachWeb().catch((error: Error) => {
         // A reattached renderer can retry on its next foreground event.
       });
@@ -212,6 +217,7 @@ struct Index {
     clearInterval(this.remoteTimer);
     this.updateWebOrientation(false);
     this.attached = false;
+    this.retireWebDownloads();
     if (this.stopObservingWindows) {
       this.stopObservingWindows();
       this.stopObservingWindows = undefined;
@@ -565,7 +571,7 @@ struct Index {
     clearInterval(this.diagnosticTimer);
     this.diagnosticPhase = 0;
     this.diagnosticControllerAttached = false;
-    const cleanup: Promise<void> = this.webConnection.close();
+    const cleanup: Promise<void[]> = Promise.all([this.webConnection.close(), this.retireWebDownloads()]);
     this.webVisible = false;
     this.retainedConnectionId = '';
     this.publishHeldConnection(undefined);
@@ -590,6 +596,50 @@ struct Index {
     } catch (error) {
       connectionDiagnosticFailure('index.close_failed', error, { generation: generation, elapsedMs: Date.now() - started });
       throw error as Error;
+    }
+  }
+
+  /** A retired renderer cannot attach its delegate to a newer connection. */
+  private attachWebDownloads(generation: number): void {
+    const controller = this.controller;
+    const origin = this.webOrigin;
+    this.downloadCleanup.then(() => {
+      if (this.attached && !this.closingWeb && this.rendererAlive && generation === this.webGeneration &&
+        controller === this.controller && origin !== '' && origin === this.webOrigin) {
+        this.webDownloads.attach(controller, this.getUIContext().getHostContext() as common.UIAbilityContext, origin);
+      }
+    }).catch((error: Error) => {
+      connectionDiagnosticFailure('index.download_attach_failed', error, { generation: generation });
+      if (this.attached && generation === this.webGeneration) { this.notify($r('app.string.web_download_failed')); }
+    });
+  }
+
+  /** Invalidation is synchronous; cleanup joins only application-owned work. */
+  private retireWebDownloads(): Promise<void> {
+    this.downloadCleanup = this.webDownloads.close();
+    this.downloadCleanup.catch((error: Error) => {
+      connectionDiagnosticFailure('index.download_close_failed', error, { generation: this.webGeneration });
+    });
+    return this.downloadCleanup;
+  }
+
+  private downloadNotice(notice: WebDownloadNotice): void {
+    const stages: string[] = ['attach', 'download', 'picker', 'save', 'cleanup'];
+    const kinds: string[] = ['started', 'saved', 'cancelled', 'busy', 'unsupported', 'failed'];
+    connectionDiagnostic('index.download', { generation: this.webGeneration, phase: stages.indexOf(notice.stage),
+      state: kinds.indexOf(notice.kind), code: notice.code, reason: notice.partial ? 1 : 0 });
+    switch (notice.kind) {
+      case 'started': this.notify($r('app.string.web_download_started')); return;
+      case 'saved': this.notify($r('app.string.web_download_saved', notice.filename)); return;
+      case 'cancelled': this.notify($r('app.string.web_download_cancelled')); return;
+      case 'busy': this.notify($r('app.string.web_download_busy')); return;
+      case 'unsupported': this.notify($r('app.string.web_download_unsupported')); return;
+      case 'failed':
+        if (notice.partial) { this.notify($r('app.string.web_download_partial')); }
+        else if (notice.stage === 'cleanup') { this.notify($r('app.string.web_download_cleanup_failed')); }
+        else if (notice.stage === 'save' || notice.stage === 'picker') { this.notify($r('app.string.web_download_save_failed')); }
+        else { this.notify($r('app.string.web_download_failed')); }
+        return;
     }
   }
 
@@ -1071,7 +1121,10 @@ struct Index {
           Web({ src: 'about:blank', controller: this.controller })
             .onControllerAttached(() => {
               connectionDiagnostic('index.controller_attached', { generation: generation, current: generation === this.webGeneration });
-              if (generation === this.webGeneration) { this.diagnosticControllerAttached = true; }
+              if (generation === this.webGeneration) {
+                this.diagnosticControllerAttached = true;
+                this.attachWebDownloads(generation);
+              }
               return this.prepareAndLoad(generation);
             })
             .javaScriptAccess(true)
@@ -1100,6 +1153,7 @@ struct Index {
               }
             })
             .javaScriptOnDocumentStart([
+              { script: WEB_RESOURCE_COMPATIBILITY_SCRIPT, scriptRules: ['*'] },
               { script: WEB_CONNECTION_DIAGNOSTIC_SCRIPT, scriptRules: ['*'] },
               { script: LOCAL_CONNECTION_SCRIPT, scriptRules: ['*'] },
               { script: CONTEXT_CAPTURE_SCRIPT, scriptRules: ['*'] }
@@ -1191,6 +1245,7 @@ struct Index {
               if (generation === this.webGeneration) {
                 this.observeWebPhase(5);
                 this.rendererAlive = false;
+                this.retireWebDownloads();
                 this.webConnection.disconnected();
               }
             })

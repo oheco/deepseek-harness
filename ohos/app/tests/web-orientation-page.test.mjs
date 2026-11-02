@@ -123,6 +123,7 @@ function harness() {
     const exports = {};
     cache.set(filename, exports);
     const scope = { exports, URL, NavPathStack, ListScroller, LocalStorage, AppStorage: { setOrCreate() {} }, getContext: () => context,
+      WebDownloads: class { attach() {} close() { return Promise.resolve(); } },
       $r: name => ({ name, id: 1 }), webview: { WebviewController }, native,
       loopbackOrigin: relative === 'pages/Index' ? load('launcher/RunLogUrl').loopbackOrigin : undefined,
       WEB_VIEW_ACTIVE_EVENT: relative === 'pages/Index' ? load('launcher/WebOrientation').WEB_VIEW_ACTIVE_EVENT : undefined,
