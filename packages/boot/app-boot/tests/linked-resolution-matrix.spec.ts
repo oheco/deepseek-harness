@@ -9,6 +9,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { createRuntimeResolution, type Profile } from '../src/profile.ts'
 import { barePackageName, installRuntimeInterception } from '../src/profile-resolution/resolver.ts'
+import { requireNodeInternal } from './node-internals.ts'
 
 type Layout = 'single-flat' | 'single-pnpm' | 'pnpm-monorepo'
 type Method = 'esm-resolve' | 'esm-meta-resolve' | 'esm-import' | 'cjs-resolve' | 'cjs-require' | 'cjs-paths' | 'metadata'
@@ -94,7 +95,7 @@ interface NativeLoader {
 const requireHere = createRequire(import.meta.url)
 const nativeModule = requireHere('node:module') as { _initPaths(): void }
 const originalNodePath = process.env.NODE_PATH
-const addon = requireHere('node-addon-require-builtin') as { requireBuiltin(id: string): unknown }
+const addon = { requireBuiltin: requireNodeInternal }
 const loaderModule = addon.requireBuiltin('internal/modules/esm/loader') as {
   getOrInitializeCascadedLoader(): NativeLoader
 }

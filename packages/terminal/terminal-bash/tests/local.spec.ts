@@ -55,7 +55,7 @@ function stubAgent(ctx: Context, rawId: string): Agent {
 async function harness(
   mode: 'danger-full-access' | 'workspace-write',
   timing: { idleSilenceMs?: number; handoffGraceMs?: number; timeoutMs?: number } = {},
-  dialect: 'bash' | 'pwsh' = 'bash',
+  dialect: 'bash' | 'zsh' | 'pwsh' = (process.platform as string) === 'openharmony' ? 'zsh' : 'bash',
 ) {
   const root = mkdtempSync(join(tmpdir(), 'dsh-pty-local-'))
   roots.push(root)
@@ -84,6 +84,28 @@ async function harness(
   await ctx.agents.register(agent)
   return { ctx, root, agent, fiber, sandbox: ctx.sandbox as PassthroughSandbox }
 }
+
+describe.skipIf(!existsSync('/usr/bin/zsh'))('terminal-bash real zsh', () => {
+  it('verifies prompt readiness, preserves zsh state, and joins cleanup', async () => {
+    const { ctx, root, agent } = await harness('danger-full-access', {
+      idleSilenceMs: 5_000,
+      timeoutMs: 8_000,
+    }, 'zsh')
+    const created = await ctx.terminals.spawn(agent, { type: 'shell', name: 'zsh', cwd: root })
+    expect(created.motd).toContain('dsh> ')
+    const first = await ctx.terminals.startSend(agent, created.sessionId, {
+      text: 'typeset -a values=(alpha beta); export KEEP=ok; cd /; false', submit: true,
+    }).done
+    expect(first.waitReason).toBe('stdin_read')
+    const second = await ctx.terminals.startSend(agent, created.sessionId, {
+      text: 'printf "cwd=%s keep=%s first=%s\\n" "$PWD" "$KEEP" "$values[1]"', submit: true,
+    }).done
+    expect(second.viewport).toContain('cwd=/ keep=ok first=alpha')
+    expect(second.waitReason).toBe('stdin_read')
+    expect(await ctx.terminals.kill(agent, created.sessionId)).toBe(true)
+    expect(ctx.terminals.list(agent)).toEqual([])
+  }, 20_000)
+})
 
 // TerminalSendOperation.append drops output once the operation settles, so this only
 // observes a marker the child prints while `operation` is still active. A caller
@@ -114,7 +136,7 @@ function processIsRunning(pid: number): boolean {
   } catch (_missingProcess) {
     return false
   }
-  if (process.platform !== 'linux') return true
+  if (process.platform !== 'linux' && (process.platform as string) !== 'openharmony') return true
   try {
     const stat = readFileSync(`/proc/${pid}/stat`, 'utf8')
     const state = stat.slice(stat.lastIndexOf(')') + 2).split(/\s+/, 1)[0]
@@ -173,7 +195,8 @@ describe.skipIf(process.platform === 'win32')('terminal-bash real shell', () => 
     const override = ctx.terminals.startSend(agent, created.sessionId, { text: 'PS1=broken-prompt', submit: true })
     expect((await override.done).waitReason).toBe('stdin_read')
 
-    const after = ctx.terminals.startSend(agent, created.sessionId, { text: 'printf "healed=[%s]\\n" "$PS1"', submit: true })
+    const prompt = (process.platform as string) === 'openharmony' ? '${(%)PS1}' : '$PS1'
+    const after = ctx.terminals.startSend(agent, created.sessionId, { text: `printf "healed=[%s]\\n" "${prompt}"`, submit: true })
     const result = await after.done
     expect(result.waitReason).toBe('stdin_read')
     expect(result.viewport).toContain('healed=[dsh> ]')
@@ -214,7 +237,7 @@ describe.skipIf(process.platform === 'win32')('terminal-bash real shell', () => 
     const { ctx, root, agent, fiber, sandbox } = await harness('workspace-write')
     const created = await ctx.terminals.spawn(agent, { type: 'shell' })
     expect(sandbox.calls).toEqual([{
-      argv: ['/bin/bash', '--noprofile', '--norc', '-i'],
+      argv: (process.platform as string) === 'openharmony' ? ['/usr/bin/zsh', '-f', '-i'] : ['/bin/bash', '--noprofile', '--norc', '-i'],
       policy: { mode: 'workspace-write', workspaceRoot: root, sessionId: 'agent-workspace-write' },
     }])
     await fiber.dispose()

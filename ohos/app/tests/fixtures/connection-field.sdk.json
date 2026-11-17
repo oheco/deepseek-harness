@@ -1,0 +1,26 @@
+{
+  "source": "entry/src/main/ets/pages/ConnectionField.ets",
+  "sourceSha256": "fe5be927a0907664301e4ea6b2c5e849f230989dddb3c169100945d259833bb6",
+  "sdkPackageVersion": "26.0.0.35-Beta",
+  "apiVersion": 26,
+  "sdkGeneratedTypeScriptSha256": "2cc709fd9d976065423a9d62c0ee6bff19c3999c6c196d63e87299f06d1b88ff",
+  "fixtureSha256": "c4ba234fae8af1ab2fadaaa620cd6e6d83402e1514b66b1d0fa5cbab2f7ded7b",
+  "postprocess": "TypeScript transpileModule ES2022/ESNext removes type annotations from SDK-generated code",
+  "parentLinkWiring": "value: this.__token",
+  "compileExitCode": 0,
+  "regenerationCommand": "OHOS_SDK_HOME=<API-26 SDK root> node ohos/app/tests/regenerate-connection-field-fixture.mjs",
+  "compileTask": [
+    "--mode",
+    "module",
+    "-p",
+    "module=entry@default",
+    "-p",
+    "product=default",
+    "-p",
+    "buildMode=debug",
+    "assembleHap",
+    "--no-daemon",
+    "--stacktrace"
+  ],
+  "noSigningOrDeviceActions": true
+}

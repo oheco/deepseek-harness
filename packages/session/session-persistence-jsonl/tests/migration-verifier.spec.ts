@@ -26,7 +26,7 @@ vi.mock('node:worker_threads', () => ({
 
 interface FakeWorker {
   readonly entry: string | URL
-  readonly options: { readonly workerData: unknown }
+  readonly options: { readonly workerData: unknown; readonly execArgv: readonly string[] }
   readonly terminate: ReturnType<typeof vi.fn<() => Promise<number>>>
   emit(event: string, value: unknown): void
 }
@@ -43,11 +43,27 @@ const result = {
   digest: 'digest',
 }
 
+const originalPlatform = Object.getOwnPropertyDescriptor(process, 'platform')!
+
 afterEach(() => {
   state.workers.length = 0
+  Object.defineProperty(process, 'platform', originalPlatform)
 })
 
 describe('migration verifier Worker lifecycle', () => {
+  it.each(['openharmony', 'linux', 'darwin', 'win32'])('enables internal modules for the source worker only on HarmonyOS (%s)', async (platform) => {
+    Object.defineProperty(process, 'platform', { value: platform, configurable: true })
+    const verification = verifyCurrentGenerationInWorker('/stage', 'none', 'session', 0)
+    const instance = worker()
+    try {
+      expect(instance.options.execArgv).toEqual(platform === 'openharmony' ? ['--expose-internals'] : [])
+    } finally {
+      instance.emit('message', { ok: true, result })
+      instance.emit('exit', 0)
+      await verification
+    }
+  })
+
   it('retains a valid response until natural exit without terminating the Worker', async () => {
     const expectedPrefix = { bytes: 3, digest: 'a'.repeat(64) }
     const verification = verifyCurrentGenerationInWorker('/stage', 'none', 'session', 2, expectedPrefix)

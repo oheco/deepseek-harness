@@ -1,0 +1,27 @@
+✔ automatic SDK recovery states retain the handle and never request manual reconnect (1119.230781ms)
+✔ paused foreground requests SDK manual reconnect and accepts its recovering status (353.00375ms)
+✔ failed, closed, idle, and failed-auth handles remain disconnected without App revival (656.172813ms)
+✔ status errors and rejected DSH probes do not recreate or close the SDK session (142.475156ms)
+✔ healthy foreground verification probes the retained endpoint without changing SDK ownership (243.632969ms)
+✔ local failure retains its endpoint and later foreground succeeds without broker activity (94.578438ms)
+✔ foreground events share the same pending manual request without resetting SDK recovery (118.477344ms)
+✔ background suppresses completion callbacks and the next foreground updates the retained handle (102.443438ms)
+✔ explicit close cancels before joining a pending manual request even when native close rejects (287.535625ms)
+✔ late polling results cannot publish into a new generation after explicit exit (81.843125ms)
+✔ mismatched SDK origins are rejected without adopting or destroying the retained handle (77.933437ms)
+✔ callback and manual request failures are contained without App restart attempts (194.80875ms)
+✔ SDK automatic recovery preserves actual Index DOM, history, search, route, and profile (814.694218ms)
+✔ failed SDK handles and local probe failures keep actual Index pages until explicit exit (995.926562ms)
+✔ actual Back clears page and orientation immediately while cancellation retains the cleanup barrier (937.458281ms)
+✔ component disappearance unregisters exact listeners and reattachment resumes the same SDK handle (622.088593ms)
+✔ renderer loss retains the current route and recreation waits for SDK endpoint recovery (507.574063ms)
+✔ foreground event coalescing and notification failures preserve the live renderer (736.731719ms)
+✔ Index Home handoff still forwards the exact profile and its boolean ownership result (444.474375ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 19
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 13305.441407

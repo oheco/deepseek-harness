@@ -35,7 +35,7 @@ Choose the persistent tool when work depends on cross-call state: a one-shot `ds
 
 ### Minimal configuration
 
-The default `shell` backend starts an interactive bash through `dsh-terminal-bash`; deployments may register another PTY backend and select it by name.
+The default `shell` backend starts interactive zsh on HarmonyOS and bash elsewhere through `dsh-terminal-bash`; deployments may register another PTY backend and select it by name. HarmonyOS requires Python 3 with `termios` to disable PTY input echo; it also disables zsh line editing and history expansion. Its default model description requests zsh syntax; deployments overriding `description` must describe their selected shell.
 
 ```yaml
 - name: '@deepseek-ai/dsh-terminal'
@@ -48,7 +48,7 @@ The default `shell` backend starts an interactive bash through `dsh-terminal-bas
 | `backendType` | `shell` | Registered PTY backend used for each agent's shell |
 | `timeoutMs` | `300,000` | Wall-clock limit for one command; timeout closes the shell |
 | `maxOutputChars` | `16,000` | Maximum retained command-output characters; fixed diagnostics are added afterward |
-| `description` | `Run commands in a persistent bash shell. State, including the current directory and exported environment variables, persists across calls for this agent.` | Model-facing environment contract; deployments may describe their environment |
+| `description` | Platform shell and cross-call state guidance | Model-facing environment contract; deployments may describe their environment |
 
 The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-tool-bash-persistent) is the exhaustive source for every accepted field and its JSDoc.
 
@@ -85,7 +85,7 @@ This section explains the design decisions behind the tool and points at the cod
 
 ### Command flow
 
-A first command spawns the shell through `ctx.terminals.spawn`, disables input echo and history expansion (`stty -echo; set +H`), and waits for readiness. Each command is then wrapped into one physical line — a printf of the start marker, the command body escaped with `$'…'`, and a printf of the end marker plus `$?` — so embedded newlines cannot leak terminal prompts into the result. With history expansion off, `!` sequences reach bash unchanged instead of being rewritten or rejecting the whole line. The tool polls the scrollback in 1,000-line pages until the end marker appears, extracts the span, and renders it with any status marker. A timeout aborts the deadline, captures the partial output, and resets the shell.
+A first command spawns the shell through `ctx.terminals.spawn`, disables input echo and history expansion (Python `termios` plus `unsetopt ZLE BANG_HIST` on HarmonyOS, `stty -echo; set +H` elsewhere), and waits for readiness. Each command is then wrapped into one physical line — a printf of the start marker, the command body escaped with `$'…'`, and a printf of the end marker plus `$?` — so embedded newlines cannot leak terminal prompts into the result. With history expansion off, `!` sequences reach bash unchanged instead of being rewritten or rejecting the whole line. The tool polls the scrollback in 1,000-line pages until the end marker appears, extracts the span, and renders it with any status marker. A timeout aborts the deadline, captures the partial output, and resets the shell.
 
 </details>
 
@@ -146,6 +146,7 @@ These limits define when the tool is a poor fit or needs special care. They are 
 
 - **The tool requires an owning agent and a real PTY backend** — agent-less calls and backends that cannot start an interactive shell fail.
 - **An interactive foreground child returns early with partial output only where the subprocess provider proves its stdin wait** — elsewhere the call runs to `timeoutMs`.
+- **HarmonyOS interactive zsh cannot replace the persistent shell with `exec`** — `exec` ends the session, and the next call opens a fresh shell. Run commands directly to retain state; deployments overriding `description` must retain this limitation. Run the [native PTY probe](tests/fixtures/ohos-exec-probe.py) with Python 3 to record the system shell version and behavior without Harness.
 - **Explicit `exit` and timeout discard shell state** — cancellation also resets and discards the result, even when a complete status marker is already observable; the next call starts a fresh shell.
 - **Environment facts such as network access and package mirrors belong in the configured `description`** — not this package's default.
 - **Raw control characters other than newline and carriage return reach readline as typed keys** — a literal TAB, ESC, or DEL in the command is consumed as an editing key, so content that needs them, such as a Makefile heredoc, should be written with a file tool or produced by `printf` escapes.

@@ -109,32 +109,49 @@ describe('local request-image cache', () => {
       .rejects.toThrow('Image request maxBytes must be a positive integer')
   })
 
-  it('resizes by the long edge to the exact target and keys the cache by target', async () => {
+  it('resizes a square image by the long edge and keys the cache by target', async () => {
     const attachments = await store()
     const maxBytes = 2 * 1024 * 1024
     const square = await attachments.saveImage({ data: await image(2048, 2048), mediaType: 'image/png' })
-    const small = await attachments.saveImage({ data: await image(800, 800), mediaType: 'image/png' })
-    const thin = await attachments.saveImage({ data: await image(8000, 40), mediaType: 'image/png' })
-    const wide = await attachments.saveImage({ data: await image(1920, 1080), mediaType: 'image/png' })
-    const tall = await attachments.saveImage({ data: await image(1080, 1920), mediaType: 'image/png' })
-
     const squareRequest = await attachments.readImageRequest(square, { width: 1302, height: 1302, maxBytes })
-    const smallRequest = await attachments.readImageRequest(small, { width: 800, height: 800, maxBytes })
-    const thinRequest = await attachments.readImageRequest(thin, { width: 4096, height: 20, maxBytes })
-    const wideRequest = await attachments.readImageRequest(wide, { width: 1708, height: 961, maxBytes })
-    const tallRequest = await attachments.readImageRequest(tall, { width: 961, height: 1708, maxBytes })
     const smaller = await attachments.readImageRequest(square, { width: 1024, height: 1024, maxBytes })
-    const enlarged = await attachments.readImageRequest(thin, { width: 9000, height: 45, maxBytes })
 
     expect(squareRequest).toMatchObject({ width: 1302, height: 1302, mediaType: 'image/jpeg' })
-    expect(smallRequest).toMatchObject({ width: 800, height: 800, mediaType: 'image/png' })
-    expect(smallRequest.data).toEqual((await attachments.readImage(small)).data)
-    expect(thinRequest).toMatchObject({ width: 4096, height: 20 })
-    expect(wideRequest).toMatchObject({ width: 1708, height: 961 })
-    expect(tallRequest).toMatchObject({ width: 961, height: 1708 })
-    expect(enlarged).toMatchObject({ width: 8000, height: 40 })
     expect(smaller.variantId).not.toBe(squareRequest.variantId)
+  })
+
+  it('preserves the exact bytes of a small in-budget image', async () => {
+    const attachments = await store()
+    const small = await attachments.saveImage({ data: await image(800, 800), mediaType: 'image/png' })
+    const request = await attachments.readImageRequest(small, { width: 800, height: 800, maxBytes: 2 * 1024 * 1024 })
+
+    expect(request).toMatchObject({ width: 800, height: 800, mediaType: 'image/png' })
+    expect(request.data).toEqual((await attachments.readImage(small)).data)
+  })
+
+  it('resizes a thin image without upscaling and keys the cache by target', async () => {
+    const attachments = await store()
+    const maxBytes = 2 * 1024 * 1024
+    const thin = await attachments.saveImage({ data: await image(8000, 40), mediaType: 'image/png' })
+    const thinRequest = await attachments.readImageRequest(thin, { width: 4096, height: 20, maxBytes })
+    const enlarged = await attachments.readImageRequest(thin, { width: 9000, height: 45, maxBytes })
+
+    expect(thinRequest).toMatchObject({ width: 4096, height: 20 })
+    expect(enlarged).toMatchObject({ width: 8000, height: 40 })
     expect(enlarged.variantId).not.toBe(thinRequest.variantId)
+  })
+
+  it.each([
+    { name: 'wide', width: 1920, height: 1080, targetWidth: 1708, targetHeight: 961 },
+    { name: 'tall', width: 1080, height: 1920, targetWidth: 961, targetHeight: 1708 },
+  ])('resizes a $name image by the long edge to the exact target', async ({ width, height, targetWidth, targetHeight }) => {
+    const attachments = await store()
+    const attachment = await attachments.saveImage({ data: await image(width, height), mediaType: 'image/png' })
+    const request = await attachments.readImageRequest(attachment, {
+      width: targetWidth, height: targetHeight, maxBytes: 2 * 1024 * 1024,
+    })
+
+    expect(request).toMatchObject({ width: targetWidth, height: targetHeight })
   })
 
   it('encodes the rounded short edge at the route target', async () => {

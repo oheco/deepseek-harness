@@ -828,6 +828,7 @@ describe('writeFileAtomic — temp-file safety', () => {
     const denied = Object.assign(new Error('link denied'), { code: 'EACCES' })
 
     await expect(writeFileAtomic(file, 'ours', undefined, undefined, {
+      platform: 'linux',
       linkFile: async () => { throw denied },
     }, { displayPath: file, createIfAbsent: true })).rejects.toMatchObject({ code: 'FS_IO_ERROR', cause: denied })
     await expect(stat(file)).rejects.toMatchObject({ code: 'ENOENT' })
@@ -840,6 +841,7 @@ describe('writeFileAtomic — temp-file safety', () => {
     const inspectionFailure = Object.assign(new Error('inspection denied'), { code: 'EACCES' })
 
     await expect(writeFileAtomic(file, 'ours', undefined, undefined, {
+      platform: 'linux',
       linkFile: async () => { throw linkFailure },
       inspectPublicationTarget: async () => { throw inspectionFailure },
     }, { displayPath: file, createIfAbsent: true })).rejects.toMatchObject({ code: 'FS_IO_ERROR', cause: inspectionFailure })
@@ -852,6 +854,7 @@ describe('writeFileAtomic — temp-file safety', () => {
     const collision = Object.assign(new Error('target existed'), { code: 'EEXIST' })
 
     await expect(writeFileAtomic(file, 'ours', undefined, undefined, {
+      platform: 'linux',
       linkFile: async () => { throw collision },
     }, { displayPath: file, createIfAbsent: true })).rejects.toMatchObject({
       code: 'FS_NOT_OBSERVED',

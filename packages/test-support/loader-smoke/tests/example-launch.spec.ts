@@ -39,6 +39,11 @@ describe('resolveExampleMode', () => {
 })
 
 describe('resolveExampleLaunch', () => {
+  it.each(['src', 'lib'] as const)('passes the platform internal-loader flag in %s mode', (mode) => {
+    const { args } = resolveExampleLaunch({ srcBin: SRC_BIN, tsconfigPath: TSCONFIG, mode })
+    expect(args.includes('--expose-internals')).toBe((process.platform as string) === 'openharmony')
+  })
+
   it('src mode: --import tsx on the source bin with the tsconfig paths env', () => {
     const { command, args, env } = resolveExampleLaunch({
       srcBin: SRC_BIN,
@@ -64,8 +69,9 @@ describe('resolveExampleLaunch', () => {
       sourceImport: 'tsx/esm',
       tsconfigPath: TSCONFIG,
     })
-    expect(args[0]).toBe('--import')
-    expect(args[1]).toContain('/tsx/dist/esm/index.mjs')
+    const importIndex = args.indexOf('--import')
+    expect(importIndex).toBeGreaterThanOrEqual(0)
+    expect(args[importIndex + 1]).toContain('/tsx/dist/esm/index.mjs')
   })
 
   it('lib mode: plain node on the derived lib bin, no tsx and no paths env', () => {

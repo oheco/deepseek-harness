@@ -1,0 +1,8 @@
+{
+  "name": "entry",
+  "version": "1.0.0",
+  "description": "DSH Stage application",
+  "dependencies": {
+    "libdsh_launcher.so": "file:./src/main/cpp/types/libdsh_launcher"
+  }
+}

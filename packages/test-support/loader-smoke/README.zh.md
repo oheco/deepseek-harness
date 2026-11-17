@@ -55,6 +55,8 @@ Profile 集成 driver 使用仅限仓库内部的 `tests/fixtures/production-pro
 
 `resolveExampleLaunch` 选择示例可执行文件从哪个产物启动。`src` 模式在 tsx 下运行可执行文件并设置 `TSX_TSCONFIG_PATH`，使工作区导入通过 tsconfig `paths` 映射解析——这是零构建开发路径。`lib` 模式在普通 Node 下运行构建后的 `lib/` 可执行文件，使裸包插件通过真实包 `exports` 解析，与已安装消费方的解析方式完全一致。模式来自显式值或 `DSH_EXAMPLE_MODE`（CI 设置 `lib`，开发时保持未设置）；其他任何值都会明确报错。
 
+在鸿蒙上，两种模式都会向 Node 传入 `--expose-internals`，使 profile 解析使用与产品启动器相同的公开内部加载器。
+
 ### 可能出什么问题
 
 - **进程永不退出**——冒烟测试强制执行截止时间，并在失败信息中报告捕获的流；会 spawn 自身进程树的故障 fixture 可能比冒烟测试存活更久，需要外部清理。

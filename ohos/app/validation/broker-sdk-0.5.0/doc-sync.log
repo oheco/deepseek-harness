@@ -1,0 +1,196 @@
+
+> @deepseek-ai/dsh-root@0.2.0-rc.2 doc-sync
+> tsx scripts/run-gates.ts doc-sync
+
+run-gates: doc-sync running 43 gate(s) with 4 worker(s) from 4 available CPU(s), doc-sync cap 4.
+run-gates: start doc-typecheck
+run-gates: start documentation build
+run-gates: start doc graphs
+run-gates: start markdown links
+
+== FAILED doc-typecheck (410.10s) ==
+command: pnpm run doc-typecheck
+outcome: exit 2
+
+> @deepseek-ai/dsh-root@0.2.0-rc.2 doc-typecheck
+> npm run build:lib:host && npm run doc-typecheck:contracts-ready
+
+
+> @deepseek-ai/dsh-root@0.2.0-rc.2 build:lib:host
+> node --max-old-space-size=4096 ./node_modules/typescript/bin/tsc -b tsconfig.host.json && tsdown --env.DSH_BUILD_FACE host && pnpm --filter @deepseek-ai/dsh-desktop run bundle
+
+packages/bundle/web-app/tests/document-preview.spec.ts(153,9): error TS2322: Type '((specifier: string, parentURL: string, importAttributes: ImportAttributes) => Promise<any>) | ((specifier: string, parentURL: string, importAttributes: ImportAttributes, phase?: ModulePhase | undefined, isEntryPoint?: boolean | undefined) => Promise<...>)' is not assignable to type '(...args: [specifier: string, parentURL: string, importAttributes: ImportAttributes] | [specifier: string, parentURL: string, importAttributes: ImportAttributes, phase?: ModulePhase | undefined, isEntryPoint?: boolean | undefined]) => Promise<...>'.
+  Type '(specifier: string, parentURL: string, importAttributes: ImportAttributes) => Promise<any>' is not assignable to type '(...args: [specifier: string, parentURL: string, importAttributes: ImportAttributes] | [specifier: string, parentURL: string, importAttributes: ImportAttributes, phase?: ModulePhase | undefined, isEntryPoint?: boolean | undefined]) => Promise<...>'.
+    Types of parameters 'specifier' and 'args' are incompatible.
+      Type '[specifier: string, parentURL: string, importAttributes: ImportAttributes] | [specifier: string, parentURL: string, importAttributes: ImportAttributes, phase?: ModulePhase | undefined, isEntryPoint?: boolean | undefined]' is not assignable to type '[specifier: string, parentURL: string, importAttributes: ImportAttributes]'.
+        Type '[specifier: string, parentURL: string, importAttributes: ImportAttributes, phase?: ModulePhase | undefined, isEntryPoint?: boolean | undefined]' is not assignable to type '[specifier: string, parentURL: string, importAttributes: ImportAttributes]'.
+          Target allows only 3 element(s) but source may have more.
+packages/bundle/web-app/tests/document-preview.spec.ts(153,53): error TS18048: 'internal' is possibly 'undefined'.
+run-gates: start type equivalence
+run-gates: PASS markdown links (481.29s)
+run-gates: start cordis catalog
+
+== FAILED documentation build (641.77s) ==
+command: pnpm run docs:build
+outcome: exit 1
+
+> @deepseek-ai/dsh-root@0.2.0-rc.2 docs:build
+> tsx website/build.ts && pnpm run verify-doc-site-fragments
+
+▲ [WARNING] Unrecognized target environment "es2024" [tsconfig.json]
+
+    tsconfig.base.json:6:14:
+      6 │     "target": "es2024",
+        ╵               ~~~~~~~~
+
+- building client + server bundles...
+
+The language 'caddyfile' is not loaded, falling back to 'txt' for syntax highlighting.
+[plugin:vite:esbuild] [plugin vite:esbuild] website/.vitepress/theme/index.ts: Unrecognized target environment "es2024"
+1  |  /** Default documentation theme with Markdown actions and a client-only image and diagram viewer. */
+   |                               ^
+2  |  import DefaultTheme from 'vitepress/theme'
+3  |  import { useData, useRoute, type Theme } from 'vitepress'
+
+[plugin:vite:esbuild] [plugin vite:esbuild] website/.vitepress/theme/mermaid-viewer.ts: Unrecognized target environment "es2024"
+1  |  /** Full-viewport viewing of asynchronously rendered documentation diagrams. */
+   |                               ^
+2  |  import { labelButton, type MediaViewer, viewerButton } from './media-viewer.ts'
+3  |
+
+[plugin:vite:esbuild] [plugin vite:esbuild] website/.vitepress/theme/image-viewer.ts: Unrecognized target environment "es2024"
+1  |  /** Full-viewport viewing of loaded, standalone content images in documentation pages. */
+   |                               ^
+2  |  import { labelButton, type MediaViewer, viewerButton } from './media-viewer.ts'
+3  |
+
+[plugin:vite:esbuild] [plugin vite:esbuild] website/.vitepress/theme/media-viewer.ts: Unrecognized target environment "es2024"
+1  |  /** Shared modal, focus, and pan/zoom controls for documentation images and diagrams. */
+   |                               ^
+2  |  import Panzoom from '@panzoom/panzoom'
+3  |
+
+[plugin:vite:esbuild] [plugin vite:esbuild] website/.vitepress/theme/page-markdown-actions.ts: Unrecognized target environment "es2024"
+1  |  /** Current-page Markdown actions; each mounted instance owns one page's copy request. */
+   |                               ^
+2  |  import { defineComponent, h, nextTick, onBeforeUnmount, onMounted, ref, useId, watch } from 'vue'
+3  |
+
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+[plugin:vite:esbuild] [plugin vite:esbuild] website/.vitepress/theme/index.ts: Unrecognized target environment "es2024"
+1  |  /** Default documentation theme with Markdown actions and a client-only image and diagram viewer. */
+   |                               ^
+2  |  import DefaultTheme from 'vitepress/theme'
+3  |  import { useData, useRoute, type Theme } from 'vitepress'
+
+[plugin:vite:esbuild] [plugin vite:esbuild] website/.vitepress/theme/mermaid-viewer.ts: Unrecognized target environment "es2024"
+1  |  /** Full-viewport viewing of asynchronously rendered documentation diagrams. */
+   |                               ^
+2  |  import { labelButton, type MediaViewer, viewerButton } from './media-viewer.ts'
+3  |
+
+[plugin:vite:esbuild] [plugin vite:esbuild] website/.vitepress/theme/media-viewer.ts: Unrecognized target environment "es2024"
+1  |  /** Shared modal, focus, and pan/zoom controls for documentation images and diagrams. */
+   |                               ^
+2  |  import Panzoom from '@panzoom/panzoom'
+3  |
+
+[plugin:vite:esbuild] [plugin vite:esbuild] website/.vitepress/theme/image-viewer.ts: Unrecognized target environment "es2024"
+1  |  /** Full-viewport viewing of loaded, standalone content images in documentation pages. */
+   |                               ^
+2  |  import { labelButton, type MediaViewer, viewerButton } from './media-viewer.ts'
+3  |
+
+[plugin:vite:esbuild] [plugin vite:esbuild] website/.vitepress/theme/page-markdown-actions.ts: Unrecognized target environment "es2024"
+1  |  /** Current-page Markdown actions; each mounted instance owns one page's copy request. */
+   |                               ^
+2  |  import { defineComponent, h, nextTick, onBeforeUnmount, onMounted, ref, useId, watch } from 'vue'
+3  |
+
+[32m✓[0m building client + server bundles...
+- rendering pages...
+[32m✓[0m rendering pages...
+build complete in 556.39s.
+native/system/packages/darwin-arm64      | [WARN] Unsupported platform: wanted: {"cpu":["arm64"],"os":["darwin"],"libc":["any"]} (current: {"os":"openharmony","cpu":"arm64","libc":"unknown"})
+native/system/packages/darwin-x64        | [WARN] Unsupported platform: wanted: {"cpu":["x64"],"os":["darwin"],"libc":["any"]} (current: {"os":"openharmony","cpu":"arm64","libc":"unknown"})
+native/system/packages/linux-arm64       | [WARN] Unsupported platform: wanted: {"cpu":["arm64"],"os":["linux"],"libc":["any"]} (current: {"os":"openharmony","cpu":"arm64","libc":"unknown"})
+native/system/packages/linux-x64         | [WARN] Unsupported platform: wanted: {"cpu":["x64"],"os":["linux"],"libc":["any"]} (current: {"os":"openharmony","cpu":"arm64","libc":"unknown"})
+Scope: all 341 workspace projects
+[WARN] There are cyclic workspace dependencies: /storage/Users/currentUser/dev/ohos/deepseek-harness-0.2.0/apps/cli, /storage/Users/currentUser/dev/ohos/deepseek-harness-0.2.0/packages/sdk/client; /storage/Users/currentUser/dev/ohos/deepseek-harness-0.2.0/apps/web, /storage/Users/currentUser/dev/ohos/deepseek-harness-0.2.0/packages/test-support/client-runtime, /storage/Users/currentUser/dev/ohos/deepseek-harness-0.2.0/packages/bundle/web-app; /storage/Users/currentUser/dev/ohos/deepseek-harness-0.2.0/packages/api/remotes, /storage/Users/currentUser/dev/ohos/deepseek-harness-0.2.0/packages/client/ui-plugin-manager, /storage/Users/currentUser/dev/ohos/deepseek-harness-0.2.0/packages/client/ui-sidebar, /storage/Users/currentUser/dev/ohos/deepseek-harness-0.2.0/packages/client/ui-workspace, /storage/Users/currentUser/dev/ohos/deepseek-harness-0.2.0/packages/client/ui-conversation; /storage/Users/currentUser/dev/ohos/deepseek-harness-0.2.0/packages/api/session-controller, /storage/Users/currentUser/dev/ohos/deepseek-harness-0.2.0/packages/subagent/subagent, /storage/Users/currentUser/dev/ohos/deepseek-harness-0.2.0/packages/schedule/schedule; /storage/Users/currentUser/dev/ohos/deepseek-harness-0.2.0/packages/compaction/compaction-basic, /storage/Users/currentUser/dev/ohos/deepseek-harness-0.2.0/packages/compaction/compaction-image-offload; /storage/Users/currentUser/dev/ohos/deepseek-harness-0.2.0/packages/compaction/compaction-tool-result-pruner, /storage/Users/currentUser/dev/ohos/deepseek-harness-0.2.0/packages/llm/token-meter, /storage/Users/currentUser/dev/ohos/deepseek-harness-0.2.0/packages/llm/llm-retry, /storage/Users/currentUser/dev/ohos/deepseek-harness-0.2.0/packages/llm/llm-deepseek, /storage/Users/currentUser/dev/ohos/deepseek-harness-0.2.0/packages/llm/plugin-package-inventory-deepseek, /storage/Users/currentUser/dev/ohos/deepseek-harness-0.2.0/packages/preset/agent-preset-registry, /storage/Users/currentUser/dev/ohos/deepseek-harness-0.2.0/packages/preset/agent-preset; /storage/Users/currentUser/dev/ohos/deepseek-harness-0.2.0/packages/core/agent-default-model, /storage/Users/currentUser/dev/ohos/deepseek-harness-0.2.0/packages/settings/settings; /storage/Users/currentUser/dev/ohos/deepseek-harness-0.2.0/packages/sandbox/sandbox-local, /storage/Users/currentUser/dev/ohos/deepseek-harness-0.2.0/packages/sandbox/sandbox-windows-acl; /storage/Users/currentUser/dev/ohos/deepseek-harness-0.2.0/packages/ssh/fs-ssh, /storage/Users/currentUser/dev/ohos/deepseek-harness-0.2.0/packages/ssh/ssh; /storage/Users/currentUser/dev/ohos/deepseek-harness-0.2.0/packages/subagent/subagent-spawn-in-process, /storage/Users/currentUser/dev/ohos/deepseek-harness-0.2.0/packages/subagent/tool-subagent; /storage/Users/currentUser/dev/ohos/deepseek-harness-0.2.0/vendor/cordis, /storage/Users/currentUser/dev/ohos/deepseek-harness-0.2.0/vendor/include
+[ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY] Aborted removal of modules directory due to no TTY
+
+If you are running pnpm in CI, set the CI environment variable to "true", or set "confirmModulesPurge" to "false".
+[ERROR] Command failed with exit code 1: /storage/Users/currentUser/.oheco/packages/nodejs/24.21.0-ohos.1/bin/node '/storage/Users/currentUser/dev/ohos/deepseek-harness-0.2.0/node_modules/.pnpm/pnpm@11.7.0/node_modules/pnpm/bin/pnpm.mjs' install
+
+pnpm: Command failed with exit code 1: /storage/Users/currentUser/.oheco/packages/nodejs/24.21.0-ohos.1/bin/node '/storage/Users/currentUser/dev/ohos/deepseek-harness-0.2.0/node_modules/.pnpm/pnpm@11.7.0/node_modules/pnpm/bin/pnpm.mjs' install
+    at getFinalError (file:///storage/Users/currentUser/dev/ohos/deepseek-harness-0.2.0/node_modules/.pnpm/pnpm@11.7.0/node_modules/pnpm/dist/pnpm.mjs:34109:14)
+    at makeError (file:///storage/Users/currentUser/dev/ohos/deepseek-harness-0.2.0/node_modules/.pnpm/pnpm@11.7.0/node_modules/pnpm/dist/pnpm.mjs:36416:21)
+    at getSyncResult (file:///storage/Users/currentUser/dev/ohos/deepseek-harness-0.2.0/node_modules/.pnpm/pnpm@11.7.0/node_modules/pnpm/dist/pnpm.mjs:38260:10)
+    at spawnSubprocessSync (file:///storage/Users/currentUser/dev/ohos/deepseek-harness-0.2.0/node_modules/.pnpm/pnpm@11.7.0/node_modules/pnpm/dist/pnpm.mjs:38220:14)
+    at execaCoreSync (file:///storage/Users/currentUser/dev/ohos/deepseek-harness-0.2.0/node_modules/.pnpm/pnpm@11.7.0/node_modules/pnpm/dist/pnpm.mjs:38150:23)
+    at callBoundExeca (file:///storage/Users/currentUser/dev/ohos/deepseek-harness-0.2.0/node_modules/.pnpm/pnpm@11.7.0/node_modules/pnpm/dist/pnpm.mjs:40678:23)
+    at boundExeca (file:///storage/Users/currentUser/dev/ohos/deepseek-harness-0.2.0/node_modules/.pnpm/pnpm@11.7.0/node_modules/pnpm/dist/pnpm.mjs:40655:49)
+    at sync (file:///storage/Users/currentUser/dev/ohos/deepseek-harness-0.2.0/node_modules/.pnpm/pnpm@11.7.0/node_modules/pnpm/dist/pnpm.mjs:40810:14)
+    at runPnpmCli (file:///storage/Users/currentUser/dev/ohos/deepseek-harness-0.2.0/node_modules/.pnpm/pnpm@11.7.0/node_modules/pnpm/dist/pnpm.mjs:245099:5)
+    at runDepsStatusCheck (file:///storage/Users/currentUser/dev/ohos/deepseek-harness-0.2.0/node_modules/.pnpm/pnpm@11.7.0/node_modules/pnpm/dist/pnpm.mjs:246833:7)
+run-gates: start Cordis inspect catalog
+run-gates: PASS type equivalence (235.65s)
+run-gates: start workflow guest source
+run-gates: PASS workflow guest source (20.00s)
+run-gates: start verify-mermaid
+run-gates: PASS doc graphs (727.14s)
+run-gates: start scoped events
+run-gates: PASS Cordis inspect catalog (118.91s)
+run-gates: start translation pairing
+run-gates: PASS verify-mermaid (159.88s)
+run-gates: start markdown wrap
+run-gates: PASS cordis catalog (369.00s)
+run-gates: start client catalog
+run-gates: PASS scoped events (171.62s)
+run-gates: start export jsdoc
+run-gates: PASS client catalog (48.88s)
+run-gates: start tool catalog
+run-gates: PASS tool catalog (55.28s)
+run-gates: start config catalog
+run-gates: PASS markdown wrap (140.70s)
+run-gates: start skill plugin package list
+run-gates: PASS export jsdoc (89.62s)
+run-gates: start npm dependency catalog
+run-gates: PASS config catalog (51.47s)
+run-gates: start persistence catalog
+run-gates: PASS npm dependency catalog (21.15s)
+run-gates: start persistence type history
+run-gates: PASS skill plugin package list (55.51s)
+run-gates: start released persistence history
+run-gates: PASS released persistence history (62.33s)
+run-gates: start Session format references
+run-gates: PASS Session format references (87.31s)
+run-gates: start Session format catalog
+run-gates: PASS persistence type history (163.53s)
+run-gates: start public repository links
+run-gates: PASS Session format catalog (5.64s)
+run-gates: start repository references
+run-gates: PASS persistence catalog (209.51s)
+run-gates: start concrete terms
+
+== FAILED translation pairing (455.15s) ==
+command: pnpm run verify-translation-pairing
+outcome: exit 1
+
+> @deepseek-ai/dsh-root@0.2.0-rc.2 verify-translation-pairing
+> tsx scripts/verify-translation-pairing.ts
+
+verify-translation-pairing: bilingual pairing rules violated (see docs/i18n/README.md):
+  ohos/README.i18n.yaml: out of sync — section /harmonyos-cli-web-and-app-0-2-0-rc-2-ohos-1/scope changed since confirmation (en, zh) (bring the other side along, then re-record with --write)
+  ohos/README.i18n.yaml: out of sync — section /harmonyos-cli-web-and-app-0-2-0-rc-2-ohos-1/install-and-run changed since confirmation (en, zh) (bring the other side along, then re-record with --write)
+  ohos/app/README.i18n.yaml: out of sync — section /dsh-harmonyos-app-connection-manager/add-and-edit-connections changed since confirmation (en, zh) (bring the other side along, then re-record with --write)
+  ohos/app/README.i18n.yaml: out of sync — section /dsh-harmonyos-app-connection-manager/add-and-edit-connections/remote-mode changed since confirmation (en, zh) (bring the other side along, then re-record with --write)
+  ohos/app/entry/src/main/cpp/broker/README.i18n.yaml: out of sync — section /native-broker-client-reference changed since confirmation (en, zh) (bring the other side along, then re-record with --write)
+  ohos/app/entry/src/main/cpp/broker/README.i18n.yaml: out of sync — section /native-broker-client-reference/authentication-and-mapping changed since confirmation (en, zh) (bring the other side along, then re-record with --write)
+  ohos/app/entry/src/main/cpp/broker/README.i18n.yaml: out of sync — section /native-broker-client-reference/recovery-and-ownership changed since confirmation (en, zh) (bring the other side along, then re-record with --write)
+  ohos/app/entry/src/main/cpp/broker/README.i18n.yaml: out of sync — section /native-broker-client-reference/offline-build-inputs changed since confirmation (en, zh) (bring the other side along, then re-record with --write)
+run-gates: start doc refs

@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-bash-local` 是 POSIX 上的默认 Bash 执行器：每条命令都以全新的非登录 `bash -c` 进程运行，不读取 rc 文件，因此调用之间不会残留任何 shell 状态。它会为每条命令应用已配置的预算——工作目录、超时、输出上限——对超时与取消进行分类，并在流溢出时返回有界输出与 spill 文件恢复。命令以 harness 进程自身的权限运行：本执行器不做任何隔离，需要沙箱能力时请组合 `dsh-bash-sandbox`。挂载后，面向模型的 `bash` 工具会与它对接。
+`dsh-bash-local` 是 POSIX 上的默认 Bash 执行器：每条命令都在全新的非登录 shell 中运行（鸿蒙使用 `/usr/bin/zsh -f -c`，其他平台使用 `bash -c`），因此调用之间不会残留任何 shell 状态。它会为每条命令应用已配置的预算——工作目录、超时、输出上限——对超时与取消进行分类，并在流溢出时返回有界输出与 spill 文件恢复。命令以 harness 进程自身的权限运行：本执行器不做任何隔离，需要沙箱能力时请组合 `dsh-bash-sandbox`。挂载后，面向模型的 `bash` 工具会与它对接。
 
 ## 目录
 
@@ -25,7 +25,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-当组合需要在 POSIX 上执行 Bash 命令且不需要隔离时，挂载此执行器。它注册为 `ctx.shell`，面向模型的 `bash` 工具会立即基于它工作：agent（智能体）调用工具，命令即以全新 `bash -c` 进程按下面的预算运行。
+当组合需要在 POSIX 上执行 Bash 命令且不需要隔离时，挂载此执行器。它注册为 `ctx.shell`，面向模型的 `bash` 工具会立即基于它工作：agent（智能体）调用工具，命令即以全新 shell 进程按下面的预算运行。鸿蒙命令使用 zsh 语法，禁用用户启动文件。
 
 ### 最小配置
 
@@ -81,7 +81,7 @@ if (result.timedOut) console.log('timed out after', result.timeoutMs)
 
 ### 设计概念
 
-本执行器是基于 subprocess 能力的 `ctx.shell` seam 的 Service Provider：它负责所有 bash 层职责——命令默认化与上限、deadline 融合与原因分类、面向模型的终端环境，以及后台读取合并——而 managed-range 机制（有界 spill 输出、凭据清除、终止升级、完全停稳与 dispose（资源释放））属于 subprocess 服务。每次调用都 spawn 全新的非登录 `bash -c`，不读取 rc 文件，因此命令是确定性的，shell 状态绝不会在调用之间泄漏。
+本执行器是基于 subprocess 能力的 `ctx.shell` seam 的 Service Provider：它负责所有 bash 层职责——命令默认化与上限、deadline 融合与原因分类、面向模型的终端环境，以及后台读取合并——而 managed-range 机制（有界 spill 输出、凭据清除、终止升级、完全停稳与 dispose（资源释放））属于 subprocess 服务。每次调用都 spawn 全新的平台非登录 shell，因此命令是确定性的，shell 状态绝不会在调用之间泄漏。
 
 ### 源码地图
 
@@ -93,7 +93,7 @@ if (result.timedOut) console.log('timed out after', result.timeoutMs)
 
 ### 主要流程
 
-一次调用分三步：`resolve()` 从配置与请求填充 `workdir`/`timeoutMs`/`onExpiry`/`stdoutMaxBytes`（并限制每次调用的覆盖值）；`execute` 按到期策略布置 deadline——`'kill'` 把钳位后的超时与调用方的中止信号融合为一个 deadline，`'none'` 不布置任何 deadline——再以显式字节上限与 `graceMs` 通过 `ctx.subprocess` spawn `['bash', '-c', command]`；结算的 subprocess 结果被分类——只有执行器自身的超时报告 `timedOut`，上游取消报告 `aborted`，自身因信号终止的命令两者皆不报告——并投影为带收集输出的 `ShellRunResult`。
+一次调用分三步：`resolve()` 从配置与请求填充 `workdir`/`timeoutMs`/`onExpiry`/`stdoutMaxBytes`（并限制每次调用的覆盖值）；`execute` 按到期策略布置 deadline——`'kill'` 把钳位后的超时与调用方的中止信号融合为一个 deadline，`'none'` 不布置任何 deadline——再以显式字节上限与 `graceMs` 通过 `ctx.subprocess` spawn 平台 shell argv；结算的 subprocess 结果被分类——只有执行器自身的超时报告 `timedOut`，上游取消报告 `aborted`，自身因信号终止的命令两者皆不报告——并投影为带收集输出的 `ShellRunResult`。
 
 前台 deadline 从 argv 准备开始，并在准备与执行之间保持同一信号和剩余预算。准备阶段超时返回空输出、`timedOut: true`，且 `exitCode` 和 `signal` 均为 `null`；调用方在发布进程前取消仍会拒绝调用。准备晚到的成功或失败不会触发 spawn。
 
@@ -137,8 +137,8 @@ if (result.timedOut) console.log('timed out after', result.timeoutMs)
 这些限制说明本执行器何时不合适。它们是当前包约束，不是路线图。
 
 - **自身不提供隔离**——命令以 harness 进程的权限运行；需要隔离的部署组合 `dsh-bash-sandbox`，每次调用的 allow/deny/ask 策略则属于工具的 `pre-execute` waterfall（瀑布式事件）。
-- **没有持久 shell 或 PTY**——每次调用都启动全新的非登录 `bash -c`；仅持久化 cwd 与交互式终端会话均继续延期，直到真实工作流需要它们。
-- **仅支持 POSIX**——`bash` 二进制已硬编码，底层服务的进程组语义也是 POSIX 的；不支持 Windows。
+- **没有持久 shell 或 PTY**——每次调用都启动全新的平台非登录 shell；需要跨调用保留 shell 状态时请使用持久终端后端。
+- **仅支持 POSIX**——鸿蒙需要 `/usr/bin/zsh`，其他平台需要 `bash`，底层服务的进程组语义也是 POSIX 的；不支持 Windows。
 - **后台提供方失败提示就是整条 stderr 流**——`SubprocessHandle.done` 可能在目标命令开始执行前或后被拒绝，而 subprocess 服务不会为从未上报结果的目标命令 缓冲任何输出，因此执行器把不声明失败阶段的 `subprocess failed before reporting an outcome: …` 作为观测到的 stderr 流提供（偏移读取方按各自偏移重读），并只折入恰好一个 `readOutput()` 增量；丢弃了该增量的消耗式读取方只能经 `observed.stderr` 恢复它。
 
 <a id="dev-note"></a>

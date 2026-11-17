@@ -1,0 +1,19 @@
+node_modules/
+oh_modules/
+.hvigor/
+.cxx/
+build/
+local.properties
+*.p12
+*.p7b
+*.cer
+*.keystore
+*.pfx
+*.pem
+*.key
+*.crt
+__pycache__/
+validation/
+# Pinned dependency archives are offline App build inputs, not generated lib output.
+!entry/src/main/cpp/tpr/broker-native-arm64/lib/
+!entry/src/main/cpp/tpr/broker-native-arm64/lib/*.a

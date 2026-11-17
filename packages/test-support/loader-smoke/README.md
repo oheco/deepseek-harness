@@ -55,6 +55,8 @@ Profile integration drivers use the repository-only `tests/fixtures/production-p
 
 `resolveExampleLaunch` picks the artifact an example bin boots from. `src` mode runs the bin under tsx with `TSX_TSCONFIG_PATH` set, so workspace imports resolve through the tsconfig `paths` map — the zero-build dev path. `lib` mode runs the built `lib/` bin under plain Node, so bare package plugins resolve through real package `exports`, exactly as an installed consumer resolves them. The mode comes from an explicit value or `DSH_EXAMPLE_MODE` (CI sets `lib`, dev leaves it unset); anything else fails loud.
 
+On HarmonyOS both modes pass `--expose-internals` to Node so profile resolution uses the same exposed internal loaders as the product launcher.
+
 ### What can go wrong
 
 - **The process never exits** — the smoke enforces a deadline and reports the captured streams in the failure; a faulty fixture that spawns its own process tree can outlive the smoke and needs external cleanup.

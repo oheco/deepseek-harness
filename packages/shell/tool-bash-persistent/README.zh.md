@@ -35,7 +35,7 @@ kind: "package-reference"
 
 ### 最小配置
 
-默认的 `shell` 后端通过 `dsh-terminal-bash` 启动交互式 bash；部署方可以注册其他 PTY 后端并按名称选择。
+默认的 `shell` 后端通过 `dsh-terminal-bash` 在鸿蒙上启动交互式 zsh，在其他平台启动 bash；部署方可以注册其他 PTY 后端并按名称选择。鸿蒙需要带 `termios` 的 Python 3 来关闭 PTY 输入回显，同时禁用 zsh 行编辑与历史展开。其默认模型描述要求使用 zsh 语法；覆盖 `description` 的部署方必须描述所选 shell。
 
 ```yaml
 - name: '@deepseek-ai/dsh-terminal'
@@ -48,7 +48,7 @@ kind: "package-reference"
 | `backendType` | `shell` | 用于每个 agent shell 的已注册 PTY 后端 |
 | `timeoutMs` | `300,000` | 单条命令的墙钟上限；超时关闭 shell |
 | `maxOutputChars` | `16,000` | 保留的命令输出字符上限；固定诊断信息在其后追加 |
-| `description` | `Run commands in a persistent bash shell. State, including the current directory and exported environment variables, persists across calls for this agent.` | 面向模型的环境约定；部署方可描述自己的环境 |
+| `description` | 平台 shell 与跨调用状态说明 | 面向模型的环境约定；部署方可描述自己的环境 |
 
 生成的[配置目录](../../../docs/config-catalog.zh.md#deepseek-aidsh-tool-bash-persistent)是每个受支持字段及其 JSDoc 的穷尽式真源。
 
@@ -85,7 +85,7 @@ kind: "package-reference"
 
 ### 命令流程
 
-首条命令通过 `ctx.terminals.spawn` 生成 shell，禁用输入回显和历史展开（`stty -echo; set +H`），并等待就绪。随后每条命令都包装成一行物理文本——printf 起始标记、用 `$'…'` 转义的命令体、printf 结束标记加 `$?`——因此内嵌换行无法把终端提示符泄漏进结果。关闭历史展开后，`!` 序列原样到达 bash，不会被改写，也不会使整行被拒绝。工具以 1,000 行一页轮询 scrollback，直到出现结束标记，提取区间并连同任何状态标记一起渲染。超时会中止截止时间、捕获部分输出并重置 shell。
+首条命令通过 `ctx.terminals.spawn` 生成 shell，禁用输入回显和历史展开（鸿蒙使用 Python `termios` 和 `unsetopt ZLE BANG_HIST`，其他平台使用 `stty -echo; set +H`），并等待就绪。随后每条命令都包装成一行物理文本——printf 起始标记、用 `$'…'` 转义的命令体、printf 结束标记加 `$?`——因此内嵌换行无法把终端提示符泄漏进结果。关闭历史展开后，`!` 序列原样到达 bash，不会被改写，也不会使整行被拒绝。工具以 1,000 行一页轮询 scrollback，直到出现结束标记，提取区间并连同任何状态标记一起渲染。超时会中止截止时间、捕获部分输出并重置 shell。
 
 </details>
 
@@ -146,6 +146,7 @@ kind: "package-reference"
 
 - **工具需要拥有者 agent 与真实的 PTY 后端**——无 agent 的调用与无法启动交互 shell 的后端都会失败。
 - **交互式前台子进程只在子进程提供方证明其 stdin 等待时才提前返回部分输出**——否则调用一直运行到 `timeoutMs`。
+- **鸿蒙交互式 zsh 无法通过 `exec` 替换持久 shell**——`exec` 会结束会话，下一次调用打开全新 shell。请直接运行命令以保留状态；覆盖 `description` 的部署方必须保留此限制说明。用 Python 3 运行[原生 PTY 探针](tests/fixtures/ohos-exec-probe.py)，可在不使用 Harness 的情况下记录系统 shell 版本及行为。
 - **显式 `exit` 与超时会丢弃 shell 状态**——取消同样重置并丢弃结果，即使完整状态标记已经可观察；下一次调用启动全新 shell。
 - **网络访问与包镜像等环境事实属于配置的 `description`**——而不是本包的默认描述。
 - **除换行与回车外，原始控制字符会作为按键到达 readline**——命令中的字面 TAB、ESC 或 DEL 会被当作编辑按键消耗，因此需要这些字符的内容（例如 Makefile heredoc）应通过文件工具写入，或用 `printf` 转义生成。

@@ -46,11 +46,21 @@ describe('terminal-bash config', () => {
 })
 
 describe('terminal-bash dialect resolution', () => {
-  it('defaults bash argv to the interactive profile-free form', () => {
+  it('defaults the platform shell to the interactive profile-free form', () => {
     const { shellPath, shellArgs, shellDialect } = resolveConfig({ backendType: 'shell', rows: 24, cols: 80 })
-    expect(shellDialect).toBe('bash')
-    expect(shellPath).toBe('/bin/bash')
-    expect(shellArgs).toEqual(['--noprofile', '--norc', '-i'])
+    const ohos = (process.platform as string) === 'openharmony'
+    expect(shellDialect).toBe(ohos ? 'zsh' : 'bash')
+    expect(shellPath).toBe(ohos ? '/usr/bin/zsh' : '/bin/bash')
+    expect(shellArgs).toEqual(ohos ? ['-f', '-i'] : ['--noprofile', '--norc', '-i'])
+  })
+
+  it('resolves zsh defaults and preserves an explicit shell specification', () => {
+    const resolved = resolveConfig({ shellDialect: 'zsh' })
+    expect(resolved.shellPath).toBe('/usr/bin/zsh')
+    expect(resolved.shellArgs).toEqual(['-f', '-i'])
+    const custom = resolveConfig({ shellDialect: 'zsh', shellPath: '/custom/zsh', shellArgs: ['-d', '-f', '-i'] })
+    expect(custom.shellPath).toBe('/custom/zsh')
+    expect(custom.shellArgs).toEqual(['-d', '-f', '-i'])
   })
 
   it('defaults pwsh argv to the interactive profile-free form and resolves the executable', () => {

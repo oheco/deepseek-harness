@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-credentials-local` keeps API keys and other secrets in a private file under your harness home. You can save credentials through the configuration UI or edit the file directly; changes reload automatically and saved values survive restarts. Credential lookup follows a fixed precedence: the stored file wins, followed by the launch environment, the project's `.env`, and the harness-home `.env`; a newly saved value immediately overrides older environment values. Only your OS user can read the file, but agent tool processes run as that same user, so this store cannot isolate secrets from the agent.
+`dsh-credentials-local` keeps API keys and other secrets in a private file under your harness home. You can save credentials through the configuration UI or edit the file directly; changes reload automatically and saved values survive restarts. Credential lookup follows a fixed precedence: the stored file wins, followed by the launch environment, the project's `.env`, and the harness-home `.env`; a newly saved value immediately overrides older environment values. File access follows the [platform permission rules](#who-can-read-the-file); agent tool processes run as your OS user, so this store cannot isolate secrets from the agent.
 
 ## Table of Contents
 
@@ -110,15 +110,18 @@ You can edit the file directly — the store reloads it automatically and picks 
 
 A key's value can be any text, multi-line values included — no quoting tricks needed. An empty value means "no key", which is why an empty string in the file is rejected: removing a key deletes it, it does not blank it. A `grant` payload must survive a JSON round trip, enforced on the way in and on the way out, so the store refuses a value it could not read back exactly as written. If the file on disk no longer parses, saving fails instead of overwriting content the product could not read.
 
+<a id="who-can-read-the-file"></a>
 ### Who can read the file
 
-Only your OS user can read the file: the product creates it with owner-only permissions, and on POSIX it refuses to load a file that any other user can read — the error tells you to run `chmod 600`. Windows has no mode to inspect, so the check is skipped there rather than faked. The agent is not another user: its tool processes run as you, so they can read the file like any other file you own. The product never hands the agent the file's path and never loads the file into the environment, so reaching a value takes a deliberate read of a path the agent was not given. That is discretion, not a boundary: a deployment that must keep provider keys away from its own agent cannot get there with file permissions.
+Creation and replacement request `0600`. POSIX accepts the existing owner-only range (no group or other bits); only `openharmony` additionally accepts exact `0660`, with no special bits. Startup, reload, and every write apply the same check; modes such as `0644` and `0666` remain refused. Windows skips the mode check because its ACLs are not represented by these bits.
+
+The agent's tool processes run as you, so they can read the file like any other file you own. The product never hands the agent the file's path and never loads the file into the environment, so reaching a value takes a deliberate read of a path the agent was not given. A deployment that must keep provider keys away from its own agent cannot get there with file permissions.
 
 ### What can go wrong
 
 - **A key the launching environment supplies is a fallback** — saving a value stores a higher-priority credential; removing it reveals the launch environment again. To make an exported key apply, delete its entry under `refs` in the file.
 - **An empty value cannot be saved** — storing an empty string is refused; remove the key instead.
-- **The store refuses to load a file it cannot trust** — a file any other user can read, malformed YAML, or an unreachable path fails at startup; on a live reload the last good content keeps serving with a warning.
+- **The store refuses to load a file it cannot trust** — a disallowed file mode, malformed YAML, or an unreachable path fails at startup; on a live reload the last good content keeps serving with a warning.
 - **Changes made at the same time are both kept** — if you edit the file while the product writes, your change is folded in rather than overwritten.
 
 -----
@@ -136,7 +139,7 @@ This section explains the design decisions behind the provider and points at the
 - **One honest precedence.** The managed store wins for every provider; launch environment, project `.env`, and harness-home `.env` are deterministic fallbacks in that order.
 - **The document holds only credentials.** A foreign top-level key is tolerated but resolves nothing. A versioned document with `refs` and `records` sections rather than a dotenv file: a store the harness owns and never materializes into the environment cannot also serve as the user's environment layer, which would shadow non-secret entries behind its precedence.
 - **Writes patch, reloads replace.** Line edits preserve comments and untouched entries under the cross-process writer lock; reloads swap the parsed snapshot wholesale so a deleted entry never lingers in memory.
-- **Fail loud where trust is at stake.** Boot and reload reject a document that is unreadable, invalid, or readable beyond its owner; a live reload that fails keeps the last good snapshot and warns rather than taking the process down.
+- **Fail loud where trust is at stake.** Boot and reload reject an unreadable or invalid document or a disallowed file mode; a live reload that fails keeps the last good snapshot and warns rather than taking the process down.
 
 ### Source map
 
@@ -196,6 +199,7 @@ No direct invalidation; stored values never enter a request prefix.
 These limits define when the provider is a poor fit or needs special operational care. They are current package constraints, not a task backlog.
 
 - **Same-reference concurrent writes are last-write-wins** — the writer lock and the read-modify-write keep concurrent writers from dropping each other's entries, but two writers editing one reference still resolve to the later write; there is no revision check.
+- **HarmonyOS shared HOME permissions** — it may force `0660` and ignore chmod, allowing group access; configure `path` in application-private storage when owner-only access is required.
 - **A same-UID process can read the document** — the file-effect sandbox modes do not deny reads, and an OS-keychain provider is deferred.
 - **Environment changes are invisible** — the snapshot is frozen at launch, so a variable exported after startup reaches neither resolution nor `describe`; changing an environment-sourced credential takes a restart.
 - **Atomic, not crash-durable** — inherited from `dsh-atomic-write`; the store re-reads on boot.

@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Store images and generic file attachments durably below `DSH_HOME` on the machine running DSH. Images are validated, normalized for model requests, and cached per route; generic files are preserved byte-for-byte without admission limits. Identical bytes are stored once even when uploads use different display names, reads verify file length and content, and admitted images remain readable if limits later tighten. The shipped `dsh` composition uses this package without configuration. Objects remain local to one machine and are never deleted automatically.
+Store images and generic file attachments durably below `DSH_HOME` on the machine running DSH. Images are validated, normalized for model requests, and cached per route; generic files are preserved byte-for-byte without admission limits. Canonical objects deduplicate identical bytes (HarmonyOS copies display-name aliases), reads verify file length and content, and admitted images remain readable if limits later tighten. The shipped `dsh` composition uses this package without configuration. Objects remain local to one machine and are never deleted automatically.
 
 ## Table of Contents
 
@@ -81,7 +81,7 @@ This section explains the durability and verification design behind the storage,
 
 ### Write and read paths
 
-Objects land at `<DSH_HOME>/attachments/v1/objects/<sha256-prefix>/<sha256>`; equal bytes deduplicate to one object and one `sha256:` id. Before the first write, the process syncs every ancestor directory of the home down to the filesystem root once, so a directory another process created but has not yet synced is never mistaken for a safe boundary. Writes then stage bytes in `v1/tmp`, sync the temporary file, publish with an atomic exclusive hard link, and sync the publication directories — on Windows, filesystem metadata journaling owns entry durability. Once the save resolves, the reported reference is durable.
+Objects land at `<DSH_HOME>/attachments/v1/objects/<sha256-prefix>/<sha256>`; equal bytes deduplicate to one object and one `sha256:` id. Before the first write, the process syncs the home's ancestors down to the filesystem root once. HarmonyOS stops only when opening a system ancestor is denied; object-directory errors and fsync failures still reject the save. Writes then stage bytes in `v1/tmp`, sync the temporary file, publish without replacement using `renameat2(RENAME_NOREPLACE)` on HarmonyOS or a hard link elsewhere, and sync the publication directories — on Windows, filesystem metadata journaling owns entry durability. Once the save resolves, the reported reference is durable.
 
 Image reads receive a complete reference with a canonical `sha256:` ID, derive the object path within this storage tree, verify the complete digest, and probe the image header. The actual format, byte length, width, and height must match the supplied reference. The returned reference preserves optional `name` and `originalDimensions` as caller-supplied display information; these fields are not verified against the object. Reads neither consult Session history nor reapply admission limits; a missing object or failed verification rejects the read.
 
@@ -89,14 +89,14 @@ Admission accepts up to 20 images and 200 MiB of source bytes per message; one s
 
 Request versions live below `<DSH_HOME>/cache/attachments/request-images/`, resolved by `dshCachePath`; an explicit `dshHome` setting applies to both cache and durable storage. Clearing this cache between requests preserves durable attachments, and later reads regenerate the variants. `readImageRequest` scales without enlargement to the route-chosen target, resizing by the long edge only so the encoder derives the short edge as the route predicts, then applies a separate encoded-byte target through the same alpha routing and quality ladder. Its cache identity includes the attachment id, transform version, target dimensions, byte target, and fixed encoder settings; cached bytes are header-probed for format, 8-bit sRGB/sRGBA, dimensions, and alpha facts, and a mismatch regenerates the entry. Concurrent callers share one transform and cache write, while cancellation stops shared work only when no waiter remains. `imageHostPath` derives the normalized object's host path, and the mounted filesystem may map that path into its execution world without writing it to durable history.
 
-Generic-file bytes have one canonical object at `<DSH_HOME>/attachments/v1/file-objects/<digest-prefix>/<digest>`. Each reference path at `<DSH_HOME>/attachments/v1/files/<digest-prefix>/<digest>/<name>` is a read-only hard link, so different names for equal bytes do not duplicate disk content. `readFileStream` reads the reference path in bounded chunks and verifies the complete digest and recorded byte count before a consumer can finish successfully. A missing, changed, or truncated object fails its consumer instead of producing a complete export with different bytes.
+Generic-file bytes have one canonical object at `<DSH_HOME>/attachments/v1/file-objects/<digest-prefix>/<digest>`. Each reference path at `<DSH_HOME>/attachments/v1/files/<digest-prefix>/<digest>/<name>` is a read-only hard link except on HarmonyOS, where aliases are copied into private staging, digest-verified, synced, and atomically published without replacement. HarmonyOS aliases duplicate disk content and never expose a partially copied file. `readFileStream` reads the reference path in bounded chunks and verifies the complete digest and recorded byte count before a consumer can finish successfully. A missing, changed, or truncated object fails its consumer instead of producing a complete export with different bytes.
 
 ### Source map
 
 | File | Role |
 |---|---|
 | [`src/index.ts`](src/index.ts) | Plugin entry: `LocalAttachmentStore`, `Config` schema, defaults |
-| [`src/store.ts`](src/store.ts) | Content-addressed write and verified read: staging, hard-link publish, fsync chain, digest verification |
+| [`src/store.ts`](src/store.ts) | Content-addressed write and verified read: staging, exclusive publication, fsync chain, digest verification |
 | [`src/file-store.ts`](src/file-store.ts) | Verbatim streamed file writes, verified streamed reads, and safe stored filenames |
 | [`src/normalization.ts`](src/normalization.ts) + [`src/encoding.ts`](src/encoding.ts) | Provider-independent normalization and bounded format/quality candidates |
 | [`src/request-image.ts`](src/request-image.ts) | Route-specific request transforms, cache identity, and singleflight |
@@ -135,6 +135,7 @@ Normalization and request projection are deterministic. An unchanged attachment 
 These limits describe what this storage can and cannot do; they are current package constraints.
 
 - **Images are kept forever** — stored images are never deleted automatically, and nothing collects unreferenced objects.
+- **HarmonyOS storage permissions** — use application-private storage for `DSH_HOME`; shared HOME can ignore chmod, so requested private or read-only modes cannot guarantee access control there.
 - **Local to this machine** — images live on the machine that runs the harness; other hosts cannot read them.
 - **Animated GIF becomes static** — normalization retains only the first frame; animation is outside the version-one image contract.
 - **Encoder output is versioned** — the installed Sharp/libvips build pins normalization and request bytes; an encoder or transform-version upgrade re-addresses future variants while existing objects remain valid.

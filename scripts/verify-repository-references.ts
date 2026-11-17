@@ -14,6 +14,17 @@ const kitRepositoryUrl = new RegExp(`\\bgithub\\.com/${organization}/libreoffice
 // Decimal-only tokens collide with sizes, counts, and version components; see docs/AGENTS.md#repository-references.
 const commitCandidate = /(?<![a-z0-9])(?=[\da-f]{0,39}[a-f])[\da-f]{7,40}(?![a-z0-9])/gi
 const excludedPrefixes = ['vendor/', '.agents/notes/archived/']
+// Immutable build inputs and the copied released App evidence retain exact commit pins.
+const commitPinFields: Readonly<Record<string, readonly string[]>> = {
+  'ohos/release.json': ['upstream_commit'],
+  'ohos/app-migration.json': ['source_head', 'destination_upstream_head'],
+  'ohos/app/validation/resource-downloads-0.2.1-rc.2-ohos.3/checks.json': ['source_base'],
+}
+
+function isPinnedMachineCommit(file: string, line: string): boolean {
+  const field = /^\s*"(?<field>[^"]+)":\s*"[\da-f]{40}",?\s*$/iu.exec(line)?.groups?.field
+  return field !== undefined && commitPinFields[file]?.includes(field) === true
+}
 const gitOutputLimit = 64 * 1024 * 1024
 // One 41-byte line per object; 1.2 million objects produce about 49 MiB.
 const objectListingLimit = 1024 * 1024 * 1024
@@ -37,7 +48,7 @@ function isMaintained(file: string): boolean {
  * @param file - Repository-relative path used in diagnostics and exclusions.
  * @param source - File text or a symlink's stored target.
  * @param commits - Lowercase, unambiguous full or abbreviated commit identifiers.
- * @returns One finding per line and reference kind; digests and other Git object types are accepted.
+ * @returns One finding per line and reference kind; digests, other Git object types and declared full machine commit pins are accepted.
  * Decimal-only tokens are ignored, including actual commit identifiers.
  */
 export function findRepositoryReferences(
@@ -51,7 +62,8 @@ export function findRepositoryReferences(
     if (organizationUrl.test(canonicalReferenceText(line).replace(kitRepositoryUrl, ''))) {
       references.push({ file, line: index + 1, kind: 'organization-url' })
     }
-    if ([...line.matchAll(commitCandidate)].some(match => commits.has(match[0].toLowerCase()))) {
+    if (!isPinnedMachineCommit(file, line)
+      && [...line.matchAll(commitCandidate)].some(match => commits.has(match[0].toLowerCase()))) {
       references.push({ file, line: index + 1, kind: 'commit-hash' })
     }
   }

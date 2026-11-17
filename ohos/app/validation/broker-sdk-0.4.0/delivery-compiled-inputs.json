@@ -1,0 +1,10 @@
+{
+  "compiled_input_files": 224,
+  "compiled_inputs_sha256": "c045c4468d09badd76b3355bc7d9f4fd0e1c2d6f2ee9f71b3d8186b7e3f8d372",
+  "all_match_installed_hap_build_snapshot": true,
+  "documentation_excluded": true,
+  "portable_platform_metadata_excluded": [
+    "entry/src/main/module.json5"
+  ],
+  "hap_sha256": "c67655692839db123557a00ce537cd95c8bb31cd4152fb1b3bbffca9ef94e43b"
+}

@@ -1,6 +1,7 @@
 /**
  * Local Service Provider for the bash capability seam over the subprocess
- * capability seam. Public commands run as `bash -c` in a provider-managed range
+ * capability seam. Commands run as `zsh -f -c` on HarmonyOS and `bash -c`
+ * elsewhere in a provider-managed range
  * through `ctx.subprocess`; subclasses may reuse the same mechanics with an
  * explicit argv. This executor owns command defaulting, deadlines and cause
  * classification, the model-friendly terminal environment, and the model-facing
@@ -184,8 +185,19 @@ export class LocalBashExecutor extends ShellExecutor {
     return { stdout, stderr }
   }
 
+  /**
+   * Select the local interpreter before spawning or requesting confinement.
+   * @param command - command source in the platform's shell dialect.
+   * @returns the exact shell argv, with user startup files disabled on HarmonyOS.
+   */
+  protected commandArgv(command: string): string[] {
+    return (process.platform as string) === 'openharmony'
+      ? ['/usr/bin/zsh', '-f', '-c', command]
+      : ['bash', '-c', command]
+  }
+
   async execute(spec: ShellExecSpec): Promise<ShellExecution> {
-    return this.executeArgv(spec, ['bash', '-c', spec.command])
+    return this.executeArgv(spec, this.commandArgv(spec.command))
   }
 
   /**

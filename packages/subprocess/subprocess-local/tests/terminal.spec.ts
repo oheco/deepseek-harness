@@ -119,6 +119,23 @@ function makeHandle(pty: FakePty, inspector: ProcessInspector, graceMs: number):
 }
 
 describe('LocalTerminalHandle', () => {
+  it('passes the PTY descriptor to foreground inspection only while the terminal is open', async () => {
+    const pty = Object.assign(new FakePty(), { fd: 42 })
+    const inspector = new FakeInspector()
+    const foreground = vi.spyOn(inspector, 'foregroundPgid')
+    const handle = makeHandle(pty, inspector, 10)
+    try {
+      await expect(handle.inspectForeground()).resolves.toMatchObject({ processGroupId: 456 })
+      expect(foreground).toHaveBeenLastCalledWith(123, 42)
+      pty.emitExit()
+      await handle.inspectForeground()
+      expect(foreground).toHaveBeenLastCalledWith(123, undefined)
+    } finally {
+      await handle.terminate()
+      handle.output.destroy()
+    }
+  })
+
   it('retains ownership after shell exit when /proc cannot be enumerated', async () => {
     const pty = new FakePty()
     let readable = false

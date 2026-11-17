@@ -126,7 +126,7 @@ class StubPtySession implements TerminalBackendSession {
 
   startSend(request: TerminalSendRequest): TerminalSendOperation {
     this.sends += 1
-    if (request.text.startsWith('stty -echo')) {
+    if (request.text.startsWith('stty -echo') || request.text.startsWith('unsetopt ZLE BANG_HIST; python3 -c')) {
       if (this.mode === 'init-exit') {
         this.statusValue = { kind: 'exited', exitCode: 1, signal: null }
         return this.operation(Promise.resolve(this.result('', 'session_exit')))
@@ -322,6 +322,14 @@ async function setup(
 }
 
 describe('tool-bash-persistent', () => {
+  it('describes the platform shell in the default model schema', async () => {
+    const { ctx } = await setup({ backendType: 'stub' })
+    const ohos = (process.platform as string) === 'openharmony'
+    expect(ctx.tools.schemas()[0]?.description).toBe(ohos
+      ? 'Run commands in a persistent zsh shell. Use zsh syntax. State, including the current directory and exported environment variables, persists across calls for this agent. On HarmonyOS, exec ends the shell and resets its state; run commands directly to keep the session.'
+      : 'Run commands in a persistent bash shell. State, including the current directory and exported environment variables, persists across calls for this agent.')
+  })
+
   it('registers a configurable schema and reuses one owner shell', async () => {
     const { ctx, owner, stub, fiber } = await setup({
       backendType: 'stub',

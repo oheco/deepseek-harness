@@ -1,7 +1,7 @@
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { LocalBashExecutor } from '@deepseek-ai/dsh-bash-local'
 import LocalSubprocessRuntime from '@deepseek-ai/dsh-subprocess-local'
@@ -22,6 +22,11 @@ function start(x: { execute(spec: ShellExecSpec): Promise<ShellExecution> }, spe
 
 
 const spillDir = mkdtempSync(join(tmpdir(), 'dsh-bash-exec-spec-'))
+const contexts: Context[] = []
+
+afterEach(async () => {
+  await Promise.all(contexts.splice(0).map(ctx => ctx.fiber.dispose()))
+})
 
 afterAll(() => {
   rmSync(spillDir, { recursive: true, force: true })
@@ -29,6 +34,7 @@ afterAll(() => {
 
 async function setup(config: Parameters<typeof LocalBashExecutor.Config>[0] = {}) {
   const ctx = new Context()
+  contexts.push(ctx)
   await ctx.plugin(LocalSubprocessRuntime)
   ;(ctx.subprocess as LocalSubprocessRuntime).internals = { spillDir }
   // A short kill grace via the REAL config path, so escalation tests stay fast.
@@ -54,6 +60,23 @@ async function readUntil(proc: ShellProcess, expected: string, timeoutMs = 5_000
 }
 
 describe('LocalBashExecutor.run', () => {
+  it.skipIf((process.platform as string) !== 'openharmony')('uses a fresh profile-free zsh with zsh syntax', async () => {
+    const { ctx, bash } = await setup()
+    writeFileSync(join(spillDir, '.zshenv'), 'print unexpected-startup; exit 99\n')
+    try {
+      const result = await run(bash, bash.resolve({
+        command: 'typeset -a values=(alpha beta); print -r -- "$values[1]"; export DSH_ZSH_STATE=kept',
+        env: { ZDOTDIR: spillDir },
+      }))
+      expect(result.exitCode).toBe(0)
+      expect(result.stdout.text).toBe('alpha\n')
+      const next = await run(bash, bash.resolve({ command: 'print -r -- "${DSH_ZSH_STATE-unset}"' }))
+      expect(next.stdout.text).toBe('unset\n')
+    } finally {
+      await ctx.fiber.dispose()
+    }
+  })
+
   it('resolves with output and the effective timeout', async () => {
     const { bash } = await setup({ timeoutMs: 5_000 })
     const result = await run(bash, bash.resolve({ command: 'echo hi' }))
@@ -63,9 +86,9 @@ describe('LocalBashExecutor.run', () => {
   })
 
   it('uses config cwd, overridable per call', async () => {
-    const { bash } = await setup({ cwd: '/tmp' })
+    const { bash } = await setup({ cwd: spillDir })
     const fromConfig = await run(bash, bash.resolve({ command: 'pwd' }))
-    expect(fromConfig.stdout.text.trim()).toMatch(/\/tmp$/)
+    expect(fromConfig.stdout.text.trim()).toBe(spillDir)
     const fromCall = await run(bash, bash.resolve({ command: 'pwd', workdir: '/' }))
     expect(fromCall.stdout.text.trim()).toBe('/')
   })

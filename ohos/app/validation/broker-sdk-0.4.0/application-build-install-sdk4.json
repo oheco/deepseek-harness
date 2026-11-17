@@ -1,0 +1,423 @@
+{
+  "schemaVersion": 1,
+  "variant": "broker-sdk-0.4.0",
+  "completedAt": "2026-10-05T03:31:40.523369+00:00",
+  "source": {
+    "export": "/storage/Users/currentUser/dev/ohos/export/DSHApp-0.2.0-broker-sdk-0.4.0",
+    "privateProject": "/data/storage/el2/base/haps/entry/cache/dsh-broker-sdk4-app-build-cjbq6s0g/project",
+    "originalFiles": 368,
+    "businessSourceFiles": 225,
+    "businessSourceSha256": "e1e827d7179081e23083d8da06f61ae4d3ffa6088e62544f9aa791c21e3f0c54",
+    "businessSourceHashMethod": "SHA-256 of sorted relative-path NUL file-SHA256 newline records under entry/src/main, excluding module.json5",
+    "privatePlatformMetadataAdjusted": [
+      "build-profile.json5",
+      "entry/src/main/module.json5"
+    ],
+    "portableSourcePersonalSigningMaterial": false
+  },
+  "build": {
+    "command": "/storage/Users/currentUser/.oheco/packages/nodejs/24.21.0-ohos.1/bin/hvigor",
+    "args": [
+      "--mode",
+      "module",
+      "-p",
+      "module=entry@default",
+      "-p",
+      "product=default",
+      "-p",
+      "buildMode=debug",
+      "assembleHap",
+      "--no-daemon",
+      "--stacktrace"
+    ],
+    "startedAt": "2026-10-05T03:15:52.446677+00:00",
+    "finishedAt": "2026-10-05T03:17:19.625126+00:00",
+    "exitCode": 0,
+    "signal": null,
+    "privateProject": "/data/storage/el2/base/haps/entry/cache/dsh-broker-sdk4-app-build-cjbq6s0g/project",
+    "sdkRoot": "/storage/Users/currentUser/.oheco/sdk/26.0.0.35.Beta/root",
+    "runtimeOS": "OpenHarmony",
+    "compileSdkVersion": "26.0.0",
+    "targetSdkVersion": "26.0.0",
+    "compatibleSdkVersion": 23,
+    "deviceTypes": [
+      "default",
+      "2in1"
+    ],
+    "fullyFreshBuild": true,
+    "nativeFixturesRun": false,
+    "applicationStarted": false,
+    "compiledPayload": {
+      "operation": "Read packaged artifact and compiled-object metadata; no application launch or native fixture execution",
+      "nativeLibrary": {
+        "hapEntry": "libs/arm64-v8a/libdsh_launcher.so",
+        "bytes": 3318792,
+        "sha256": "36bde7a03f4be23988e0a16dc566a9cb4e8c19408f704b13d1e44de7f6048988",
+        "elfMetadata": {
+          "class": "ELF64",
+          "byteOrder": "little-endian",
+          "eMachine": 183
+        },
+        "brokerReconnectBindingPresent": true
+      },
+      "arkBytecode": {
+        "hapEntry": "ets/modules.abc",
+        "bytes": 283020,
+        "sha256": "04a68576c0cee65076504eec527851432513450203987a94c2c4bd962e80a672"
+      },
+      "packagedModule": {
+        "bundleName": "org.oheco.deepseekharness",
+        "versionName": "0.2.0-rc.2-ohos.1",
+        "versionCode": 1000002,
+        "deviceTypes": [
+          "default",
+          "2in1"
+        ]
+      },
+      "sdk": {
+        "version": "0.4.0",
+        "sourceCommit": "dc4a1812328942bc2117724b869822f97528e508",
+        "remoteSourceFiles": 24,
+        "compiledCTranslationUnits": 11,
+        "remoteSourcesMatchInstalledOfficialSdk": true,
+        "localSdkChanges": "NONE",
+        "prebuiltRemoteLibraryUsed": false
+      },
+      "nativeObjectBuildMetadata": [
+        {
+          "object": "entry/.cxx/default/default/debug/arm64-v8a/broker_sdk/CMakeFiles/ob_remote.dir/ob_api.c.o",
+          "bytes": 121208,
+          "createdDuringCurrentBuild": true
+        },
+        {
+          "object": "entry/.cxx/default/default/debug/arm64-v8a/broker_sdk/CMakeFiles/ob_remote.dir/ob_remote.c.o",
+          "bytes": 59992,
+          "createdDuringCurrentBuild": true
+        },
+        {
+          "object": "entry/.cxx/default/default/debug/arm64-v8a/broker_sdk/CMakeFiles/ob_remote.dir/ob_ws.c.o",
+          "bytes": 93424,
+          "createdDuringCurrentBuild": true
+        },
+        {
+          "object": "entry/.cxx/default/default/debug/arm64-v8a/broker_sdk/CMakeFiles/ob_remote.dir/ob_json.c.o",
+          "bytes": 15872,
+          "createdDuringCurrentBuild": true
+        },
+        {
+          "object": "entry/.cxx/default/default/debug/arm64-v8a/broker_sdk/CMakeFiles/ob_remote.dir/peer/engine.c.o",
+          "bytes": 73128,
+          "createdDuringCurrentBuild": true
+        },
+        {
+          "object": "entry/.cxx/default/default/debug/arm64-v8a/broker_sdk/CMakeFiles/ob_remote.dir/peer/crypto.c.o",
+          "bytes": 49568,
+          "createdDuringCurrentBuild": true
+        },
+        {
+          "object": "entry/.cxx/default/default/debug/arm64-v8a/broker_sdk/CMakeFiles/ob_remote.dir/peer/mapping.c.o",
+          "bytes": 159632,
+          "createdDuringCurrentBuild": true
+        },
+        {
+          "object": "entry/.cxx/default/default/debug/arm64-v8a/broker_sdk/CMakeFiles/ob_remote.dir/peer/target.c.o",
+          "bytes": 27296,
+          "createdDuringCurrentBuild": true
+        },
+        {
+          "object": "entry/.cxx/default/default/debug/arm64-v8a/broker_sdk/CMakeFiles/ob_remote.dir/peer/control.c.o",
+          "bytes": 123448,
+          "createdDuringCurrentBuild": true
+        },
+        {
+          "object": "entry/.cxx/default/default/debug/arm64-v8a/broker_sdk/CMakeFiles/ob_remote.dir/peer/coordinator.c.o",
+          "bytes": 50336,
+          "createdDuringCurrentBuild": true
+        },
+        {
+          "object": "entry/.cxx/default/default/debug/arm64-v8a/broker_sdk/CMakeFiles/ob_remote.dir/peer/recovery.c.o",
+          "bytes": 33440,
+          "createdDuringCurrentBuild": true
+        },
+        {
+          "object": "entry/.cxx/default/default/debug/arm64-v8a/CMakeFiles/dsh_broker.dir/broker_client.cpp.o",
+          "bytes": 1093120,
+          "createdDuringCurrentBuild": true
+        },
+        {
+          "object": "entry/.cxx/default/default/debug/arm64-v8a/CMakeFiles/dsh_broker.dir/broker_trust.cpp.o",
+          "bytes": 376280,
+          "createdDuringCurrentBuild": true
+        },
+        {
+          "object": "entry/.cxx/default/default/debug/arm64-v8a/CMakeFiles/dsh_launcher.dir/broker_napi.cpp.o",
+          "bytes": 518056,
+          "createdDuringCurrentBuild": true
+        }
+      ]
+    },
+    "nativeCTranslationUnits": 11,
+    "extraNativeTestsExecuted": false,
+    "totalTasks": 34,
+    "executedTasks": 34,
+    "upToDateTasks": 0
+  },
+  "signing": {
+    "source": "/storage/Users/currentUser/dev/ohos/export/DSHApp-0.2.0-connections-fix2/build-profile.json5",
+    "sourceConfigSha256": "9fd4dc39ad705788790216316802fd28a4a1dae2121c5164c6d73eab33401289",
+    "selectedSigningConfig": "default",
+    "type": "HarmonyOS",
+    "material": {
+      "storeFile": {
+        "path": "/storage/Users/currentUser/Documents/ohos/config/default_DSHApp-0.2.0-connections-fix2cb829pAnD0JBdjLxKafOTobSL7dtfLN4no_pXaWnnQY.p12",
+        "sha256": "94882b728a8a2de30c12ceeae9adb3df273dbc95b5d07e3cb9eb7e8bab763113"
+      },
+      "certpath": {
+        "path": "/storage/Users/currentUser/Documents/ohos/config/default_DSHApp-0.2.0-connections-fix2cb829pAnD0JBdjLxKafOTobSL7dtfLN4no_pXaWnnQY.cer",
+        "sha256": "9f9679b0b91b806950dfe8d5ccf578ddcf16d70d563afe6cfdd99f4e7285d6e9"
+      },
+      "profile": {
+        "path": "/storage/Users/currentUser/Documents/ohos/config/default_DSHApp-0.2.0-connections-fix2cb829pAnD0JBdjLxKafOTobSL7dtfLN4no_pXaWnnQY.p7b",
+        "sha256": "d36512d9af469ecebd06cec0563f53c3e0894cae562072d4f9da422db7b9243d"
+      }
+    },
+    "publicKeySha256": "3a969baeaa835f8eab36e8b97f69089815599d3edf5a81af0f6113d1ae5ab504",
+    "originalFilesReadOnly": true,
+    "stagedInProtectedTemporaryStorage": true,
+    "usesUserFix2Signing": true,
+    "decryptionMaterial": {
+      "sourceDirectory": "/storage/Users/currentUser/Documents/ohos/config/material",
+      "filesSha256": {
+        "ac/21e6984764ee66e7dd9e897709d7c0bc": "9be63914d67ba0bb8724dadc3b1ab48818e121f51f97c8faa543eec6f636076e",
+        "ce/09a2ee6ca2fe9a6a6984a85a4e7484f0": "1a27312411f18a4e4ca74a2f04bc1cdf406ceb31bcee470343f2e24858b911d0",
+        "fd/0/ab11d0d32802b027bf8686f883262a1a": "a30161d113a9ff0564207450f3736afd4f9e573b70dc71338a3eb645a776003f",
+        "fd/1/cdadbe07108174ee0da869804eece1f4": "a1bdbeada61eb19b32099bdc275f2258f1bb17aecf74821815a20c50dbfc7460",
+        "fd/2/ab1112295f0ae3a05d2de2e9b08d6510": "731d651e4efa4a2c56d1bc982b22bc908477a826b08204cf13ba6ae9d3896d79"
+      },
+      "files": 5,
+      "copiedByteIdenticallyIntoProtectedTemporaryStorage": true
+    }
+  },
+  "hap": {
+    "artifact": "/data/storage/el2/base/haps/entry/cache/dsh-broker-sdk4-app-build-cjbq6s0g/artifacts/DSHApp-0.2.0-broker-sdk-0.4.0-signed.hap",
+    "bytes": 5232378,
+    "sha256": "c67655692839db123557a00ce537cd95c8bb31cd4152fb1b3bbffca9ef94e43b",
+    "sdkVersion": "0.4.0",
+    "verified": true,
+    "nativeVerificationExitCode": 0,
+    "verifier": "/storage/Users/currentUser/.oheco/packages/ohos-sdk-toolchains/26.0.0.35-Beta/lib/hap-sign-tool",
+    "verifiedAt": "2026-10-05T03:24:49.700354+00:00",
+    "publicKeySha256": "3a969baeaa835f8eab36e8b97f69089815599d3edf5a81af0f6113d1ae5ab504",
+    "matchesOriginalFix2SigningFamily": true,
+    "transientVerificationOutputsRemoved": true
+  },
+  "installation": {
+    "devices": [
+      {
+        "target": "192.168.1.160:34835",
+        "installCommand": [
+          "/storage/Users/currentUser/.oheco/bin/hdc",
+          "-t",
+          "192.168.1.160:34835",
+          "install",
+          "-r",
+          "/data/storage/el2/base/haps/entry/cache/dsh-broker-sdk4-app-build-cjbq6s0g/artifacts/DSHApp-0.2.0-broker-sdk-0.4.0-signed.hap"
+        ],
+        "installExitCode": 0,
+        "installSucceeded": true,
+        "installOutput": "[Info]App install path:/data/storage/el2/base/haps/entry/cache/dsh-broker-sdk4-app-build-cjbq6s0g/artifacts/DSHApp-0.2.0-broker-sdk-0.4.0-signed.hap msg:install bundle successfully. \nAppMod finish",
+        "launchPerformed": false,
+        "uiActionsPerformed": false,
+        "bundleName": "org.oheco.deepseekharness",
+        "versionName": "0.2.0-rc.2-ohos.1",
+        "versionCode": 1000002,
+        "compatibleVersion": 23,
+        "targetVersion": 26,
+        "updateTime": 1791170692322,
+        "moduleDeviceTypes": [
+          {
+            "moduleName": "entry",
+            "deviceTypes": [
+              "default",
+              "2in1"
+            ]
+          }
+        ],
+        "deviceType": "2in1",
+        "apiVersion": 26
+      },
+      {
+        "target": "192.168.1.191:41339",
+        "installCommand": [
+          "/storage/Users/currentUser/.oheco/bin/hdc",
+          "-t",
+          "192.168.1.191:41339",
+          "install",
+          "-r",
+          "/data/storage/el2/base/haps/entry/cache/dsh-broker-sdk4-app-build-cjbq6s0g/artifacts/DSHApp-0.2.0-broker-sdk-0.4.0-signed.hap"
+        ],
+        "installExitCode": 0,
+        "installSucceeded": true,
+        "installOutput": "[Info]App install path:/data/storage/el2/base/haps/entry/cache/dsh-broker-sdk4-app-build-cjbq6s0g/artifacts/DSHApp-0.2.0-broker-sdk-0.4.0-signed.hap msg:install bundle successfully. \nAppMod finish",
+        "launchPerformed": false,
+        "uiActionsPerformed": false,
+        "bundleName": "org.oheco.deepseekharness",
+        "versionName": "0.2.0-rc.2-ohos.1",
+        "versionCode": 1000002,
+        "compatibleVersion": 23,
+        "targetVersion": 26,
+        "updateTime": 1791170694628,
+        "moduleDeviceTypes": [
+          {
+            "moduleName": "entry",
+            "deviceTypes": [
+              "default",
+              "2in1"
+            ]
+          }
+        ],
+        "deviceType": "phone",
+        "apiVersion": 26
+      }
+    ],
+    "bothInstallSucceeded": true,
+    "userRequestedNoStart": true,
+    "observedAt": "2026-10-05T03:24:55.651053+00:00"
+  },
+  "cleanup": {
+    "originalSigningDataUnmodified": true,
+    "transientSigningMaterialsRemoved": true,
+    "transientVerificationOutputsRemoved": true,
+    "cachedProjectUnsigned": true,
+    "ownedHvigorCachesRemoved": true,
+    "removedRawPrivateLogs": 4,
+    "removedCredentialCacheFiles": 0,
+    "removedCredentialCachePaths": [],
+    "artifactPreserved": "/data/storage/el2/base/haps/entry/cache/dsh-broker-sdk4-app-build-cjbq6s0g/artifacts/DSHApp-0.2.0-broker-sdk-0.4.0-signed.hap"
+  },
+  "initialFailures": {
+    "configurationAttempts": [
+      {
+        "command": "/storage/Users/currentUser/.oheco/packages/nodejs/24.21.0-ohos.1/bin/hvigor",
+        "args": [
+          "--mode",
+          "module",
+          "-p",
+          "module=entry@default",
+          "-p",
+          "product=default",
+          "-p",
+          "buildMode=debug",
+          "assembleHap",
+          "--no-daemon",
+          "--stacktrace"
+        ],
+        "startedAt": "2026-10-05T02:57:17.820549+00:00",
+        "finishedAt": "2026-10-05T02:57:51.118259+00:00",
+        "exitCode": 255,
+        "signal": null,
+        "privateProject": "/data/storage/el2/base/haps/entry/cache/dsh-broker-sdk4-app-build-cjbq6s0g/project",
+        "sdkRoot": "/storage/Users/currentUser/.oheco/sdk/26.0.0.35.Beta/root",
+        "runtimeOS": "OpenHarmony",
+        "compileSdkVersion": "26.0.0",
+        "targetSdkVersion": "26.0.0",
+        "compatibleSdkVersion": 23,
+        "deviceTypes": [
+          "default",
+          "2in1"
+        ],
+        "fullyFreshBuild": true,
+        "nativeFixturesRun": false,
+        "applicationStarted": false
+      },
+      {
+        "command": "/storage/Users/currentUser/.oheco/packages/nodejs/24.21.0-ohos.1/bin/hvigor",
+        "args": [
+          "--mode",
+          "module",
+          "-p",
+          "module=entry@default",
+          "-p",
+          "product=default",
+          "-p",
+          "buildMode=debug",
+          "assembleHap",
+          "--no-daemon",
+          "--stacktrace"
+        ],
+        "startedAt": "2026-10-05T03:00:13.421542+00:00",
+        "finishedAt": "2026-10-05T03:00:26.223972+00:00",
+        "exitCode": 255,
+        "signal": null,
+        "privateProject": "/data/storage/el2/base/haps/entry/cache/dsh-broker-sdk4-app-build-cjbq6s0g/project",
+        "sdkRoot": "/storage/Users/currentUser/.oheco/sdk/26.0.0.35.Beta/root",
+        "runtimeOS": "OpenHarmony",
+        "compileSdkVersion": "26.0.0",
+        "targetSdkVersion": "26.0.0",
+        "compatibleSdkVersion": 23,
+        "deviceTypes": [
+          "default",
+          "2in1"
+        ],
+        "fullyFreshBuild": true,
+        "nativeFixturesRun": false,
+        "applicationStarted": false
+      },
+      {
+        "command": "/storage/Users/currentUser/.oheco/packages/nodejs/24.21.0-ohos.1/bin/hvigor",
+        "args": [
+          "--mode",
+          "module",
+          "-p",
+          "module=entry@default",
+          "-p",
+          "product=default",
+          "-p",
+          "buildMode=debug",
+          "assembleHap",
+          "--no-daemon",
+          "--stacktrace"
+        ],
+        "startedAt": "2026-10-05T03:08:10.108505+00:00",
+        "finishedAt": "2026-10-05T03:09:36.573337+00:00",
+        "exitCode": 255,
+        "signal": null,
+        "privateProject": "/data/storage/el2/base/haps/entry/cache/dsh-broker-sdk4-app-build-cjbq6s0g/project",
+        "sdkRoot": "/storage/Users/currentUser/.oheco/sdk/26.0.0.35.Beta/root",
+        "runtimeOS": "OpenHarmony",
+        "compileSdkVersion": "26.0.0",
+        "targetSdkVersion": "26.0.0",
+        "compatibleSdkVersion": 23,
+        "deviceTypes": [
+          "default",
+          "2in1"
+        ],
+        "fullyFreshBuild": true,
+        "nativeFixturesRun": false,
+        "applicationStarted": false
+      }
+    ],
+    "resolvedBeforeFinalFreshBuild": true,
+    "nativeCompilerErrors": false,
+    "firstFailure": "Missing OHOS_BASE_SDK_HOME; zero tasks executed",
+    "secondFailure": "SDK26 re-rooted CMake library lookup; App-owned validated absolute dependency paths fixed",
+    "thirdFailure": "Adjacent password decryption material absent from temporary signer staging; five unchanged inputs copied"
+  },
+  "validation": {
+    "mandatoryFreshHapCompilationSigning": true,
+    "nativeSignatureVerificationExitCode": 0,
+    "normalInstallExitCodes": [
+      0,
+      0
+    ],
+    "nativeFixturesRun": false,
+    "extraAppTestsRunByThisAgent": false,
+    "applicationLaunchPerformed": false,
+    "uiActionsPerformed": false,
+    "sourceSdkModified": false
+  },
+  "limits": [
+    "Application launch and live device reconnection were not exercised during this build/install task.",
+    "This receipt records compilation, signature verification and installation; SDK dependency probes and Parent source checks have their own evidence."
+  ]
+}

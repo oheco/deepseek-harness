@@ -1,0 +1,6 @@
+{
+  "name": "libdsh_launcher.so",
+  "version": "1.0.0",
+  "description": "Local-only HarmonyOS DSH launcher native declarations",
+  "types": "./index.d.ts"
+}

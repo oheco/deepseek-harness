@@ -90,7 +90,8 @@ function workerSpawn(request: VerificationRequest): { readonly entry: string | U
     entry: new URL(`data:text/javascript,${encodeURIComponent(bootstrap)}`),
     options: {
       workerData: request,
-      execArgv: [],
+      // HarmonyOS tsx loader registration needs Node's internal-module access.
+      execArgv: (process.platform as string) === 'openharmony' ? ['--expose-internals'] : [],
     },
   }
 }

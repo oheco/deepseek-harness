@@ -1,0 +1,96 @@
+{
+  "observed_on": "2026-11-02",
+  "bundle_name": "org.oheco.deepseekharness",
+  "version_name": "0.2.1-rc.2-ohos.3",
+  "version_code": 1000012,
+  "source_base": "185e27b6e3d62eec00cb963e823a38a025bde221",
+  "changes": [
+    "Document-start feature probes repair only affected dsh-resource and sidebar URL hostname/pathname getters without replacing the native URL constructor.",
+    "Each WebView owns its authenticated native download delegate and saves through the system DocumentViewPicker.",
+    "Download data uses exclusive application temporary directories; cancellation, stale picker callbacks, connection changes and cleanup retries retain explicit ownership."
+  ],
+  "app_logic_tests": {
+    "command": "NODE_PATH=<existing-checkout>/node_modules node --test --test-concurrency=4 ohos/app/tests/*.test.mjs",
+    "passed": 230,
+    "failed": 0,
+    "skipped": 0,
+    "url_compatibility_cases": 9,
+    "download_cases": 18,
+    "index_integration_cases": 5,
+    "initial_integration_failures": "The existing orientation test projection lacked the new WebDownloads dependency; its mock was supplied and the final complete run passed."
+  },
+  "project_export_tests": { "passed": 22, "failed": 0 },
+  "standalone_arkts": {
+    "reported_errors": 0,
+    "sdk": "command-line-tools 26.0.0.201",
+    "configured_product_api": 23,
+    "final_hap_compilation": "The final download cleanup revision was also compiled by the full Hvigor build."
+  },
+  "browser_probe": {
+    "engine": "ArkWeb/7.0.0.109",
+    "scope": "Isolated blank browser document; prototype descriptors were restored afterwards.",
+    "internal_address_cases_passed": 6,
+    "original_hostname_empty": true,
+    "ordinary_url_samples_unchanged": true,
+    "native_url_constructor_preserved": true
+  },
+  "hap_build": {
+    "offline": true,
+    "fresh_build": true,
+    "hvigor": "7.26.8",
+    "sdk": "26.0.0.105 Release",
+    "compatible_api": 23,
+    "production_inputs": 256,
+    "source_snapshot_matched": true,
+    "build_exit_code": 0,
+    "independent_signature_verification_exit_code": 0,
+    "original_signing_family_verified": true,
+    "private_signing_copies_cleaned": true,
+    "filename": "DSHApp-0.2.1-rc.2-ohos.3-signed.hap",
+    "size": 5584576,
+    "sha256": "b4b4cf587daced932605018cbbc2fde83ce160de57eb8a341d25e28cbe3c5d36",
+    "compatibility_and_download_symbols_packaged": true,
+    "localized_download_resources_packaged": true,
+    "personal_signed_hap_published": false
+  },
+  "device_installation": {
+    "device_type": "phone",
+    "model": "PLA-AL10",
+    "transport": "hdc through the existing SOCKS5 relay",
+    "replaced_version_code": 1000011,
+    "installed_version_code": 1000012,
+    "installation_succeeded": true,
+    "uninstalled_or_data_cleared": false,
+    "installed_hap_sha256": "b4b4cf587daced932605018cbbc2fde83ce160de57eb8a341d25e28cbe3c5d36"
+  },
+  "computer_installation": {
+    "device_type": "2in1",
+    "transport": "hdc through the existing SOCKS5 relay to the system-reported local debug port",
+    "installed_version_code": 1000012,
+    "installation_succeeded": true,
+    "uninstalled_or_data_cleared": false,
+    "installed_hap_sha256": "b4b4cf587daced932605018cbbc2fde83ce160de57eb8a341d25e28cbe3c5d36",
+    "application_ui_retested": false
+  },
+  "device_acceptance": {
+    "source": "Direct user confirmation in this session after installation",
+    "user_report": "我手动验收了一下，2 个需求都满足了",
+    "file_preview": "confirmed by user",
+    "session_log_download": "confirmed by user",
+    "automated_save_dialog_interaction": false,
+    "downloaded_zip_byte_comparison_on_device": false,
+    "real_blob_download_on_device": "not separately verified"
+  },
+  "documentation_checks": {
+    "app_readme_pairing": "passed",
+    "relative_markdown_links": "passed",
+    "markdown_paragraph_wrapping": "passed",
+    "full_doc_sync": "not completed: the shared checkout lacks unrelated development dependencies including vitepress, @jridgewell/gen-mapping and resolve.exports; the aggregate was stopped after pnpm refused to reinstall a modules directory outside this worktree. No complete documentation-aggregate pass is claimed."
+  },
+  "scope": {
+    "dsh_runtime_packages_changed": false,
+    "broker_sdk_changed": false,
+    "additional_application_permissions": false,
+    "public_deliverable": "Unsigned portable App source project; personal signing materials and signed HAP remain local."
+  }
+}

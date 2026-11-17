@@ -1,0 +1,8 @@
+# Deployment choices for the HarmonyOS CLI/Web runtime; upstream bundles stay unchanged.
+- id: hmr
+  disabled: true
+- id: session-telemetry-otel
+  disabled: true
+- id: typert-gateway
+  config:
+    websocketHeartbeatIntervalMs: 60000

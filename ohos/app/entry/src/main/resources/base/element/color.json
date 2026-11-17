@@ -1,0 +1,48 @@
+{
+  "color": [
+    {
+      "name": "start_window_background",
+      "value": "#FFFFFF"
+    },
+    {
+      "name": "background",
+      "value": "#FFFFFF"
+    },
+    {
+      "name": "canvas",
+      "value": "#F5F6F7"
+    },
+    {
+      "name": "panel",
+      "value": "#FFFFFF"
+    },
+    {
+      "name": "card",
+      "value": "#F5F6F7"
+    },
+    {
+      "name": "border",
+      "value": "#E1E5EB"
+    },
+    {
+      "name": "ink",
+      "value": "#1B1B1D"
+    },
+    {
+      "name": "muted",
+      "value": "#616369"
+    },
+    {
+      "name": "accent",
+      "value": "#4176E6"
+    },
+    {
+      "name": "on_accent",
+      "value": "#FFFFFF"
+    },
+    {
+      "name": "warning",
+      "value": "#995100"
+    }
+  ]
+}

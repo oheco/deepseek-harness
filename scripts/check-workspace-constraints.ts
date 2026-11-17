@@ -56,6 +56,7 @@ const publicNativePackages = new Set([
   '@deepseek-ai/node-addon-system-darwin-x64',
   '@deepseek-ai/node-addon-system-linux-arm64',
   '@deepseek-ai/node-addon-system-linux-x64',
+  '@deepseek-ai/node-addon-system-openharmony-arm64',
 ])
 /** Public source home recorded in maintained package manifests. */
 const publishedRepositoryUrl = 'git+https://github.com/deepseek-ai/deepseek-harness.git'

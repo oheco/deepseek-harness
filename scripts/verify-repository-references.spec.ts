@@ -108,6 +108,27 @@ describe('maintained repository reference policy', () => {
     ])
   })
 
+  it.each([
+    ['ohos/release.json', 'upstream_commit'],
+    ['ohos/app-migration.json', 'source_head'],
+    ['ohos/app-migration.json', 'destination_upstream_head'],
+    ['ohos/app/validation/resource-downloads-0.2.1-rc.2-ohos.3/checks.json', 'source_base'],
+  ])('retains only the full machine commit pin %s:%s', (file, field) => {
+    const hash = 'a'.repeat(40)
+    expect(findRepositoryReferences(file, `  "${field}": "${hash}",`, new Set([hash]))).toEqual([])
+    expect(findRepositoryReferences(file, `  "notes": "${hash}"`, new Set([hash]))).toEqual([
+      { file, line: 1, kind: 'commit-hash' },
+    ])
+    const short = hash.slice(0, 12)
+    expect(findRepositoryReferences(file, `  "${field}": "${short}"`, new Set([short]))).toEqual([
+      { file, line: 1, kind: 'commit-hash' },
+    ])
+    expect(findRepositoryReferences(`other/${file}`, `  "${field}": "${hash}"`, new Set([hash]))).toHaveLength(1)
+    expect(findRepositoryReferences(file, organizationUrl, new Set())).toEqual([
+      { file, line: 1, kind: 'organization-url' },
+    ])
+  })
+
   it('accepts byte counts in the real lockfile and still rejects references on added lines', () => {
     const file = 'python/sdk/uv.lock'
     const source = readFileSync(join(import.meta.dirname, '..', file), 'utf8').trimEnd()

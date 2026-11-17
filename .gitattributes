@@ -8,6 +8,10 @@
 
 *.pdf binary
 
+# Imported SDK headers/licenses and frozen App evidence keep their original whitespace.
+ohos/app/entry/src/main/cpp/tpr/** -whitespace
+ohos/app/validation/** -whitespace
+
 # The persistence catalog is the readable projection of these generated schemas.
 docs/persistence-schema.json linguist-generated=true
 docs/persistence-changes/*.schema.json linguist-generated=true

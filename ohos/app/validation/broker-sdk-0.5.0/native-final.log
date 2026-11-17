@@ -1,0 +1,33 @@
++ cmake -S /storage/Users/currentUser/dev/ohos/deepseek-harness-0.2.0/ohos/app/entry/src/main/cpp -B /data/storage/el2/base/haps/entry/cache/dsh-app-sdk5-native-20261010 -G Ninja -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY -DCMAKE_BUILD_TYPE=Debug -DDSH_BUILD_BROKER_TESTS=ON
+System is unknown to cmake, create:
+Platform/HarmonyOS to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+Your CMakeCache.txt file was copied to CopyOfCMakeCache.txt. Please post that file on discourse.cmake.org.
+-- Configuring done (12.9s)
+-- Generating done (0.0s)
+-- Build files have been written to: /data/storage/el2/base/haps/entry/cache/dsh-app-sdk5-native-20261010
++ cmake --build /data/storage/el2/base/haps/entry/cache/dsh-app-sdk5-native-20261010 --parallel 4
+[1/7] Building CXX object CMakeFiles/dsh_broker_fixture.dir/broker_client.cpp.obj
+[2/7] Building CXX object CMakeFiles/dsh_broker_test.dir/broker_test.cpp.obj
+[3/7] Building CXX object CMakeFiles/dsh_broker.dir/broker_client.cpp.obj
+[4/7] Linking CXX static library libdsh_broker_fixture.a
+[5/7] Linking CXX static library libdsh_broker.a
+[6/7] Linking CXX executable dsh_broker_test
+[7/7] Linking CXX shared library libdsh_launcher.so
++ binary-sign-tool sign -inFile /data/storage/el2/base/haps/entry/cache/dsh-app-sdk5-native-20261010/dsh_broker_test -outFile /data/storage/el2/base/haps/entry/cache/dsh-app-sdk5-native-20261010/dsh_broker_test.signed -selfSign 1
+10-10 01:02:16.194 INFO  - add codesign section success
+[Warn] [compare_elf.cpp] [ValidateSegmentsBeforeShstrtab] [205] [CompareElf] Segment 7 properties changed (before .shstrtab)
+[Warn] [compare_elf.cpp] [ValidateSegmentsBeforeShstrtab] [206] [CompareElf] Original Segment[type=0x6474e552, flags=0x4, vaddr=0x2efaa0, paddr=0x2efaa0, offset=0x2edaa0, filesz=0x12c80, memsz=0x13560, align=0x1]
+[Warn] [compare_elf.cpp] [ValidateSegmentsBeforeShstrtab] [207] [CompareElf] Saved Segment[type=0x6474e552, flags=0x4, vaddr=0x2efaa0, paddr=0x2efaa0, offset=0x2edaa0, filesz=0x12c80, memsz=0x13560, align=0x8]
+10-10 01:02:51.563 INFO  - write code sign data success
++ binary-sign-tool sign -inFile /data/storage/el2/base/haps/entry/cache/dsh-app-sdk5-control-fixture -outFile /data/storage/el2/base/haps/entry/temp/dsh-broker-acceptance-99kx0ak3/control-fixture -selfSign 1
+10-10 01:03:16.671 INFO  - add codesign section success
+10-10 01:04:08.288 INFO  - write code sign data success
++ /data/storage/el2/base/haps/entry/cache/dsh-app-sdk5-native-20261010/dsh_broker_test.signed
+PASS expired access refresh, lost response journal and restarted client exact replay
+PASS HarmonyOS system roots loaded=125, preexisting custom trust replaced
+PASS self-signed and wrong-host HTTPS rejected before account credentials
+PASS HTTPS verified login/list, TLS rejection, async FIFO cancellation, close/dispose, fresh DSH cookie probe
+PASS available preferred port reuse and non-bind listener failure does not fall back
+PASS real control HTTPS/WSS, account login/list, peer-password rejection, PAKE ICE QUIC, dynamic TCP DSH cookie probe, healthy SDK wake keeps port, accepted WebSocket close, repeated connect/close and cancellation
+PASS native broker probes and SDK NAPI bridge link; build retained at /data/storage/el2/base/haps/entry/cache/dsh-app-sdk5-native-20261010
+HAP import/ArkTS cleanup, ordinary app sandbox networking, background suspension and physical WebView await app verification.

@@ -433,7 +433,7 @@ describe('BashTerminalBackend startup rollback', () => {
     await session.close('test complete')
   })
 
-  it('bootstraps a pwsh dialect through the prompt function and scrubs bash-only env', async () => {
+  it.each(['pwsh', 'zsh'] as const)('bootstraps %s through its prompt function and scrubs bash-only env', async (dialect) => {
     const ctx = new Context()
     provideWorkingDirectoryFixture(ctx)
     await ctx.plugin(EmptySandbox)
@@ -458,21 +458,23 @@ describe('BashTerminalBackend startup rollback', () => {
     } as unknown as LocalPtySession
     const backend = new BashTerminalBackend(
       ctx,
-      { ...config(), shellDialect: 'pwsh', shellPath: 'pwsh' },
+      { ...config(), shellDialect: dialect, shellPath: dialect },
       async (spec) => { spawned = spec; return terminalHandle() },
       () => session,
     )
     expect(await backend.spawn(spec(agent(ctx)))).toBe(session)
-    expect(sent).toMatchObject({ text: ENCODING_PREAMBLE + PWSH_PROMPT_SETUP, submit: true })
+    expect(sent).toMatchObject({ submit: true })
+    if (dialect === 'pwsh') expect(sent?.text).toBe(ENCODING_PREAMBLE + PWSH_PROMPT_SETUP)
+    else expect(sent?.text).toContain('function precmd()')
     expect(session.motd).toBe('setup-echo dsh> ')
     expect(spawned?.env).toMatchObject({
       TERM: 'dumb', NO_COLOR: '1', DSH_SHELL: '1', DSH_SESSION_ID: 'agent', DSH_PTY_SESSION_ID: 'pty-1',
     })
-    expect(spawned?.env?.PS1).toBeUndefined()
+    expect(spawned?.env?.PS1).toBe(dialect === 'zsh' ? '' : undefined)
     expect(spawned?.env?.PROMPT_COMMAND).toBeUndefined()
   })
 
-  it('keeps waiting for stdin_read when the first settled output only echoes the prompt literal', async () => {
+  it.each(['pwsh', 'zsh'] as const)('%s keeps waiting for stdin_read when the first output only echoes the prompt literal', async (dialect) => {
     const ctx = new Context()
     provideWorkingDirectoryFixture(ctx)
     await ctx.plugin(EmptySandbox)
@@ -486,7 +488,7 @@ describe('BashTerminalBackend startup rollback', () => {
         const second = sends.length > 1
         return {
           done: Promise.resolve({
-            viewport: second ? 'dsh> ' : "function prompt { 'dsh> ' }\n",
+            viewport: second ? 'dsh> ' : (dialect === 'zsh' ? "function precmd() { PS1='dsh> ' }\n" : "function prompt { 'dsh> ' }\n"),
             waitReason: second ? 'stdin_read' as const : 'inferred_idle' as const,
             sessionStatus: { kind: 'running' as const }, truncated: false,
           }),
@@ -498,7 +500,7 @@ describe('BashTerminalBackend startup rollback', () => {
     } as unknown as LocalPtySession
     const backend = new BashTerminalBackend(
       ctx,
-      { ...config(), shellDialect: 'pwsh', shellPath: 'pwsh' },
+      { ...config(), shellDialect: dialect, shellPath: dialect },
       async () => terminalHandle(),
       () => session,
     )
@@ -508,7 +510,7 @@ describe('BashTerminalBackend startup rollback', () => {
     expect(session.motd).toBe('dsh> ')
   })
 
-  it('rejects a pwsh bootstrap whose shell exits or times out', async () => {
+  it.each(['pwsh', 'zsh'] as const)('rejects a %s bootstrap whose shell exits or times out', async (dialect) => {
     const ctx = new Context()
     provideWorkingDirectoryFixture(ctx)
     await ctx.plugin(EmptySandbox)
@@ -526,15 +528,15 @@ describe('BashTerminalBackend startup rollback', () => {
       read: () => ({ text: '', totalLines: 0, lineBegin: 0, lineEnd: 0, truncated: false }),
       close: () => Promise.resolve(),
     }) as unknown as LocalPtySession
-    const exited = new BashTerminalBackend(ctx, { ...config(), shellDialect: 'pwsh' }, async () => terminalHandle(), () => sessionFor('session_exit'))
+    const exited = new BashTerminalBackend(ctx, { ...config(), shellDialect: dialect }, async () => terminalHandle(), () => sessionFor('session_exit'))
     await expect(exited.spawn(spec(agent(ctx)))).rejects.toThrow('PTY shell exited during startup')
     await expect(exited.spawn(spec(agent(ctx)))).rejects.toEqual(expect.objectContaining({ name: 'TerminalError', code: 'STARTUP_EXITED' }))
-    const timedOut = new BashTerminalBackend(ctx, { ...config(), shellDialect: 'pwsh' }, async () => terminalHandle(), () => sessionFor('timeout'))
+    const timedOut = new BashTerminalBackend(ctx, { ...config(), shellDialect: dialect }, async () => terminalHandle(), () => sessionFor('timeout'))
     await expect(timedOut.spawn(spec(agent(ctx)))).rejects.toThrow('did not reach readiness before startup timeout')
     await expect(timedOut.spawn(spec(agent(ctx)))).rejects.toEqual(expect.objectContaining({ name: 'TerminalError', code: 'STARTUP_TIMEOUT' }))
   })
 
-  it('bounds all pwsh startup retries with one deadline', async () => {
+  it.each(['pwsh', 'zsh'] as const)('bounds all %s startup retries with one deadline', async (dialect) => {
     vi.useFakeTimers()
     try {
       const ctx = new Context()
@@ -571,7 +573,7 @@ describe('BashTerminalBackend startup rollback', () => {
       } as unknown as LocalPtySession
       const backend = new BashTerminalBackend(
         ctx,
-        { ...config(), shellDialect: 'pwsh', shellPath: 'pwsh' },
+        { ...config(), shellDialect: dialect, shellPath: dialect },
         async () => terminalHandle(),
         () => session,
       )
@@ -590,7 +592,7 @@ describe('BashTerminalBackend startup rollback', () => {
     }
   })
 
-  it('forwards the spawn signal into the pwsh bootstrap sends', async () => {
+  it.each(['pwsh', 'zsh'] as const)('forwards the spawn signal into the %s bootstrap sends', async (dialect) => {
     const ctx = new Context()
     provideWorkingDirectoryFixture(ctx)
     await ctx.plugin(EmptySandbox)
@@ -614,7 +616,7 @@ describe('BashTerminalBackend startup rollback', () => {
     } as unknown as LocalPtySession
     const backend = new BashTerminalBackend(
       ctx,
-      { ...config(), shellDialect: 'pwsh', shellPath: 'pwsh' },
+      { ...config(), shellDialect: dialect, shellPath: dialect },
       async () => terminalHandle(),
       () => session,
     )

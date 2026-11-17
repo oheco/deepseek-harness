@@ -1,0 +1,43 @@
+{
+  "sdk_version": "0.5.0",
+  "source_commit": "5ccd4e26cc5eed822086873b00d15b23bd32578f",
+  "source_directory": "/storage/Users/currentUser/.oheco/packages/oheco-broker/0.5.0/sdk/c/remote",
+  "build_directory": "/data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.5.0-6gzvx3qu",
+  "dependency_prefix": "/storage/Users/currentUser/dev/ohos/deepseek-harness-0.2.0/ohos/app/entry/src/main/cpp/tpr/broker-native-arm64",
+  "sdk_cmake_modified": false,
+  "dependency_inputs_reused": true,
+  "dependency_probes_run": false,
+  "runtime_tests_run": false,
+  "commands": [
+    {
+      "argv": [
+        "/storage/Users/currentUser/.oheco/bin/cmake",
+        "-S",
+        "/storage/Users/currentUser/.oheco/packages/oheco-broker/0.5.0/sdk/c/remote",
+        "-B",
+        "/data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.5.0-6gzvx3qu/remote",
+        "-G",
+        "Ninja",
+        "-DCMAKE_C_COMPILER=/storage/Users/currentUser/.oheco/bin/clang",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY",
+        "-DTHREADS_PREFER_PTHREAD_FLAG=TRUE",
+        "-DOB_NATIVE_PREFIX=/storage/Users/currentUser/dev/ohos/deepseek-harness-0.2.0/ohos/app/entry/src/main/cpp/tpr/broker-native-arm64",
+        "-DOB_CURL_PREFIX=/storage/Users/currentUser/dev/ohos/deepseek-harness-0.2.0/ohos/app/entry/src/main/cpp/tpr/broker-native-arm64",
+        "-DOB_CXX_RUNTIME=c++",
+        "-DOB_REMOTE_BUILD_TESTS=OFF"
+      ],
+      "exit_code": 0
+    },
+    {
+      "argv": [
+        "/storage/Users/currentUser/.oheco/bin/cmake",
+        "--build",
+        "/data/storage/el2/base/haps/entry/cache/dsh-broker-sdk-0.5.0-6gzvx3qu/remote",
+        "--parallel",
+        "4"
+      ],
+      "exit_code": 0
+    }
+  ]
+}

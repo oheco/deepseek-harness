@@ -37,7 +37,7 @@ describe('runLoaderSmoke', () => {
     expect(output).toMatchObject({
       configPath,
       args: [configPath],
-      execArgv: ['--import', import.meta.resolve('tsx/esm')],
+      execArgv: [...(process.platform as string) === 'openharmony' ? ['--expose-internals'] : [], '--import', import.meta.resolve('tsx/esm')],
       marker: 'present',
       input: '',
     })

@@ -1,0 +1,169 @@
+{
+  "observed_on": "2026-11-01",
+  "bundle_name": "org.oheco.deepseekharness",
+  "version_name": "0.2.1-rc.2-ohos.2",
+  "version_code": 1000011,
+  "host_platform": "HarmonyOS ARM64",
+  "app_logic_tests": {
+    "passed": 198,
+    "failed": 0,
+    "skipped": 0,
+    "node": "24.21.0",
+    "transpiler_source": "read-only previous checkout",
+    "new_multi_window_tests": 9,
+    "device_interaction": false,
+    "new_relay_mode_tests": 3
+  },
+  "mutation_negative_controls": {
+    "holder_lookup_disabled": {
+      "suite": "multi-window",
+      "failed": 5
+    },
+    "cookie_expiry_for_any_authority": {
+      "suite": "connection-cookies and web-connection",
+      "failed": 3
+    },
+    "window_channel_release_removed": {
+      "suite": "multi-window",
+      "failed": 1
+    },
+    "production_source_mutated": false,
+    "relay_mode_omitted_from_native_options": {
+      "suite": "connections",
+      "failed": 1
+    },
+    "relay_mode_omitted_from_page_configuration": {
+      "suite": "web-connection",
+      "failed": 1
+    },
+    "relay_mode_omitted_from_saved_profile": {
+      "suite": "connections",
+      "failed": 3
+    },
+    "relay_mode_validation_removed": {
+      "suite": "connections",
+      "failed": 1
+    },
+    "sdk_always_automatic": {
+      "suite": "native broker",
+      "failed_check": "direct-only connection forwarded through TURN"
+    }
+  },
+  "native_logger_tests": {
+    "passed": 2,
+    "compiled_on_host": true,
+    "signed": true,
+    "executed": true,
+    "temporary_inputs_cleaned": true
+  },
+  "native_broker_tests": {
+    "final_exit_code": 0,
+    "fresh_build_directory": true,
+    "compiler_warnings": 0,
+    "real_control_fixture": true,
+    "concurrent_channel_clients_distinct_listeners": true,
+    "closing_one_channel_keeps_other_connected": true,
+    "client_diagnostics_carry_channel": true,
+    "broker_sdk_changed": false,
+    "relay_mode_connections": {
+      "forced_relay_without_account_relay": "DSH_BROKER_RELAY before peer setup",
+      "relay_only_turn_bytes_increased": true,
+      "direct_only_turn_bytes_unchanged": true,
+      "automatic_connected": true,
+      "sdk_connect_flags_match_mode": true,
+      "dsh_probe_each_mode": true
+    },
+    "test_driver_timeout_seconds": 420,
+    "run_seconds": 226
+  },
+  "project_export_tests": {
+    "passed": 22,
+    "failed": 0
+  },
+  "standalone_arkts": {
+    "exit_code": 0,
+    "reported_errors": 0,
+    "warnings_retained": true,
+    "configured_product_sdk": "6.1.0(23)",
+    "checker_sdk": "command-line-tools 26.0.0.201"
+  },
+  "hap_build": {
+    "fresh_build": true,
+    "offline": true,
+    "hvigor": "7.26.8",
+    "sdk": "26.0.0.105 Release",
+    "compile_sdk": "26.0.0",
+    "minimum_api": 23,
+    "compatible_sdk": "6.1.0(23)",
+    "assemble_exit_code": 0,
+    "signature_verification_exit_code": 0,
+    "original_signing_family_verified": true,
+    "embedded_profile_matches": true,
+    "private_signing_copies_cleaned": true,
+    "cache_signing_configuration_cleared": true,
+    "source_snapshot_files": 254,
+    "source_snapshot_matched_build_cache_at_build_time": true,
+    "source_snapshot_matched_commit_tree": true,
+    "launch_type": "specified",
+    "ability_stage_packaged": true,
+    "filename": "DSHApp-0.2.1-rc.2-ohos.2-signed.hap",
+    "size": 5543003,
+    "sha256": "98cd2c8bb53b4598f0e89b87b84566026a0dafa3b0f2c380d06453ea89a81eec",
+    "native_library_sha256": "c4efcec2d6544a614fa71e5cc2c29480647dbff9f3f807572029a3191dc246dc",
+    "ark_bytecode_sha256": "4e68c862c64905e6dae2d41333eee89c8345b87a28a1bfd40f5bb67e68f5c758",
+    "personal_signed_hap_published": false,
+    "swipe_actions_packaged": true,
+    "relay_mode_symbols_packaged": true
+  },
+  "broker_sdk": {
+    "version": "0.5.0",
+    "modified": false
+  },
+  "device_installation": {
+    "computer": {
+      "device": "HarmonyOS 2in1 computer",
+      "transport": "hdc through the local SOCKS5 relay",
+      "replaced_version_code": 1000011,
+      "installed_version_code": 1000011,
+      "uninstalled_or_data_cleared": false,
+      "installed_launch_mode_specified": true,
+      "installed_ability_stage": true,
+      "installed_sha256": "98cd2c8bb53b4598f0e89b87b84566026a0dafa3b0f2c380d06453ea89a81eec"
+    },
+    "phone": {
+      "device": "HarmonyOS phone",
+      "transport": "hdc through the local SOCKS5 relay",
+      "replaced_version_code": 1000011,
+      "installed_version_code": 1000011,
+      "uninstalled_or_data_cleared": false,
+      "launch_blocked_by_lock_screen": true,
+      "installed_sha256": "98cd2c8bb53b4598f0e89b87b84566026a0dafa3b0f2c380d06453ea89a81eec",
+      "device_type": "phone"
+    }
+  },
+  "device_observations": {
+    "first_launch_blocked_by_lock_screen": true,
+    "concurrent_entry_ability_windows_in_one_process": 3,
+    "simultaneous_open_connections": 2,
+    "simultaneous_connection_modes": [
+      "local",
+      "remote"
+    ],
+    "window_titles_name_open_connection": true,
+    "remote_loopback_listeners_in_app_process": 1,
+    "local_and_remote_webview_sockets_established_together": true,
+    "ui_input_stopped_while_user_used_another_full_screen_application": true,
+    "rows_show_no_inline_buttons_without_open_connection": true,
+    "swipe_left_reveals_switch_to_window_and_disabled_edit_for_held_connection": true,
+    "switch_to_window_focused_holding_window": true,
+    "native_records_carry_channel_in_device_log": true,
+    "simultaneous_connections_observed_after_swipe_build": 2,
+    "right_click_menu_did_not_open_and_was_removed": true
+  },
+  "not_verified_on_device": [
+    "relay mode selector rendering and a forced-relay connection against the user service (user declined on-device testing)",
+    "swipe actions on the phone",
+    "system Dock new-window want parameters",
+    "window close channel release records"
+  ]
+}

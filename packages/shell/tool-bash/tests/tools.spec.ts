@@ -418,6 +418,11 @@ describe('bash tool', () => {
         .toEqual(['description', 'command'])
       expect(schema.parameters).toHaveProperty('required', ['description', 'command'])
       expect(schema.description).toContain('Provide `description` before `command` in the arguments.')
+      const ohos = (process.platform as string) === 'openharmony'
+      expect(schema.description).toContain(ohos
+        ? 'Execute a zsh command (`/usr/bin/zsh -f -c`) and return its stdout/stderr. Use zsh syntax.'
+        : 'Execute a bash command (`bash -c`) and return its stdout/stderr.')
+      expect(schema.parameters).toHaveProperty('properties.command.description', ohos ? 'The zsh command to execute.' : 'The bash command to execute.')
     } finally {
       await ctx.fiber.dispose()
     }

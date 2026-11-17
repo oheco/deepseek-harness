@@ -1,0 +1,5 @@
+10-10 01:50:03.770 INFO  - Start verify-app
+10-10 01:50:28.993 INFO  - Digest verify result: success, DigestAlgorithm: SHA-256
+[Public certificate details omitted from source export; the local build receipt records signing-family equality.]
+10-10 01:50:28.999 INFO  - hap verify successed!
+10-10 01:50:28.999 INFO  - verify-app success

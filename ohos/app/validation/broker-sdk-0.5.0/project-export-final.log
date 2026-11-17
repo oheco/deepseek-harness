@@ -1,0 +1,6 @@
+test_packaging_exports_new_directory_and_refuses_existing_output (__main__.ProjectTests.test_packaging_exports_new_directory_and_refuses_existing_output) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 427.127s
+
+OK

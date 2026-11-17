@@ -1,0 +1,8 @@
+{
+  "modelVersion": "6.0.0",
+  "name": "dsh-app",
+  "version": "1.0.0",
+  "description": "Local HarmonyOS Stage launcher for DeepSeek Harness",
+  "dependencies": {},
+  "devDependencies": {}
+}

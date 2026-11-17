@@ -19,6 +19,7 @@ import {
 const fsControl = vi.hoisted(() => ({
   readSignals: [] as AbortSignal[],
   syncedDirectories: [] as string[],
+  deniedDirectory: undefined as string | undefined,
 }))
 
 vi.mock('node:fs/promises', async (importOriginal) => {
@@ -35,7 +36,13 @@ vi.mock('node:fs/promises', async (importOriginal) => {
     },
     async open(...args: Parameters<typeof actual.open>): ReturnType<typeof actual.open> {
       if (args[1] === constants.O_RDONLY) fsControl.syncedDirectories.push(String(args[0]))
-      return actual.open(...args)
+      try {
+        return await actual.open(...args)
+      } catch (error) {
+        if (args[1] === constants.O_RDONLY && error instanceof Error && 'code' in error
+          && (error.code === 'EACCES' || error.code === 'EPERM')) fsControl.deniedDirectory = String(args[0])
+        throw error
+      }
     },
   }
 })
@@ -87,14 +94,22 @@ describe('local attachment store', () => {
     const objects = join(storageRoot, 'objects')
     const bucket = join(objects, sha256.slice(0, 2))
     fsControl.syncedDirectories.length = 0
+    fsControl.deniedDirectory = undefined
 
     await saveImageFile(storageRoot, { data: PNG, mediaType: 'image/png' }, LIMITS, POLICY)
 
-    // Each process first proves DSH_HOME durable all the way to the filesystem
-    // root; existence alone cannot vouch for a concurrent creator's fsync.
-    // Later directory creation can then stop at that process-proven boundary.
+    const homeParents = parentChainToRoot(base)
+    let homeWalk = homeParents
+    if (fsControl.deniedDirectory !== undefined) {
+      expect(process.platform as string).toBe('openharmony')
+      const deniedIndex = homeParents.indexOf(fsControl.deniedDirectory)
+      expect(deniedIndex).toBeGreaterThanOrEqual(0)
+      homeWalk = homeParents.slice(0, deniedIndex + 1)
+    }
+    // Only the home walk can stop at a denied system ancestor; every staging
+    // and object-directory entry below the home still requires its own sync.
     expect(fsControl.syncedDirectories).toEqual([
-      ...parentChainToRoot(base),
+      ...homeWalk,
       // Staging precedes publication because the streamed digest selects the
       // target bucket only after every byte has been written.
       storageRoot,

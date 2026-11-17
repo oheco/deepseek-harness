@@ -1,5 +1,5 @@
 ---
-description: "The shipped shell backend for persistent terminal sessions: interactive bash or pwsh under the shared sandbox policy, with readiness detection and bounded line-oriented output."
+description: "The shipped shell backend for persistent terminal sessions: interactive bash, zsh, or pwsh under the shared sandbox policy, with readiness detection and bounded line-oriented output."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-terminal-bash` starts a persistent interactive shell under the deployment's sandbox policy: the session stays alive across tool calls, readiness for input is detected, and bounded line-oriented output is retained for reads. It provides the `shell` backend type and supports bash on POSIX and pwsh on Windows through a `shellDialect` setting. The same backend composes with local or remote execution worlds through the mounted subprocess provider. Full-screen terminal applications are outside its line-oriented contract.
+`dsh-terminal-bash` starts a persistent interactive shell under the deployment's sandbox policy: the session stays alive across tool calls, readiness for input is detected, and bounded line-oriented output is retained for reads. It provides the `shell` backend type and supports bash and zsh on POSIX and pwsh on Windows through a `shellDialect` setting. The same backend composes with local or remote execution worlds through the mounted subprocess provider. Full-screen terminal applications are outside its line-oriented contract.
 
 ## Table of Contents
 
@@ -31,7 +31,7 @@ Mount this backend when a composition needs persistent shell sessions — state 
 
 ### When to choose it
 
-Choose this backend when work needs an interactive shell or REPL whose state persists: stepping a debugger, exploring in a Python or Node REPL, or returning to a shell after interrupting a foreground command. Choose the one-shot bash tool for bounded commands that should start and end in one call. The bash dialect targets POSIX; the pwsh dialect targets Windows hosts where `dsh-pwsh-local` can resolve a pwsh executable.
+Choose this backend when work needs an interactive shell or REPL whose state persists: stepping a debugger, exploring in a Python or Node REPL, or returning to a shell after interrupting a foreground command. Choose the one-shot bash tool for bounded commands that should start and end in one call. The bash and zsh dialects target POSIX; the pwsh dialect targets Windows hosts where `dsh-pwsh-local` can resolve a pwsh executable.
 
 ### Composition
 
@@ -53,7 +53,7 @@ Mount the terminal service, a subprocess provider, the sandbox and policy servic
 | Field | Default | Meaning |
 |---|---|---|
 | `backendType` | `shell` | Backend type registered on `ctx.terminals` |
-| `shellDialect` | `bash` | Interactive shell stack: `bash` or `pwsh` |
+| `shellDialect` | HarmonyOS: `zsh`; elsewhere: `bash` | Interactive shell stack: `bash`, `zsh`, or `pwsh` |
 | `shellPath` / `shellArgs` | per dialect | Shell executable and arguments; empty selects the dialect defaults |
 | `maxReadBytes` | `262144` | Maximum UTF-8 bytes returned by one read or settled send |
 | `timeoutMs` | `30000` | Absolute bound on one send wait |
@@ -63,7 +63,7 @@ The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-a
 
 ### Shell dialects and readiness
 
-Both dialects expose the same readiness contract, so consumers are dialect-agnostic. A send settles when the shell is ready again: after the controlled prompt is verified, after the foreground process group provably waits on stdin (Linux), after output silence (`inferred_idle`), or at the absolute `timeoutMs`. A prompt marker whose printable tail has not arrived yet holds the send on the exact path for `promptTailGraceMs` beyond `idleSilenceMs + handoffGraceMs`, because the marker and its tail are written by the same prompt render. An `inferred_idle` or `timeout` result does not prove the foreground command exited.
+All dialects expose the same readiness contract, so consumers are dialect-agnostic. A send settles when the shell is ready again: after the controlled prompt is verified, after the foreground process group provably waits on stdin (Linux), after output silence (`inferred_idle`), or at the absolute `timeoutMs`. A prompt marker whose printable tail has not arrived yet holds the send on the exact path for `promptTailGraceMs` beyond `idleSilenceMs + handoffGraceMs`, because the marker and its tail are written by the same prompt render. An `inferred_idle` or `timeout` result does not prove the foreground command exited.
 
 ### Sandboxing and safe operation
 
@@ -85,7 +85,7 @@ This section explains the design behind the backend and points at the code that 
 
 ### Design concept
 
-One backend serves both dialects: bash and pwsh share the same session machinery — sanitizer, bounded buffers, readiness polling, cancellation, and teardown — and differ only in argv, environment, and prompt installation. Bash receives a private marker through `PS1` plus `PROMPT_COMMAND`. Pwsh writes a prompt function, pins UTF-8 console encoding, and publishes startup only after the backend reports `stdin_read`; echoed setup text cannot publish the shell. A zero-scrollback `@xterm/headless` instance consumes raw PTY data and returns terminal-protocol replies through the same handle, while the line sanitizer remains the only output projection.
+One backend serves all dialects: bash, zsh, and pwsh share the same session machinery — sanitizer, bounded buffers, readiness polling, cancellation, and teardown — and differ only in argv, environment, and prompt installation. Bash receives a private marker through `PS1` plus `PROMPT_COMMAND`. Zsh uses `/usr/bin/zsh -f -i` and a `precmd` hook that restores the controlled prompt with a zero-width OSC completion marker. Pwsh writes a prompt function and pins UTF-8 console encoding. Zsh and pwsh publish startup only after the backend reports `stdin_read`; echoed setup text cannot publish the shell. A zero-scrollback `@xterm/headless` instance consumes raw PTY data and returns terminal-protocol replies through the same handle, while the line sanitizer remains the only output projection.
 
 Scrollback and unread send output retain independently owned strings with incremental byte and newline counts, so sanitized slices cannot retain discarded control sequences. Appending and evicting text takes amortized time proportional to incoming text; reads assemble the retained chunks. Retention preserves code-point boundaries and counts the empty line after a trailing newline. The [historical retention decision](../../../.agents/notes/archived/bug-fix/2026-09-11-incremental-terminal-retention.md) records the complexity and measurement rationale.
 
@@ -100,7 +100,7 @@ Scrollback and unread send output retain independently owned strings with increm
 
 ### Readiness model
 
-Three bounded tiers settle a send: exact stdin-wait evidence from the subprocess provider (Linux only), the verified private prompt marker with an exact printable tail, and output silence (`inferred_idle`); an absolute timeout always bounds the wait. Pwsh startup uses one deadline across its complete setup loop, so an `inferred_idle` follow-up does not restart the bound. Evidence collected before the provider write is discarded at the write boundary, a stdin wait that predates the write is not post-write readiness, and unknown foreground state is never a positive exact-idle signal.
+Three bounded tiers settle a send: exact stdin-wait evidence from the subprocess provider (Linux only), the verified private prompt marker with an exact printable tail, and output silence (`inferred_idle`); an absolute timeout always bounds the wait. Zsh and pwsh startup use one deadline across the complete setup loop, so an `inferred_idle` follow-up does not restart the bound. Evidence collected before the provider write is discarded at the write boundary, a stdin wait that predates the write is not post-write readiness, and unknown foreground state is never a positive exact-idle signal.
 
 ### Send cancellation and teardown
 

@@ -37,6 +37,7 @@ import type {
 import { validateStoredEvents } from '@deepseek-ai/dsh-session-persistence'
 import type { JsonlCompression } from './format.ts'
 import { generationLogFilename, logSuffix, SessionLogScanner } from './format.ts'
+import { publishNewFileOhos } from './ohos.ts'
 import { publishNewFileWin32 } from './win32.ts'
 import {
   compressZstdFrame,
@@ -190,8 +191,9 @@ type GenerationBarrierPhase =
 interface JsonlGenerationInternals {
   readonly fs: GenerationFileSystem
   readonly randomToken: () => string
-  readonly platform: NodeJS.Platform
+  readonly platform: NodeJS.Platform | 'openharmony'
   readonly publishNewWin32: typeof publishNewFileWin32
+  readonly publishNewOhos: typeof publishNewFileOhos
   readonly barrier: (phase: GenerationBarrierPhase, attempt: number) => void | Promise<void>
 }
 
@@ -228,6 +230,7 @@ const defaultInternals: JsonlGenerationInternals = {
   randomToken: () => randomBytes(8).toString('hex'),
   platform: process.platform,
   publishNewWin32: publishNewFileWin32,
+  publishNewOhos: publishNewFileOhos,
   barrier: () => {},
 }
 
@@ -819,12 +822,13 @@ async function publishCurrentExclusive(
   currentPath: string,
   internals: JsonlGenerationInternals,
 ): Promise<boolean> {
-  if (internals.platform === 'win32') {
+  if (internals.platform === 'win32' || internals.platform === 'openharmony') {
     try {
-      await internals.publishNewWin32(staged, currentPath)
+      if (internals.platform === 'openharmony') await internals.publishNewOhos(staged, currentPath)
+      else await internals.publishNewWin32(staged, currentPath)
       return true
     } catch (error) {
-      /* v8 ignore else -- native helper tests own non-collision Win32 failures. */
+      /* v8 ignore else -- native helper tests own non-collision publication failures. */
       if (isEEXIST(error)) return false
       /* v8 ignore next -- the filesystem error is already complete. */
       throw error
@@ -909,7 +913,11 @@ async function publishPreparedMigration(
       throw new JsonlGenerationSourceChangedError(sourcePath)
     }
     const published = await publishCurrentExclusive(staged.path, currentPath, internals)
-    if (published && internals.platform === 'win32') staged = { ...staged, path: '' }
+    if (published && (internals.platform === 'win32' || internals.platform === 'openharmony')) {
+      staged = { ...staged, path: '' }
+      // The rename consumed staging; a later directory-sync failure must not clean that absent name.
+      if (internals.platform === 'openharmony') await syncDirectory(dirname(currentPath), internals)
+    }
     await internals.barrier('after-publication', 1)
     let currentIdentity: JsonlPhysicalIdentity
     if (published) {

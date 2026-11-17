@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-bash-local` is the default Bash executor for POSIX: every command runs as a fresh, non-login `bash -c` process with no rc files, so no shell state survives between calls. It applies configured budgets — working directory, timeout, output caps — to each command, classifies timeouts and cancellations, and returns bounded output with spill-file recovery when a stream overflows. Commands run with the harness process's own authority: this executor confines nothing, so compose `dsh-bash-sandbox` when commands need the sandbox capability. The model-facing `bash` tool talks to it once it is mounted.
+`dsh-bash-local` is the default Bash executor for POSIX: every command runs in a fresh, non-login shell (`/usr/bin/zsh -f -c` on HarmonyOS, `bash -c` elsewhere), so no shell state survives between calls. It applies configured budgets — working directory, timeout, output caps — to each command, classifies timeouts and cancellations, and returns bounded output with spill-file recovery when a stream overflows. Commands run with the harness process's own authority: this executor confines nothing, so compose `dsh-bash-sandbox` when commands need the sandbox capability. The model-facing `bash` tool talks to it once it is mounted.
 
 ## Table of Contents
 
@@ -25,7 +25,7 @@ English | [中文](README.zh.md)
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount this executor when a composition needs Bash command execution on POSIX without confinement. It registers as `ctx.shell`, and the model-facing `bash` tool works over it immediately: an agent calls the tool, and the command runs as a fresh `bash -c` process with the budgets below.
+Mount this executor when a composition needs Bash command execution on POSIX without confinement. It registers as `ctx.shell`, and the model-facing `bash` tool works over it immediately: an agent calls the tool, and the command runs as a fresh shell process with the budgets below. HarmonyOS commands use zsh syntax with user startup files disabled.
 
 ### Minimal configuration
 
@@ -81,7 +81,7 @@ This section explains the design of the executor and points at the code that rea
 
 ### Design concept
 
-The executor is a Service Provider for the `ctx.shell` seam built on the subprocess capability: it owns everything bash-shaped — command defaulting and caps, deadline fusion and cause classification, the model-friendly terminal environment, and the background read merge — while managed-range mechanics (bounded spill-backed output, credential scrub, termination escalation, quiescence, and disposal) belong to the subprocess service. Every call spawns a fresh non-login `bash -c` with no rc files, so commands are deterministic and shell state never leaks between calls.
+The executor is a Service Provider for the `ctx.shell` seam built on the subprocess capability: it owns everything bash-shaped — command defaulting and caps, deadline fusion and cause classification, the model-friendly terminal environment, and the background read merge — while managed-range mechanics (bounded spill-backed output, credential scrub, termination escalation, quiescence, and disposal) belong to the subprocess service. Every call spawns a fresh non-login platform shell, so commands are deterministic and shell state never leaks between calls.
 
 ### Source map
 
@@ -93,7 +93,7 @@ The executor is a Service Provider for the `ctx.shell` seam built on the subproc
 
 ### Main flow
 
-A call runs through three steps: `resolve()` fills `workdir`/`timeoutMs`/`onExpiry`/`stdoutMaxBytes` from config and the request (capping per-call overrides); `execute` wires the deadline per expiry policy — `'kill'` fuses the clamped timeout with the caller's abort signal, `'none'` arms nothing — and spawns `['bash', '-c', command]` through `ctx.subprocess` with explicit byte caps and the `graceMs`; the settled outcome is classified first-cause — only the executor's own timeout reports `timedOut`, an upstream cancel reports `aborted`, a self-signaled command reports neither — and `result()` projects it into a `ShellRunResult` with collected output.
+A call runs through three steps: `resolve()` fills `workdir`/`timeoutMs`/`onExpiry`/`stdoutMaxBytes` from config and the request (capping per-call overrides); `execute` wires the deadline per expiry policy — `'kill'` fuses the clamped timeout with the caller's abort signal, `'none'` arms nothing — and spawns the platform shell argv through `ctx.subprocess` with explicit byte caps and the `graceMs`; the settled outcome is classified first-cause — only the executor's own timeout reports `timedOut`, an upstream cancel reports `aborted`, a self-signaled command reports neither — and `result()` projects it into a `ShellRunResult` with collected output.
 
 The foreground deadline starts before argv preparation and retains the same signal and remaining budget through execution. Preparation timeout returns empty output, `timedOut: true`, and null `exitCode` and `signal`; caller cancellation before process publication still rejects. Late preparation success or failure cannot trigger a spawn.
 
@@ -137,8 +137,8 @@ No direct invalidation; the named consumer owns any request-prefix changes.
 These limits define when this executor is a poor fit. They are current package constraints, not a roadmap.
 
 - **Unconfined by itself** — commands run with the harness process's authority; deployments needing confinement compose `dsh-bash-sandbox`, while per-call allow/deny/ask policy belongs on the tools' `pre-execute` waterfall.
-- **No persistent shell or PTY** — every call starts a fresh non-login `bash -c`; cwd-only persistence and interactive terminal sessions remain deferred until a real workflow requires them.
-- **POSIX-only** — the `bash` binary is hardcoded and the underlying service's group semantics are POSIX; Windows is unsupported.
+- **No persistent shell or PTY** — every call starts a fresh non-login platform shell; use a persistent terminal backend when shell state must survive calls.
+- **POSIX-only** — commands require `/usr/bin/zsh` on HarmonyOS or `bash` elsewhere, and the underlying service's group semantics are POSIX; Windows is unsupported.
 - **A background provider-failure note is the whole stderr stream** — `SubprocessHandle.done` can reject before or after target execution begins, and the subprocess service buffers no output for a target that never reported, so the executor serves the stage-neutral `subprocess failed before reporting an outcome: …` as the observed stderr stream (offset readers re-read it at their own offsets) and folds it into exactly one `readOutput()` delta; a consuming reader that discards that delta recovers it only through `observed.stderr`.
 
 <a id="dev-note"></a>

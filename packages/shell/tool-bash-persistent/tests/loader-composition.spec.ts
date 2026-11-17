@@ -70,7 +70,8 @@ function text(result: { content: { type: string; text?: string }[] }): string {
   return result.content.filter(block => block.type === 'text').map(block => block.text).join('')
 }
 
-const suite = process.platform === 'linux' || process.platform === 'darwin' ? describe : describe.skip
+const ohos = (process.platform as string) === 'openharmony'
+const suite = process.platform === 'linux' || process.platform === 'darwin' || ohos ? describe : describe.skip
 
 suite('persistent Bash through a real cordis.yml Loader composition', () => {
   it('preserves cwd and environment across calls', async () => {
@@ -151,6 +152,11 @@ suite('persistent Bash through a real cordis.yml Loader composition', () => {
     const observed = text(await execute('observe', 'printf "cwd=%s keep=%s\\n" "$PWD" "$KEEP"'))
     expect(observed).toContain(`cwd=${join(root, 'nested')} keep=loader`)
     expect(observed).not.toContain('DSH_PERSISTENT_BASH')
+    if (ohos) {
+      const options = text(await execute('zsh-options',
+        '[[ ! -o ZLE && ! -o BANG_HIST ]] && python3 -c \'import termios; print("echo=%s" % bool(termios.tcgetattr(0)[3] & termios.ECHO))\''))
+      expect(options).toBe('echo=False\n[Command finished with exit code 0]')
+    }
 
     const multiline = text(await execute(
       'multiline',
@@ -193,8 +199,15 @@ suite('persistent Bash through a real cordis.yml Loader composition', () => {
     // `exec` replaces the wrapper before its end marker prints; the seam's
     // stdin_read readiness is what returns the replacement shell's prompt
     // instead of spinning until the tool deadline.
-    const execed = text(await execute('exec-replacement', 'exec bash --noprofile --norc -i'))
-    expect(execed).toBe('dsh> ')
+    const execed = text(await execute('exec-replacement', ohos ? 'exec /usr/bin/zsh -f -i' : 'exec bash --noprofile --norc -i'))
+    if (ohos) {
+      expect(execed).toBe('[shell exited]\nThe persistent zsh shell was reset; the next bash call starts from the workspace with a fresh current directory and environment.')
+      expect(context.terminals.list(owner)).toEqual([])
+      expect(text(await execute('after-exec', 'printf "EXEC_RESET=%s\\n" "$PWD"')))
+        .toBe(`EXEC_RESET=${root}\n[Command finished with exit code 0]`)
+    } else {
+      expect(execed).toBe('dsh> ')
+    }
 
     const exited = text(await execute('exit', 'exit'))
     expect(exited).toContain('next bash call starts from the workspace')

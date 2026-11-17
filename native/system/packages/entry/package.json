@@ -17,6 +17,10 @@
       "types": "./lib/flock.d.ts",
       "default": "./lib/flock.js"
     },
+    "./exclusive-file": {
+      "types": "./lib/exclusive-file.d.ts",
+      "default": "./lib/exclusive-file.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [
@@ -24,7 +28,9 @@
     "lib/",
     "!lib/*.tsbuildinfo",
     "src/main.c",
-    "src/flock.c"
+    "src/flock.c",
+    "src/exclusive-file.c",
+    "src/exclusive-file.h"
   ],
   "scripts": {
     "build:js": "tsc -b",
@@ -41,6 +47,7 @@
     "@deepseek-ai/node-addon-system-darwin-arm64": "workspace:~",
     "@deepseek-ai/node-addon-system-darwin-x64": "workspace:~",
     "@deepseek-ai/node-addon-system-linux-arm64": "workspace:~",
-    "@deepseek-ai/node-addon-system-linux-x64": "workspace:~"
+    "@deepseek-ai/node-addon-system-linux-x64": "workspace:~",
+    "@deepseek-ai/node-addon-system-openharmony-arm64": "workspace:~"
   }
 }

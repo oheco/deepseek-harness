@@ -93,7 +93,7 @@ export function resolveSpec(config: Config): ResolvedSpec {
   }
 }
 
-/** Permission bits outside the owner; a credentials document must have none of them. */
+/** Bits rejected by the owner-only rule; HarmonyOS exact `0660` is checked separately. */
 const GROUP_OTHER_BITS = 0o077
 
 /**
@@ -112,8 +112,8 @@ const GROUP_OTHER_BITS = 0o077
 const DOCUMENT_LOCK_WAIT_MS = 30_000
 
 /**
- * Reject a credentials document other OS users can read, before its contents
- * are read at all. The provider creates and replaces the file at `0600`, but a
+ * Reject a credentials document with disallowed permissions before reading
+ * its contents. The provider creates and replaces the file at `0600`, but a
  * hand-written or externally generated one carries whatever umask produced it,
  * and silently serving secrets out of a world-readable file would make the
  * mode the provider promises meaningless.
@@ -121,8 +121,10 @@ const DOCUMENT_LOCK_WAIT_MS = 30_000
  * POSIX only: Windows has no mode to inspect — its ACLs are not expressible
  * here — so the check is skipped rather than faked, and the file's protection
  * there is whatever the create and replace APIs express.
+ * HarmonyOS also accepts exact `0660`, which its shared HOME filesystem forces;
+ * all other group/other permissions remain refused. Creation still requests `0600`.
  * @param filename - absolute path of the document.
- * @throws when the path hierarchy is invalid or the file exists with group or other permission bits set.
+ * @throws when the path hierarchy is invalid or the file mode is not accepted.
  */
 async function assertOwnerOnly(filename: string): Promise<void> {
   let mode: number
@@ -137,7 +139,7 @@ async function assertOwnerOnly(filename: string): Promise<void> {
   if (process.platform === 'win32') return
   /* v8 ignore start -- Windows has no POSIX mode enforcement; POSIX behavior tests enforce this peer. */
   const offending = mode & GROUP_OTHER_BITS
-  if (offending === 0) return
+  if (offending === 0 || ((process.platform as string) === 'openharmony' && (mode & 0o7777) === 0o660)) return
   throw new Error(
     `credentials-local: ${filename} is readable beyond its owner (mode ${(mode & 0o777).toString(8)});`
     + ` run "chmod 600 ${filename}" before starting again`,

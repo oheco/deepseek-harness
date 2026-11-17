@@ -112,8 +112,11 @@ describe('saveFileVerbatim', () => {
     expect(again).toEqual(first)
     const renamed = await saveFileVerbatim(root, { data, name: 'b.txt' })
     expect(renamed.attachmentId).toBe(first.attachmentId)
-    expect((await stat(storedFilePath(root, first))).ino)
-      .toBe((await stat(storedFilePath(root, renamed))).ino)
+    const firstInode = (await stat(storedFilePath(root, first))).ino
+    const renamedInode = (await stat(storedFilePath(root, renamed))).ino
+    if ((process.platform as string) === 'openharmony') expect(firstInode).not.toBe(renamedInode)
+    else expect(firstInode).toBe(renamedInode)
+    expect(await readFile(storedFilePath(root, renamed))).toEqual(Buffer.from(data))
     const digestDir = join(root, 'files', sha256(data).slice(0, 2), sha256(data))
     expect((await readdir(digestDir)).sort()).toEqual(['a.txt', 'b.txt'])
   })

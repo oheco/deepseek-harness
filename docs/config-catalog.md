@@ -450,7 +450,7 @@ export interface Config {
 
 - `inject`: `subprocess`
 - `refs`: `Volatile` (`@deepseek-ai/cordis`)
-- `source`: [`packages/shell/bash-local/src/index.ts:41`](../packages/shell/bash-local/src/index.ts)
+- `source`: [`packages/shell/bash-local/src/index.ts:42`](../packages/shell/bash-local/src/index.ts)
 
 ```ts config-catalog
 /** Validated plugin configuration with live command budgets. */
@@ -3212,7 +3212,7 @@ export type SessionLogCompressionLevel = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
 
 ## `@deepseek-ai/dsh-session-persistence-jsonl`
 
-- `source`: [`packages/session/session-persistence-jsonl/src/index.ts:94`](../packages/session/session-persistence-jsonl/src/index.ts)
+- `source`: [`packages/session/session-persistence-jsonl/src/index.ts:95`](../packages/session/session-persistence-jsonl/src/index.ts)
 
 ```ts config-catalog
 /** Plugin config for the JSONL backend's root, physical encoding, and listing concurrency. */
@@ -3993,11 +3993,11 @@ export interface Config {
 export interface Config {
   /** Backend registry type (default: `shell`). */
   backendType?: string
-  /** Interactive shell dialect (default: `bash`); selects the argv/env/startup defaults. */
+  /** Interactive shell dialect (HarmonyOS: `zsh`; otherwise: `bash`); selects argv/env/startup defaults. */
   shellDialect?: ShellDialect
-  /** Interactive shell executable (default per dialect: `/bin/bash`, or the resolved pwsh). */
+  /** Interactive executable (default per dialect: `/bin/bash`, `/usr/bin/zsh`, or resolved pwsh). */
   shellPath?: string
-  /** Shell arguments (default per dialect: bash `--noprofile --norc -i`, pwsh `-NoLogo -NoProfile`). */
+  /** Shell arguments (bash `--noprofile --norc -i`, zsh `-f -i`, pwsh `-NoLogo -NoProfile`). */
   shellArgs?: string[]
   /** Terminal rows. */
   rows?: number
@@ -4029,14 +4029,14 @@ export interface Config {
    * nonzero tolerance always contains a readiness poll.
    */
   promptTailGraceMs?: number
-  /** Absolute bound for one send and the complete pwsh startup sequence. */
+  /** Absolute bound for one send and the complete zsh/pwsh startup sequence. */
   timeoutMs?: number
   /** Grace before teardown escalates to `SIGKILL`. */
   disposeGraceMs?: number
 }
 
 /** One supported interactive shell dialect. */
-export type ShellDialect = 'bash' | 'pwsh'
+export type ShellDialect = 'bash' | 'zsh' | 'pwsh'
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-terminal-bash -->
 
@@ -4200,7 +4200,7 @@ export interface Config {
 ## `@deepseek-ai/dsh-tool-bash-persistent`
 
 - `inject`: `tools` · `terminals` · `workingDirectory`
-- `source`: [`packages/shell/tool-bash-persistent/src/index.ts:448`](../packages/shell/tool-bash-persistent/src/index.ts)
+- `source`: [`packages/shell/tool-bash-persistent/src/index.ts:454`](../packages/shell/tool-bash-persistent/src/index.ts)
 
 ```ts config-catalog
 /** Configuration for the persistent Bash tool. */

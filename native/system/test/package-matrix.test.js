@@ -67,7 +67,7 @@ function fixture(t, { platform = 'linux', arch = 'x64', kind = 'node-api' } = {}
   const spec = { platform: `${platform}-${arch}`, binaries: [binary] };
   const manifest = { name: 'fixture', os: [platform], cpu: [arch] };
   const bytes = Buffer.alloc(256);
-  if (platform === 'linux') {
+  if (platform === 'linux' || platform === 'openharmony') {
     bytes.writeUInt32LE(0x464c457f, 0);
     bytes[4] = 2;
     bytes[5] = 1;
@@ -96,6 +96,24 @@ for (const platform of ['linux', 'darwin']) {
       assert.equal(verifyPlatformBinaries(fixture(t, { platform, arch }).dir).count, 1);
     });
   }
+}
+
+test('accepts HarmonyOS arm64 addon metadata and ELF header', (t) => {
+  assert.equal(verifyPlatformBinaries(fixture(t, { platform: 'openharmony', arch: 'arm64' }).dir).count, 1);
+});
+
+for (const [name, change, expected] of [
+  ['x64 architecture', f => { f.manifest.cpu = ['x64']; f.spec.platform = 'openharmony-x64'; }, /os\/cpu/],
+  ['Linux libc metadata', f => { f.binary.libc = 'musl'; }, /must not declare/],
+  ['wrong ELF architecture', f => { f.bytes.writeUInt16LE(62, 18); fs.writeFileSync(f.file, f.bytes); }, /ELF architecture/],
+  ['wrong ELF type', f => { f.bytes.writeUInt16LE(2, 16); fs.writeFileSync(f.file, f.bytes); }, /ELF file type/],
+]) {
+  test(`rejects HarmonyOS ${name}`, (t) => {
+    const f = fixture(t, { platform: 'openharmony', arch: 'arm64' });
+    change(f);
+    f.save();
+    assert.throws(() => verifyPlatformBinaries(f.dir), expected);
+  });
 }
 
 test('accepts the Linux static launcher format', (t) => {

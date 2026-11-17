@@ -1,0 +1,21 @@
+{
+  "writable_argv": true,
+  "time_t_unsigned": false,
+  "linux_tcp_with_libc_socket_headers": false,
+  "runtime_probe": "native compiled, OHOS-signed when required, executed before CMake",
+  "compile_probes": "native CMake compile/link checks; no unsigned execution",
+  "tls_libraries": [
+    "lib/libssl.a",
+    "lib/libcrypto.a"
+  ],
+  "cxx_runtime": "c++",
+  "platform": "ohos",
+  "curl_version": "8.22.0",
+  "protocol_profile": [
+    "http",
+    "https",
+    "ws",
+    "wss"
+  ],
+  "websocket_api": "public curl_ws_recv/curl_ws_send, CONNECT_ONLY=2"
+}

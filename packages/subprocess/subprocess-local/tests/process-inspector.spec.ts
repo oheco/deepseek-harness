@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   createProcessInspector,
   linuxProcessGroupLiveMember,
@@ -87,6 +87,37 @@ function fakeInternals() {
     setTpgid(value: string) { tpgid = value },
   }
 }
+
+describe('HarmonyOS process inspection', () => {
+  it('uses the terminal descriptor and retains proc identities without claiming syscall readiness', () => {
+    const fake = fakeInternals()
+    fake.files.set('/proc/100/stat', stat(100, 100, 100, 0, '500'))
+    fake.files.set('/proc/101/stat', stat(101, 101, 100, 0, '501', 100))
+    fake.dirs.set('/proc', ['100', '101'])
+    const queryForeground = vi.fn((_fd: number) => 101)
+    fake.internals.terminalForegroundPgid = queryForeground
+    const inspector = createProcessInspector('openharmony', 'arm64', fake.internals)
+    expect(inspector.foregroundPgid(100)).toBeUndefined()
+    expect(queryForeground).not.toHaveBeenCalled()
+    expect(inspector.foregroundPgid(100, 9)).toBe(101)
+    expect(queryForeground).toHaveBeenCalledExactlyOnceWith(9)
+    queryForeground.mockReturnValueOnce(0).mockReturnValueOnce(-1)
+    expect(inspector.foregroundPgid(100, 9)).toBeUndefined()
+    expect(inspector.foregroundPgid(100, 9)).toBeUndefined()
+    expect(inspector.isStdinWaiting(101, 100)).toBe(false)
+    const observed = inspector.snapshot()
+    expect(observed.complete).toBe(true)
+    expect(observed.tree(100)).toEqual([{ pid: 101, started: '501' }, { pid: 100, started: '500' }])
+    expect(inspector.isAlive({ pid: 101, started: '501' })).toBe(true)
+    fake.files.set('/proc/101/stat', stat(101, 101, 100, 0, '502', 100))
+    inspector.signalProcess({ pid: 101, started: '501' }, 'SIGKILL')
+    expect(fake.kills).toEqual([])
+    fake.files.delete('/proc/101/stat')
+    expect(inspector.snapshot().complete).toBe(false)
+    fake.dirs.delete('/proc')
+    expect(() => inspector.snapshot()).toThrow('/proc directory is unreadable')
+  })
+})
 
 describe('Linux process inspector', () => {
   it.each(['EACCES', 'EMFILE'])('refuses to publish an empty snapshot when /proc enumeration fails with %s', (code) => {

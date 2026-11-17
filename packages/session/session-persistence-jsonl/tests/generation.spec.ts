@@ -71,10 +71,19 @@ async function openWithPosixDirectorySync(path: string, flags: string, mode?: nu
   return handle
 }
 
+/** Simulate exclusive POSIX publication on a host that does not permit hardlinks. */
+async function linkForPosixSimulation(existingPath: string, newPath: string): Promise<void> {
+  if ((process.platform as string) === 'openharmony') {
+    await writeFile(newPath, await readFile(existingPath), { flag: 'wx' })
+    return
+  }
+  await link(existingPath, newPath)
+}
+
 function posixSimulationFs<T extends Record<string, unknown>>(
   overrides: T,
-): T & { readonly open: typeof openWithPosixDirectorySync } {
-  return { open: openWithPosixDirectorySync, ...overrides }
+): T & { readonly open: typeof openWithPosixDirectorySync; readonly link: typeof linkForPosixSimulation } {
+  return { open: openWithPosixDirectorySync, link: linkForPosixSimulation, ...overrides }
 }
 
 function header(version: number, id = 'generation-test'): Record<string, unknown> {
@@ -586,7 +595,7 @@ describe('JSONL immutable generation publication', () => {
       ...identical,
       verifyCurrentFile: async (path, compression, expectedId, expectedEventCount) => {
         const verified = await verifyJsonlCurrentGeneration(path, compression, expectedId, expectedEventCount)
-        if (path !== identical.currentPath) await link(path, identical.currentPath)
+        if (path !== identical.currentPath) await linkForPosixSimulation(path, identical.currentPath)
         return verified
       },
     })
@@ -1228,7 +1237,8 @@ describe('JSONL immutable generation publication', () => {
     },
   )
 
-  it('accepts an identical regular hardlink target', async () => {
+  // The application sandbox denies native hardlinks even in its private temporary filesystem.
+  it.skipIf((process.platform as string) === 'openharmony')('accepts an identical regular hardlink target', async () => {
     const root = await tempRoot()
     const request = options(root)
     const expected = join(root, 'expected.jsonl')
@@ -1301,7 +1311,7 @@ describe('JSONL immutable generation publication', () => {
 
     await expect(ensureWithOverrides(
       request,
-      { platform: 'darwin', fs: { open: openFile } },
+      { platform: 'darwin', fs: posixSimulationFs({ open: openFile }) },
     )).rejects.toBe(directorySyncFailure)
     expect((await readdir(root)).sort()).toEqual(['session.jsonl', `session.v${SESSION_FORMAT_VERSION}.jsonl`])
 
@@ -1604,8 +1614,72 @@ describe('JSONL immutable generation publication', () => {
     expect((await readdir(root)).every(name => !name.includes('.tmp'))).toBe(true)
   })
 
+  it('uses HarmonyOS exclusive publication without replacing the source', async () => {
+    const root = await tempRoot()
+    const request = options(root)
+    const source = Buffer.from(line(header(0)) + line(event0))
+    await writeFile(request.sourcePath, source)
+    const publishNewOhos = vi.fn(async (from: string, to: string) => { await rename(from, to) })
+    await ensureWithOverrides(request, { platform: 'openharmony', publishNewOhos, fs: posixSimulationFs({}) })
+    expect(publishNewOhos).toHaveBeenCalledOnce()
+    expect(publishNewOhos.mock.calls[0]?.[1]).toBe(request.currentPath)
+    expect(await readFile(request.sourcePath)).toEqual(source)
+    expect(await readFile(request.currentPath, 'utf8')).toBe(line(header(SESSION_FORMAT_VERSION)) + line(event0))
+    expect((await readdir(root)).every(name => !name.includes('.tmp'))).toBe(true)
+  })
+
+  it.each([false, true])('does not clean consumed HarmonyOS staging after publication (sync failure: %s)', async (failSync) => {
+    const root = await tempRoot()
+    const request = options(root)
+    const source = Buffer.from(line(header(0)) + line(event0))
+    await writeFile(request.sourcePath, source)
+    const syncFailure = new Error('published HarmonyOS directory sync failed')
+    let published = false
+    let directorySyncs = 0
+    const publishNewOhos = vi.fn(async (from: string, to: string) => {
+      await rename(from, to)
+      published = true
+    })
+    const remove = vi.fn(async (path: string) => { await rm(path) })
+    const openFile = async (path: string, flags: string, mode?: number) => {
+      const handle = await openWithPosixDirectorySync(path, flags, mode)
+      if (path === root && flags === 'r') vi.spyOn(handle, 'sync').mockImplementation(async () => {
+        expect(published).toBe(true)
+        directorySyncs += 1
+        if (failSync) throw syncFailure
+      })
+      return handle
+    }
+    const publication = ensureWithOverrides(request, {
+      platform: 'openharmony', publishNewOhos,
+      fs: { open: openFile, rm: remove },
+    })
+    if (failSync) await expect(publication).rejects.toBe(syncFailure)
+    else await expect(publication).resolves.toMatchObject({ path: request.currentPath })
+    expect(publishNewOhos).toHaveBeenCalledOnce()
+    expect(directorySyncs).toBe(1)
+    expect(remove).not.toHaveBeenCalled()
+    expect(await readFile(request.sourcePath)).toEqual(source)
+    expect(await readFile(request.currentPath, 'utf8')).toBe(line(header(SESSION_FORMAT_VERSION)) + line(event0))
+    expect((await readdir(root)).every(name => !name.includes('.tmp'))).toBe(true)
+  })
+
+  it('accepts an identical target that wins HarmonyOS publication', async () => {
+    const root = await tempRoot()
+    const request = options(root)
+    await writeFile(request.sourcePath, line(header(0)) + line(event0))
+    const publishNewOhos = vi.fn(async (_from: string, to: string) => {
+      await writeFile(to, line(header(SESSION_FORMAT_VERSION)) + line(event0))
+      throw fsError('EEXIST')
+    })
+    await expect(ensureWithOverrides(request, {
+      platform: 'openharmony', publishNewOhos, fs: posixSimulationFs({}),
+    })).resolves.toMatchObject({ path: request.currentPath })
+    expect((await readdir(root)).every(name => !name.includes('.tmp'))).toBe(true)
+  })
+
   it('propagates non-collision Windows and POSIX publication failures', async () => {
-    for (const platform of ['win32', 'darwin'] as const) {
+    for (const platform of ['win32', 'openharmony', 'darwin'] as const) {
       const root = await tempRoot()
       const request = options(root)
       const failure = new Error(`${platform} publication failed`)
@@ -1613,7 +1687,9 @@ describe('JSONL immutable generation publication', () => {
 
       await expect(ensureWithOverrides(request, platform === 'win32'
         ? { platform, publishNewWin32: async () => { throw failure } }
-        : { platform, fs: posixSimulationFs({ link: async () => { throw failure } }) }))
+        : platform === 'openharmony'
+          ? { platform, publishNewOhos: async () => { throw failure }, fs: posixSimulationFs({}) }
+          : { platform, fs: posixSimulationFs({ link: async () => { throw failure } }) }))
         .rejects.toBe(failure)
       expect(await readdir(root)).toEqual(['session.jsonl'])
     }
@@ -1625,7 +1701,7 @@ describe('JSONL immutable generation publication', () => {
     await writeFile(request.sourcePath, line(header(0)) + line(event0))
     let raced = false
     const linkFile = async (existingPath: string, newPath: string) => {
-      await link(existingPath, newPath)
+      await linkForPosixSimulation(existingPath, newPath)
       raced = true
       throw fsError('EEXIST')
     }

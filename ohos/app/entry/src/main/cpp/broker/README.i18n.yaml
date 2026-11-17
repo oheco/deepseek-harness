@@ -1,0 +1,19 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write ohos/app/entry/src/main/cpp/broker/README.md
+/native-broker-client-reference:
+  en: add5562d20493aa2
+  zh: 0c61da40447952ec
+/native-broker-client-reference/authentication-and-mapping:
+  en: 8add73756f22cad6
+  zh: 23e341cb29fec6ae
+/native-broker-client-reference/recovery-and-ownership:
+  en: 124161fae22e328d
+  zh: a8bccec7fc717e01
+/native-broker-client-reference/offline-build-inputs:
+  en: 03b6ead2c0ab28a0
+  zh: 5152dc3e6a70b8c3
+/native-broker-client-reference/verification-limits:
+  en: 89d71a913c15061d
+  zh: a292f318bb36264d

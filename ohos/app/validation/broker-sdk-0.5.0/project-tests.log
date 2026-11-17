@@ -1,0 +1,41 @@
+test_app_icons_follow_the_layered_icon_specification (__main__.ProjectTests.test_app_icons_follow_the_layered_icon_specification) ... ok
+test_app_identity_and_sdk_match_the_requested_package (__main__.ProjectTests.test_app_identity_and_sdk_match_the_requested_package) ... ok
+test_artifact_urls_use_the_matching_immutable_release (__main__.ProjectTests.test_artifact_urls_use_the_matching_immutable_release) ... ok
+test_broker_input_validation_rejects_changed_sdk_archive_native_and_license_bytes (__main__.ProjectTests.test_broker_input_validation_rejects_changed_sdk_archive_native_and_license_bytes) ... ok
+test_case_conflicts_rejected_on_private_filesystem (__main__.ProjectTests.test_case_conflicts_rejected_on_private_filesystem) ... ok
+test_copy_omits_build_trees_and_refuses_credentials (__main__.ProjectTests.test_copy_omits_build_trees_and_refuses_credentials) ... ok
+test_copy_rejects_escaping_file_and_directory_links (__main__.ProjectTests.test_copy_rejects_escaping_file_and_directory_links) ... ok
+test_default_command_requires_a_private_config_directory (__main__.ProjectTests.test_default_command_requires_a_private_config_directory) ... ok
+test_default_command_resolves_relocated_entry_without_changing_parent_environment (__main__.ProjectTests.test_default_command_resolves_relocated_entry_without_changing_parent_environment) ... ok
+test_default_command_uses_installed_dsh_with_private_command_state (__main__.ProjectTests.test_default_command_uses_installed_dsh_with_private_command_state) ... ok
+test_explicit_launcher_export_keeps_local_override_metadata_and_quoted_paths (__main__.ProjectTests.test_explicit_launcher_export_keeps_local_override_metadata_and_quoted_paths) ... ok
+test_export_sync_never_opens_signing_identity_or_runtime_defaults (__main__.ProjectTests.test_export_sync_never_opens_signing_identity_or_runtime_defaults) ... ok
+test_export_sync_protects_private_files_and_untrusted_state_paths (__main__.ProjectTests.test_export_sync_protects_private_files_and_untrusted_state_paths) ... ok
+test_generated_command_quotes_paths_and_uses_the_new_log (__main__.ProjectTests.test_generated_command_quotes_paths_and_uses_the_new_log) ... ok
+test_generated_home_is_a_string_literal_not_a_shell_command (__main__.ProjectTests.test_generated_home_is_a_string_literal_not_a_shell_command) ... ok
+test_invalid_release_url_and_missing_explicit_launcher_create_no_output (__main__.ProjectTests.test_invalid_release_url_and_missing_explicit_launcher_create_no_output) ... ok
+test_manifests_reference_the_layered_icon (__main__.ProjectTests.test_manifests_reference_the_layered_icon) ... ok
+test_manual_connections_use_only_internet_permission (__main__.ProjectTests.test_manual_connections_use_only_internet_permission) ... ok
+test_packaging_exports_new_directory_and_refuses_existing_output (__main__.ProjectTests.test_packaging_exports_new_directory_and_refuses_existing_output) ... FAIL
+test_page_uses_the_exported_connection_settings (__main__.ProjectTests.test_page_uses_the_exported_connection_settings) ... ok
+test_template_has_no_personal_signing_or_generated_inputs (__main__.ProjectTests.test_template_has_no_personal_signing_or_generated_inputs) ... ok
+test_zip_records_executable_bytes_and_stable_root (__main__.ProjectTests.test_zip_records_executable_bytes_and_stable_root) ... ok
+
+======================================================================
+FAIL: test_packaging_exports_new_directory_and_refuses_existing_output (__main__.ProjectTests.test_packaging_exports_new_directory_and_refuses_existing_output)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/storage/Users/currentUser/dev/ohos/deepseek-harness-0.2.0/ohos/test-app-project.py", line 322, in test_packaging_exports_new_directory_and_refuses_existing_output
+    self.assertEqual(info['broker_inputs']['sdk_version'], '0.4.0')
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: '0.5.0' != '0.4.0'
+- 0.5.0
+?   ^
++ 0.4.0
+?   ^
+
+
+----------------------------------------------------------------------
+Ran 22 tests in 508.800s
+
+FAILED (failures=1)

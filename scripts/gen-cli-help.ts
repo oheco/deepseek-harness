@@ -209,6 +209,7 @@ async function collectHelp(): Promise<HelpPage[]> {
     }
     for (const name of ['NODE_OPTIONS', 'FORCE_COLOR']) Reflect.deleteProperty(environment, name)
     const help = execFileAsync(process.execPath, [
+      ...((process.platform as string) === 'openharmony' ? ['--expose-internals'] : []),
       '--import', 'tsx/esm', 'apps/cli/src/bin.ts', ...args, '--help',
     ], {
       cwd: root, env: environment, encoding: 'utf8', timeout: 30_000,

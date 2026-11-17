@@ -290,12 +290,33 @@ describe('normalizeImage', () => {
   })
 
   it('keeps an antialiased text screenshot readable on the JPEG ladder', async () => {
+    // Fixed glyph outlines keep this PNG fixture independent of installed fonts.
+    const glyphs = {
+      R: ['11110', '10001', '10001', '11110', '10100', '10010', '10001'],
+      e: ['00000', '00000', '01110', '10001', '11111', '10000', '01111'],
+      a: ['00000', '00000', '01110', '00001', '01111', '10001', '01111'],
+      d: ['00001', '00001', '01111', '10001', '10001', '10001', '01111'],
+      b: ['10000', '10000', '11110', '10001', '10001', '10001', '11110'],
+      l: ['01100', '00100', '00100', '00100', '00100', '00100', '01110'],
+      t: ['00100', '00100', '11111', '00100', '00100', '00100', '00011'],
+      x: ['00000', '00000', '10001', '01010', '00100', '01010', '10001'],
+      ' ': ['00000', '00000', '00000', '00000', '00000', '00000', '00000'],
+    } as const
+    const text = ['R', 'e', 'a', 'd', 'a', 'b', 'l', 'e', ' ', 't', 'e', 'x', 't'] as const
+    const outline = text.flatMap((glyph, index) => glyphs[glyph].flatMap((row, y) =>
+      Array.from(row).flatMap((pixel, x) => pixel === '1' ? [`M${index * 6 + x} ${y}h1v1h-1z`] : []),
+    )).join(' ')
     const source = new Uint8Array(await sharp(Buffer.from(`
       <svg width="1024" height="512" xmlns="http://www.w3.org/2000/svg">
+        <title>Readable text</title>
         <rect width="1024" height="512" fill="white"/>
-        <text x="48" y="290" font-size="170" fill="#112f4d">Readable text</text>
+        <path fill="#112f4d" transform="translate(48.25 176.25) scale(11.75 17.5)" d="${outline}"/>
       </svg>
     `)).removeAlpha().png().toBuffer())
+    const sourcePixels = await sharp(source).greyscale().raw().toBuffer()
+    expect(sourcePixels.some(pixel => pixel < 80)).toBe(true)
+    expect(sourcePixels.some(pixel => pixel > 240)).toBe(true)
+    expect(sourcePixels.some(pixel => pixel > 100 && pixel < 200)).toBe(true)
 
     const normalized = await normalizeImage(source, await detectImage(source), {
       maxPixels: POLICY.maxPixels,
